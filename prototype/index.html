@@ -117,6 +117,15 @@
     .dragging { opacity: .5; transform: scale(.98); }
     .drag-over { border-top: 2px solid #3b82f6; }
 
+    /* ===== ASAP Blink (all themes) ===== */
+    .asap-blink {
+      animation: asapPulse 2.5s ease-in-out infinite;
+    }
+    @keyframes asapPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+      50% { box-shadow: 0 0 12px 2px rgba(239,68,68,.25); }
+    }
+
     /* ===== Highlight Glow ===== */
     .highlighted { position: relative; }
     .highlighted::before {
@@ -239,75 +248,86 @@
     .theme-neon .pin-card { background: rgba(20,20,50,.9) !important; border: 1px solid rgba(100,100,255,.2) !important; }
 
     /* ===== Theme: Colorful — Light ===== */
-    .theme-colorful .list-panel:nth-child(odd):nth-child(1) { background: linear-gradient(135deg, #fef3c7, #fde68a) !important; }
-    .theme-colorful .list-panel:nth-child(odd):nth-child(3) { background: linear-gradient(135deg, #fce7f3, #fbcfe8) !important; }
-    .theme-colorful .list-panel:nth-child(odd):nth-child(5) { background: linear-gradient(135deg, #ede9fe, #ddd6fe) !important; }
-    .theme-colorful .list-panel:nth-child(even):nth-child(2) { background: linear-gradient(135deg, #dbeafe, #bfdbfe) !important; }
-    .theme-colorful .list-panel:nth-child(even):nth-child(4) { background: linear-gradient(135deg, #d1fae5, #a7f3d0) !important; }
-    .theme-colorful .task-item { background: rgba(255,255,255,.85) !important; }
+    .theme-colorful { background: linear-gradient(160deg, #fef7f0 0%, #f0f4ff 40%, #fdf2f8 100%) !important; }
+    .theme-colorful .list-panel:nth-child(1) { background: linear-gradient(145deg, #fff5f0, #fce7d6) !important; border-color: #fdba74 !important; }
+    .theme-colorful .list-panel:nth-child(3) { background: linear-gradient(145deg, #eef4ff, #d4e4ff) !important; border-color: #93c5fd !important; }
+    .theme-colorful .list-panel:nth-child(5) { background: linear-gradient(145deg, #fdf2f8, #fce7f3) !important; border-color: #f9a8d4 !important; }
+    .theme-colorful .list-panel:nth-child(7) { background: linear-gradient(145deg, #f0fdf4, #dcfce7) !important; border-color: #86efac !important; }
+    .theme-colorful .list-panel:nth-child(9) { background: linear-gradient(145deg, #f5f3ff, #ede9fe) !important; border-color: #c4b5fd !important; }
+    .theme-colorful .task-item { background: rgba(255,255,255,.88) !important; border: 1px solid rgba(0,0,0,.06) !important; }
+    .theme-colorful .task-item:hover { background: rgba(255,255,255,.96) !important; box-shadow: 0 2px 8px rgba(0,0,0,.06) !important; }
     .theme-colorful .custom-checkbox input:checked + .checkmark { background: #8b5cf6; border-color: #8b5cf6; }
-    .theme-colorful .header-bar { background: linear-gradient(135deg, #f0abfc, #c084fc, #818cf8) !important; }
+    .theme-colorful .header-bar { background: linear-gradient(135deg, #f97316, #ec4899, #8b5cf6) !important; border-bottom: none !important; }
     .theme-colorful .header-bar * { color: white !important; }
-    /* Colorful Light: ALL text elements forced dark for contrast */
-    .theme-colorful .list-panel h2,
-    .theme-colorful .list-panel .task-text,
-    .theme-colorful .list-panel .text-sm,
-    .theme-colorful .list-panel .text-xs { color: #1e293b !important; }
+    .theme-colorful .header-bar .theme-btn { color: rgba(255,255,255,.7) !important; }
+    .theme-colorful .header-bar .theme-btn.bg-white { color: #7c3aed !important; background: white !important; }
+    .theme-colorful .list-panel h2 { color: #1e293b !important; }
     .theme-colorful .task-item .task-text { color: #111827 !important; }
     .theme-colorful .task-item .badge-priority { color: #fff !important; }
-    .theme-colorful .task-item .badge-timeframe { background: rgba(255,255,255,.7) !important; color: #374151 !important; border-color: rgba(0,0,0,.15) !important; }
-    .theme-colorful .task-item .task-meta { color: #4b5563 !important; }
-    .theme-colorful .task-item .task-date { color: #4b5563 !important; }
-    .theme-colorful .task-item .subtask-info { color: #4b5563 !important; }
+    .theme-colorful .task-item .badge-timeframe { background: rgba(255,255,255,.8) !important; color: #374151 !important; border-color: rgba(0,0,0,.1) !important; }
+    .theme-colorful .task-item .task-meta,
+    .theme-colorful .task-item .task-date,
+    .theme-colorful .task-item .subtask-info { color: #6b7280 !important; }
+    .theme-colorful .subtask-item .text-xs { color: #374151 !important; }
     .theme-colorful .section-divider span { color: #374151 !important; }
-    .theme-colorful .section-divider .divider-line { background: rgba(0,0,0,.15) !important; }
-    .theme-colorful .list-panel .list-count { color: #374151 !important; background: rgba(255,255,255,.5) !important; }
-    .theme-colorful .quick-add-input { background: rgba(255,255,255,.7) !important; border-color: rgba(0,0,0,.12) !important; color: #1f2937 !important; }
-    .theme-colorful .quick-add-input::placeholder { color: #6b7280 !important; }
-    .theme-colorful .sidebar { background: linear-gradient(180deg, #fef3c7, #dbeafe, #fce7f3) !important; }
+    .theme-colorful .section-divider .divider-line { background: rgba(0,0,0,.1) !important; }
+    .theme-colorful .list-panel .list-count { color: #374151 !important; background: rgba(255,255,255,.6) !important; }
+    .theme-colorful .quick-add-input { background: rgba(255,255,255,.8) !important; border-color: rgba(0,0,0,.08) !important; color: #1f2937 !important; }
+    .theme-colorful .quick-add-input::placeholder { color: #9ca3af !important; }
+    .theme-colorful .quick-add-btn { background: linear-gradient(135deg, #8b5cf6, #ec4899) !important; }
+    .theme-colorful .sidebar { background: linear-gradient(180deg, #fff5f0, #eef4ff, #fdf2f8) !important; }
     .theme-colorful .sidebar * { color: #1e293b !important; }
-    .theme-colorful .context-menu { background: rgba(255,255,255,.97) !important; }
+    .theme-colorful .context-menu { background: rgba(255,255,255,.98) !important; border: 1px solid rgba(0,0,0,.08) !important; }
     .theme-colorful .context-menu * { color: #1e293b !important; }
-    .theme-colorful .note-popover { background: rgba(255,255,255,.97) !important; }
-    .theme-colorful .pinboard-area { background: linear-gradient(135deg, rgba(251,191,36,.1), rgba(139,92,246,.1)) !important; }
-    .theme-colorful .pin-card { background: rgba(255,255,255,.9) !important; }
+    .theme-colorful .note-popover { background: rgba(255,255,255,.98) !important; border: 1px solid rgba(0,0,0,.08) !important; }
+    .theme-colorful .pinboard-area { background: linear-gradient(135deg, rgba(249,115,22,.05), rgba(139,92,246,.05)) !important; border-color: rgba(0,0,0,.06) !important; }
+    .theme-colorful .pin-card { background: rgba(255,255,255,.92) !important; border-color: rgba(0,0,0,.06) !important; }
     .theme-colorful .pin-card * { color: #1e293b !important; }
-    .theme-colorful .done-toggle-btn { color: #4b5563 !important; }
-    .theme-colorful .collapse-all-btn { color: #4b5563 !important; }
-    .theme-colorful .progress-segment { background: rgba(0,0,0,.1) !important; }
+    .theme-colorful .done-toggle-btn { color: #6b7280 !important; }
+    .theme-colorful .collapse-all-btn { color: #6b7280 !important; }
+    .theme-colorful .drag-handle { color: #9ca3af !important; }
+    .theme-colorful .subtask-drag-handle { color: #9ca3af !important; }
+    .theme-colorful .progress-segment { background: rgba(0,0,0,.08) !important; }
     .theme-colorful .progress-segment.active-0 { background: #9ca3af !important; }
     .theme-colorful .progress-segment.active-1 { background: #3b82f6 !important; }
     .theme-colorful .progress-segment.active-2 { background: #f59e0b !important; }
     .theme-colorful .progress-segment.active-3 { background: #22c55e !important; }
 
     /* ===== Theme: Colorful — Dark ===== */
-    .dark.theme-colorful .list-panel:nth-child(odd):nth-child(1) { background: linear-gradient(135deg, #78350f, #92400e) !important; }
-    .dark.theme-colorful .list-panel:nth-child(even):nth-child(2) { background: linear-gradient(135deg, #1e3a5f, #1e40af) !important; }
-    .dark.theme-colorful .list-panel:nth-child(odd):nth-child(3) { background: linear-gradient(135deg, #831843, #9d174d) !important; }
-    .dark.theme-colorful .list-panel:nth-child(even):nth-child(4) { background: linear-gradient(135deg, #064e3b, #065f46) !important; }
-    .dark.theme-colorful .list-panel:nth-child(odd):nth-child(5) { background: linear-gradient(135deg, #3b0764, #4c1d95) !important; }
-    .dark.theme-colorful .task-item { background: rgba(0,0,0,.35) !important; }
-    .dark.theme-colorful .list-panel h2,
-    .dark.theme-colorful .list-panel .task-text,
-    .dark.theme-colorful .list-panel .text-sm,
-    .dark.theme-colorful .list-panel .text-xs { color: #f1f5f9 !important; }
+    .dark.theme-colorful { background: #0d0b0f !important; }
+    .dark.theme-colorful .list-panel:nth-child(1) { background: linear-gradient(145deg, #1f1410, #2a1b14) !important; border-color: #5c3520 !important; }
+    .dark.theme-colorful .list-panel:nth-child(3) { background: linear-gradient(145deg, #0f1520, #141d2e) !important; border-color: #1e3a5f !important; }
+    .dark.theme-colorful .list-panel:nth-child(5) { background: linear-gradient(145deg, #1f1018, #2a1520) !important; border-color: #5f1e3a !important; }
+    .dark.theme-colorful .list-panel:nth-child(7) { background: linear-gradient(145deg, #101f14, #152a1b) !important; border-color: #1e5f35 !important; }
+    .dark.theme-colorful .list-panel:nth-child(9) { background: linear-gradient(145deg, #16102a, #1e1538) !important; border-color: #3a1e5f !important; }
+    .dark.theme-colorful .task-item { background: rgba(255,255,255,.06) !important; border: 1px solid rgba(255,255,255,.08) !important; }
+    .dark.theme-colorful .task-item:hover { background: rgba(255,255,255,.1) !important; }
+    .dark.theme-colorful .header-bar { background: linear-gradient(135deg, #c2410c, #be185d, #6d28d9) !important; border-bottom: none !important; }
+    .dark.theme-colorful .list-panel h2 { color: #f1f5f9 !important; }
     .dark.theme-colorful .task-item .task-text { color: #f3f4f6 !important; }
-    .dark.theme-colorful .task-item .badge-timeframe { background: rgba(0,0,0,.3) !important; color: #e2e8f0 !important; border-color: rgba(255,255,255,.2) !important; }
+    .dark.theme-colorful .task-item .badge-timeframe { background: rgba(255,255,255,.1) !important; color: #e2e8f0 !important; border-color: rgba(255,255,255,.12) !important; }
     .dark.theme-colorful .task-item .task-meta,
     .dark.theme-colorful .task-item .task-date,
-    .dark.theme-colorful .task-item .subtask-info { color: #cbd5e1 !important; }
-    .dark.theme-colorful .section-divider span { color: #e2e8f0 !important; }
-    .dark.theme-colorful .section-divider .divider-line { background: rgba(255,255,255,.2) !important; }
-    .dark.theme-colorful .list-panel .list-count { color: #e2e8f0 !important; background: rgba(0,0,0,.3) !important; }
-    .dark.theme-colorful .quick-add-input { background: rgba(0,0,0,.3) !important; border-color: rgba(255,255,255,.15) !important; color: #f3f4f6 !important; }
-    .dark.theme-colorful .sidebar { background: linear-gradient(180deg, #78350f, #1e3a5f, #831843) !important; }
+    .dark.theme-colorful .task-item .subtask-info { color: #94a3b8 !important; }
+    .dark.theme-colorful .subtask-item .text-xs { color: #cbd5e1 !important; }
+    .dark.theme-colorful .section-divider span { color: #cbd5e1 !important; }
+    .dark.theme-colorful .section-divider .divider-line { background: rgba(255,255,255,.1) !important; }
+    .dark.theme-colorful .list-panel .list-count { color: #e2e8f0 !important; background: rgba(255,255,255,.1) !important; }
+    .dark.theme-colorful .quick-add-input { background: rgba(0,0,0,.3) !important; border-color: rgba(255,255,255,.1) !important; color: #f3f4f6 !important; }
+    .dark.theme-colorful .quick-add-btn { background: linear-gradient(135deg, #6d28d9, #be185d) !important; }
+    .dark.theme-colorful .sidebar { background: linear-gradient(180deg, #1f1410, #0f1520, #1f1018) !important; }
     .dark.theme-colorful .sidebar * { color: #f1f5f9 !important; }
-    .dark.theme-colorful .context-menu { background: rgba(30,30,50,.97) !important; }
+    .dark.theme-colorful .context-menu { background: rgba(20,15,25,.98) !important; border: 1px solid rgba(255,255,255,.1) !important; }
     .dark.theme-colorful .context-menu * { color: #f1f5f9 !important; }
+    .dark.theme-colorful .note-popover { background: rgba(20,15,25,.98) !important; border: 1px solid rgba(255,255,255,.1) !important; }
+    .dark.theme-colorful .pinboard-area { background: rgba(15,10,20,.6) !important; border-color: rgba(255,255,255,.06) !important; }
+    .dark.theme-colorful .pin-card { background: rgba(255,255,255,.06) !important; border-color: rgba(255,255,255,.08) !important; }
     .dark.theme-colorful .pin-card * { color: #f1f5f9 !important; }
-    .dark.theme-colorful .done-toggle-btn { color: #cbd5e1 !important; }
-    .dark.theme-colorful .collapse-all-btn { color: #cbd5e1 !important; }
-    .dark.theme-colorful .progress-segment { background: rgba(255,255,255,.1) !important; }
+    .dark.theme-colorful .done-toggle-btn { color: #94a3b8 !important; }
+    .dark.theme-colorful .collapse-all-btn { color: #94a3b8 !important; }
+    .dark.theme-colorful .drag-handle { color: #4a5568 !important; }
+    .dark.theme-colorful .subtask-drag-handle { color: #4a5568 !important; }
+    .dark.theme-colorful .progress-segment { background: rgba(255,255,255,.08) !important; }
 
     /* Dark mode overrides */
     .dark .list-panel { background: #1e1e2e; border-color: #2e2e3e; }
@@ -347,7 +367,7 @@
 
     /* ===== Emoji Picker ===== */
     .emoji-picker {
-      position: absolute; z-index: 90; background: white; border-radius: 12px;
+      position: fixed; z-index: 90; background: white; border-radius: 12px;
       padding: 8px; box-shadow: 0 12px 40px rgba(0,0,0,.15);
       display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
       animation: contextMenuIn .2s cubic-bezier(.34,1.56,.64,1) forwards;
@@ -363,10 +383,108 @@
 
     /* ===== Task Row Layout Fix ===== */
     .task-row { display: flex; align-items: center; gap: 8px; min-height: 28px; }
-    .task-content { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
-    .task-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
-    .task-badges { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .task-content { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .task-text { flex-shrink: 1; min-width: 80px; cursor: default; word-break: break-word; }
+    .task-badges { display: flex; align-items: center; gap: 4px; flex-shrink: 0; flex-wrap: wrap; }
     .task-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+
+    /* ===== Inline Edit Task/Subtask ===== */
+    .inline-edit-task {
+      background: transparent; border: none; outline: none; font-size: inherit;
+      font-weight: inherit; color: inherit; width: 100%; padding: 1px 4px;
+      border-radius: 4px;
+    }
+    .inline-edit-task:focus {
+      background: rgba(0,0,0,.05); box-shadow: 0 0 0 2px rgba(59,130,246,.4);
+    }
+    .dark .inline-edit-task:focus { background: rgba(255,255,255,.08); }
+
+    /* ===== Subtask Drag ===== */
+    .subtask-drag-handle { cursor: grab; opacity: 0; transition: opacity .2s; flex-shrink: 0; }
+    .subtask-item:hover .subtask-drag-handle { opacity: .4; }
+    .subtask-drag-handle:hover { opacity: .8 !important; }
+
+    /* ===== Focus Overlay ===== */
+    .focus-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.55); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      animation: fadeIn .25s ease forwards;
+    }
+    .focus-overlay.hidden { display: none; }
+    .dark .focus-overlay { background: rgba(0,0,0,.7); }
+    .focus-card {
+      width: 90%; max-width: 520px; max-height: 85vh; overflow-y: auto;
+      animation: scaleIn .3s cubic-bezier(.34,1.56,.64,1) forwards;
+    }
+
+    /* ===== List Drag ===== */
+    .list-drag-handle { cursor: grab; opacity: .25; transition: opacity .2s; }
+    .list-drag-handle:hover { opacity: .6; }
+    .list-panel.list-dragging { opacity: .4; transform: scale(.97); }
+    .list-panel.list-drag-over { outline: 2px dashed #f97316; outline-offset: -2px; }
+
+    /* ===== Clickable Badges ===== */
+    .badge-clickable { cursor: pointer; transition: transform .15s, box-shadow .15s; }
+    .badge-clickable:hover { transform: scale(1.08); box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+
+    /* ===== Emoji Add Button ===== */
+    .emoji-add-btn { opacity: 0; transition: opacity .2s; cursor: pointer; }
+    .task-item:hover .emoji-add-btn { opacity: .35; }
+    .emoji-add-btn:hover { opacity: 1 !important; }
+
+    /* ===== More Menu Button ===== */
+    .more-menu-btn { opacity: 0; transition: opacity .2s; }
+    .task-item:hover .more-menu-btn { opacity: .5; }
+    .more-menu-btn:hover { opacity: 1 !important; }
+
+    /* ===== Pinboard D&D ===== */
+    .pinboard-area.pin-drag-over { outline: 2px dashed #f97316; outline-offset: -2px; background: rgba(249,115,22,.05) !important; }
+    .pin-card.pin-dragging { opacity: .4; transform: scale(.95); }
+
+    /* ===== Theme: Aurora ===== */
+    .theme-aurora { background: linear-gradient(160deg, #0c1222 0%, #0f172a 40%, #1a1035 70%, #0d1117 100%) !important; color: #e2e8f0 !important; }
+    .theme-aurora .list-panel { background: rgba(15,23,42,.7) !important; border: 1px solid rgba(56,189,248,.12) !important; backdrop-filter: blur(8px); }
+    .theme-aurora .list-panel:nth-child(1) { border-color: rgba(56,189,248,.2) !important; }
+    .theme-aurora .list-panel:nth-child(3) { border-color: rgba(168,85,247,.2) !important; }
+    .theme-aurora .list-panel:nth-child(5) { border-color: rgba(52,211,153,.2) !important; }
+    .theme-aurora .list-panel:nth-child(7) { border-color: rgba(251,146,60,.2) !important; }
+    .theme-aurora .list-panel:nth-child(9) { border-color: rgba(244,114,182,.2) !important; }
+    .theme-aurora .task-item { background: rgba(30,41,59,.5) !important; border: 1px solid rgba(148,163,184,.08) !important; }
+    .theme-aurora .task-item:hover { background: rgba(30,41,59,.8) !important; border-color: rgba(56,189,248,.15) !important; box-shadow: 0 0 20px rgba(56,189,248,.05) !important; }
+    .theme-aurora .custom-checkbox input:checked + .checkmark { background: linear-gradient(135deg, #38bdf8, #a78bfa); border-color: transparent; }
+    .theme-aurora .header-bar { background: rgba(12,18,34,.92) !important; border-bottom: 1px solid rgba(56,189,248,.1) !important; backdrop-filter: blur(12px); }
+    .theme-aurora .header-bar h1 { background: linear-gradient(135deg, #38bdf8, #a78bfa, #34d399) !important; -webkit-background-clip: text !important; background-clip: text !important; }
+    .theme-aurora .quick-add-input { background: rgba(30,41,59,.6) !important; border-color: rgba(56,189,248,.15) !important; color: #e2e8f0 !important; }
+    .theme-aurora .quick-add-btn { background: linear-gradient(135deg, #0ea5e9, #8b5cf6) !important; }
+    .theme-aurora .text-gray-500, .theme-aurora .text-gray-400 { color: rgba(148,163,184,.7) !important; }
+    .theme-aurora .text-gray-800, .theme-aurora .text-gray-900 { color: #e2e8f0 !important; }
+    .theme-aurora .text-gray-600 { color: rgba(148,163,184,.8) !important; }
+    .theme-aurora .list-panel h2 { color: #f1f5f9 !important; }
+    .theme-aurora .task-item .task-text { color: #f1f5f9 !important; }
+    .theme-aurora .highlighted::before { background: linear-gradient(135deg, rgba(56,189,248,.15), rgba(168,85,247,.1)) !important; }
+    .theme-aurora .badge-timeframe { border-color: rgba(148,163,184,.2) !important; color: rgba(203,213,225,.8) !important; }
+    .theme-aurora .section-divider { border-color: rgba(56,189,248,.1) !important; }
+    .theme-aurora .section-divider span { color: rgba(148,163,184,.6) !important; }
+    .theme-aurora .sidebar { background: rgba(12,18,34,.98) !important; border-right: 1px solid rgba(56,189,248,.1) !important; }
+    .theme-aurora .sidebar * { color: #e2e8f0 !important; }
+    .theme-aurora .context-menu { background: rgba(15,23,42,.98) !important; border: 1px solid rgba(56,189,248,.15) !important; }
+    .theme-aurora .context-menu * { color: #e2e8f0 !important; }
+    .theme-aurora .context-submenu { background: rgba(15,23,42,.98) !important; border: 1px solid rgba(56,189,248,.15) !important; }
+    .theme-aurora .note-popover { background: rgba(15,23,42,.98) !important; border: 1px solid rgba(56,189,248,.15) !important; }
+    .theme-aurora .pinboard-area { background: rgba(15,23,42,.5) !important; border-color: rgba(56,189,248,.1) !important; }
+    .theme-aurora .pin-card { background: rgba(30,41,59,.6) !important; border-color: rgba(56,189,248,.1) !important; }
+    .theme-aurora .pin-card * { color: #e2e8f0 !important; }
+    .theme-aurora .done-toggle-btn { color: #64748b !important; }
+    .theme-aurora .collapse-all-btn { color: #64748b !important; }
+    .theme-aurora .drag-handle { color: #475569 !important; }
+    .theme-aurora .subtask-drag-handle { color: #475569 !important; }
+    .theme-aurora .progress-segment { background: rgba(148,163,184,.12) !important; }
+    .theme-aurora .list-panel .list-count { color: #94a3b8 !important; background: rgba(56,189,248,.08) !important; }
+    .theme-aurora .dark-mode-forced { display: none; }
+    .theme-aurora .emoji-picker { background: rgba(15,23,42,.98) !important; border: 1px solid rgba(56,189,248,.15) !important; }
+    .theme-aurora .focus-overlay { background: rgba(0,0,0,.7); }
+    .theme-aurora .focus-card { background: rgba(15,23,42,.98) !important; border: 1px solid rgba(56,189,248,.15) !important; }
   </style>
 </head>
 <body class="bg-gray-50 dark:bg-[#0f0f17] text-gray-900 dark:text-gray-100 transition-colors duration-500">
@@ -406,6 +524,28 @@
           <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-lg transition-colors">
             <input type="checkbox" checked class="accent-orange-500 w-4 h-4" onchange="toggleFilter('asap')">
             <span class="w-2 h-2 rounded-full bg-red-500"></span> ASAP!
+          </label>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">Zeitraum</h3>
+        <div class="space-y-2">
+          <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-lg transition-colors">
+            <input type="checkbox" checked class="accent-orange-500 w-4 h-4" onchange="toggleTimeframeFilter('akut')">
+            <span class="text-red-500">●</span> Akut
+          </label>
+          <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-lg transition-colors">
+            <input type="checkbox" checked class="accent-orange-500 w-4 h-4" onchange="toggleTimeframeFilter('zeitnah')">
+            <span class="text-orange-500">●</span> Zeitnah
+          </label>
+          <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-lg transition-colors">
+            <input type="checkbox" checked class="accent-orange-500 w-4 h-4" onchange="toggleTimeframeFilter('mittelfristig')">
+            <span class="text-amber-500">●</span> Mittelfristig
+          </label>
+          <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-lg transition-colors">
+            <input type="checkbox" checked class="accent-orange-500 w-4 h-4" onchange="toggleTimeframeFilter('langfristig')">
+            <span class="text-green-500">●</span> Langfristig
           </label>
         </div>
       </div>
@@ -465,6 +605,7 @@
           <button onclick="setTheme('minimal')" id="btn-minimal" class="theme-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100" data-theme="minimal">Minimal</button>
           <button onclick="setTheme('colorful')" id="btn-colorful" class="theme-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700" data-theme="colorful">Colorful</button>
           <button onclick="setTheme('neon')" id="btn-neon" class="theme-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700" data-theme="neon">Neon</button>
+          <button onclick="setTheme('aurora')" id="btn-aurora" class="theme-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700" data-theme="aurora">Aurora</button>
         </div>
         <button onclick="toggleDarkMode()" id="dark-toggle" class="tooltip w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300" data-tip="Dark/Light Mode">
           <span id="dark-icon" class="text-lg transition-transform duration-500">🌙</span>
@@ -503,6 +644,7 @@
   <div class="context-menu hidden bg-white dark:bg-[#1e1e2e] border border-gray-200 dark:border-gray-700" id="context-menu"></div>
   <div class="emoji-picker hidden" id="emoji-picker"></div>
   <div class="note-popover hidden bg-white dark:bg-[#1e1e2e] border border-gray-200 dark:border-gray-700" id="note-popover"></div>
+  <div class="focus-overlay hidden" id="focus-overlay" onclick="exitFocusMode()"></div>
 
   <script>
     // =============================================
@@ -631,17 +773,21 @@
     // =============================================
     let currentTheme = 'minimal';
     let isDark = false;
-    let draggedTask = null;
+    let draggedItem = null;
     let sidebarOpen = false;
     let pinboardCollapsed = false;
     let activeFilters = { low: true, normal: true, high: true, asap: true };
+    let timeframeFilters = { akut: true, zeitnah: true, mittelfristig: true, langfristig: true };
     let viewFilters = { highlighted: false, withDate: false, shared: false };
+    let focusClickTimer = null;
     let activeContextMenu = null;
     let activeEmojiPicker = null;
     let activeNotePopover = null;
     let listWidths = {};
     let resizing = null;
     let allSubtasksCollapsed = {};
+    let focusedTask = null;
+    let draggedList = null;
 
     const commonEmojis = ['📋','🎯','🔒','🦊','💡','🚀','⚡','🔥','📌','🏠','💼','🖥️','📝','✨','🎨','🛠️','📊','🗂️','🔔','❤️','⭐','🎉','📦','🌟','🦷','📅','🎪','💎','🧩','📱','🌍','🔧'];
 
@@ -702,10 +848,12 @@
     // FILTERS
     // =============================================
     function toggleFilter(priority) { activeFilters[priority] = !activeFilters[priority]; render(); }
+    function toggleTimeframeFilter(tf) { timeframeFilters[tf] = !timeframeFilters[tf]; render(); }
     function toggleViewFilter(filter) { viewFilters[filter] = !viewFilters[filter]; render(); }
     function shouldShowTask(task, list) {
       if (task.type === 'divider') return true;
       if (!activeFilters[task.priority]) return false;
+      if (task.timeframe && !timeframeFilters[task.timeframe]) return false;
       if (viewFilters.highlighted && !task.highlighted) return false;
       if (viewFilters.withDate && !task.dueDate) return false;
       if (viewFilters.shared && !list.shared) return false;
@@ -741,7 +889,11 @@
       cards.innerHTML = pinnedTasks.map(({ task, listTitle, listId }) => {
         const p = priorityConfig[task.priority] || priorityConfig.normal;
         return `
-          <div class="pin-card flex-shrink-0 w-56 rounded-xl border border-gray-200/60 dark:border-gray-700/60 bg-white dark:bg-[#262637] p-3.5 cursor-pointer hover:shadow-md transition-all duration-200" onclick="scrollToTask('${task.id}')">
+          <div class="pin-card flex-shrink-0 w-56 rounded-xl border border-gray-200/60 dark:border-gray-700/60 bg-white dark:bg-[#262637] p-3.5 cursor-pointer hover:shadow-md transition-all duration-200"
+               draggable="true"
+               ondragstart="onPinCardDragStart(event, '${task.id}', '${listId}')"
+               ondragend="onPinCardDragEnd(event)"
+               onclick="scrollToTask('${task.id}')">
             <div class="flex items-center justify-between mb-2">
               <span class="text-[10px] font-medium px-2 py-0.5 rounded-full" style="background: ${p.bar}20; color: ${p.bar}">${p.label}</span>
               <button onclick="event.stopPropagation(); togglePin('${task.id}', '${listId}')" class="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -771,8 +923,9 @@
     }
     function setTheme(theme) {
       currentTheme = theme;
-      document.body.classList.remove('theme-neon', 'theme-colorful');
+      document.body.classList.remove('theme-neon', 'theme-colorful', 'theme-aurora');
       if (theme === 'neon') { isDark = true; document.documentElement.classList.add('dark'); document.getElementById('dark-icon').textContent = '☀️'; document.body.classList.add('theme-neon'); }
+      else if (theme === 'aurora') { isDark = true; document.documentElement.classList.add('dark'); document.getElementById('dark-icon').textContent = '☀️'; document.body.classList.add('theme-aurora'); }
       else if (theme === 'colorful') { document.body.classList.add('theme-colorful'); }
       document.querySelectorAll('.theme-btn').forEach(btn => {
         if (btn.dataset.theme === theme) { btn.classList.add('bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-900', 'dark:text-gray-100'); btn.classList.remove('text-gray-500', 'dark:text-gray-400'); }
@@ -793,6 +946,7 @@
     };
     const timeframeConfig = {
       akut:          { label: 'Akut', class: 'text-red-600 dark:text-red-400 border-red-200 dark:border-red-800' },
+      zeitnah:       { label: 'Zeitnah', class: 'text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800' },
       mittelfristig: { label: 'Mittelfristig', class: 'text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
       langfristig:   { label: 'Langfristig', class: 'text-green-600 dark:text-green-400 border-green-200 dark:border-green-800' }
     };
@@ -802,6 +956,10 @@
     // =============================================
     function render() {
       const container = document.getElementById('lists-container');
+      // Save scroll positions
+      const savedScrollLeft = container.scrollLeft;
+      const savedTaskScrolls = {};
+      container.querySelectorAll('[id^="task-list-"]').forEach(el => { savedTaskScrolls[el.id] = el.scrollTop; });
       container.innerHTML = '';
 
       const visibleLists = listsData.filter(l => l.visible);
@@ -831,6 +989,9 @@
           <!-- List Header -->
           <div class="px-5 pt-5 pb-3 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
+              <div class="list-drag-handle text-gray-300 dark:text-gray-600" draggable="true" ondragstart="event.stopPropagation(); onListDragStart(event, '${list.id}')" ondragend="onListDragEnd(event)">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+              </div>
               <button class="text-xl hover:scale-110 transition-transform cursor-pointer" onclick="openEmojiPickerForList('${list.id}', event)" title="Symbol ändern">${list.icon}</button>
               <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 tracking-tight cursor-pointer" ondblclick="startEditListTitle('${list.id}', this)" title="Doppelklick zum Bearbeiten">${list.title}</h2>
               <span class="list-count text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">${activeTasks.filter(t => t.type !== 'divider').length}</span>
@@ -876,6 +1037,24 @@
         `;
         container.appendChild(panel);
 
+        // List D&D event listeners
+        panel.addEventListener('dragover', (e) => {
+          if (!draggedList || draggedList === list.id) return;
+          e.preventDefault(); panel.classList.add('list-drag-over');
+        });
+        panel.addEventListener('dragleave', () => panel.classList.remove('list-drag-over'));
+        panel.addEventListener('drop', (e) => {
+          e.preventDefault(); panel.classList.remove('list-drag-over');
+          if (!draggedList || draggedList === list.id) return;
+          const fromIdx = listsData.findIndex(l => l.id === draggedList);
+          const toIdx = listsData.findIndex(l => l.id === list.id);
+          if (fromIdx > -1 && toIdx > -1) {
+            const [moved] = listsData.splice(fromIdx, 1);
+            listsData.splice(toIdx, 0, moved);
+          }
+          draggedList = null; render();
+        });
+
         // Add resize handle between lists
         if (listIndex < visibleLists.length - 1) {
           const handle = document.createElement('div');
@@ -885,7 +1064,20 @@
           handle.addEventListener('mousedown', startResize);
           container.appendChild(handle);
         }
+        // Add resize handle for the rightmost list too
+        if (listIndex === visibleLists.length - 1) {
+          const handle = document.createElement('div');
+          handle.className = 'col-resize-handle';
+          handle.dataset.leftList = list.id;
+          handle.dataset.rightList = '';
+          handle.addEventListener('mousedown', startResizeSingle);
+          container.appendChild(handle);
+        }
       });
+
+      // Restore scroll positions
+      container.scrollLeft = savedScrollLeft;
+      Object.entries(savedTaskScrolls).forEach(([id, top]) => { const el = document.getElementById(id); if (el) el.scrollTop = top; });
 
       renderPinboard();
       if (sidebarOpen) renderSidebarLists();
@@ -923,7 +1115,7 @@
       </div>`;
 
       return `
-        <div class="task-item group rounded-xl px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-all duration-200 ${task.highlighted ? 'highlighted' : ''}"
+        <div class="task-item group rounded-xl px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-all duration-200 ${task.highlighted ? 'highlighted' : ''} ${task.priority === 'asap' ? 'asap-blink' : ''}"
              style="margin-left: ${indent}px"
              draggable="${depth === 0}"
              ondragstart="onDragStart(event, '${task.id}', '${listId}')"
@@ -931,60 +1123,43 @@
              ondrop="onDrop(event, '${task.id}', '${listId}')"
              ondragend="onDragEnd(event)"
              oncontextmenu="showContextMenu(event, '${task.id}', '${listId}')"
+             onclick="handleTaskCardClick(event, '${task.id}', '${listId}')"
              id="task-${task.id}">
           <div class="task-row">
-            <!-- Priority Bar -->
-            <div class="priority-bar" style="background: ${p.bar}; align-self: stretch;"></div>
+            <!-- Priority Bar (clickable) -->
+            <div class="priority-bar badge-clickable" style="background: ${p.bar}; align-self: stretch;" onclick="event.stopPropagation(); showPriorityPicker(event, '${task.id}', '${listId}')" title="Priorität ändern"></div>
 
             <!-- Drag Handle -->
-            ${depth === 0 ? `<div class="drag-handle text-gray-300 dark:text-gray-600">
+            ${depth === 0 ? `<div class="drag-handle text-gray-300 dark:text-gray-600" onclick="event.stopPropagation()">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
             </div>` : '<div style="width:16px"></div>'}
 
             <!-- Assignee Avatar (left of checkbox) -->
-            ${task.assignee ? `<div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style="background:${task.assignee.color}" title="${task.assignee.name}">${task.assignee.initials}</div>` : ''}
+            ${task.assignee ? `<div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style="background:${task.assignee.color}" title="${task.assignee.name}" onclick="event.stopPropagation()">${task.assignee.initials}</div>` : ''}
 
             <!-- Checkbox -->
-            <label class="custom-checkbox">
+            <label class="custom-checkbox" onclick="event.stopPropagation()">
               <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleTask('${task.id}', '${listId}')">
               <span class="checkmark"></span>
             </label>
 
             <!-- Content: text + badges in one row -->
-            <div class="task-content">
-              <span class="task-text text-sm font-medium text-gray-800 dark:text-gray-100 ${task.done ? 'line-through opacity-50' : ''}">${task.emoji ? task.emoji + ' ' : ''}${task.text}</span>
-              <div class="task-badges">
-                ${task.priority === 'asap' ? '<span class="badge-priority text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-red-500 text-white animate-pulse whitespace-nowrap">ASAP!</span>' : ''}
-                ${tf ? `<span class="badge-timeframe text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${tf.class}">${tf.label}</span>` : ''}
+            <div class="task-content" onclick="event.stopPropagation()">
+              ${task.emoji ? `<span class="cursor-pointer hover:scale-110 transition-transform flex-shrink-0" onclick="event.stopPropagation(); openEmojiPickerForTask('${task.id}', '${listId}', event)" title="Symbol ändern">${task.emoji}</span>` : `<button class="emoji-add-btn w-5 h-5 flex items-center justify-center text-sm rounded flex-shrink-0" onclick="event.stopPropagation(); openEmojiPickerForTask('${task.id}', '${listId}', event)" title="Symbol vergeben">😊</button>`}
+              <span class="task-text text-sm font-medium text-gray-800 dark:text-gray-100 ${task.done ? 'line-through opacity-50' : ''}" ondblclick="event.stopPropagation(); startEditTaskText('${task.id}', '${listId}', this)" title="Doppelklick zum Bearbeiten">${task.text}</span>
+              <div class="task-badges" onclick="event.stopPropagation()">
+                ${task.priority === 'asap' ? `<span class="badge-priority badge-clickable text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-red-500 text-white animate-pulse whitespace-nowrap" onclick="event.stopPropagation(); showPriorityPicker(event, '${task.id}', '${listId}')">ASAP!</span>` : ''}
+                ${tf ? `<span class="badge-timeframe badge-clickable text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${tf.class}" onclick="event.stopPropagation(); showTimeframePicker(event, '${task.id}', '${listId}')">${tf.label}</span>` : ''}
                 ${task.dueDate ? `<span class="task-date text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1 whitespace-nowrap"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>${formatDate(task.dueDate)}</span>` : ''}
-                ${hasSubtasks ? `<span class="subtask-info text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">${doneSubtasks}/${task.subtasks.length}</span>` : ''}
+                ${task.note ? '<span class="text-blue-400 text-[10px]" title="Hat Notiz">💬</span>' : ''}
                 ${progressHtml}
               </div>
             </div>
 
-            <!-- Actions -->
-            <div class="task-actions opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              ${task.note ? `
-              <button onclick="showNote(event, '${task.id}', '${listId}')" class="note-icon w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" style="opacity:0.7" title="Notiz">
-                <svg class="w-3.5 h-3.5 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
-              </button>` : `
-              <button onclick="showNote(event, '${task.id}', '${listId}')" class="note-icon w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all" title="Notiz">
-                <svg class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
-              </button>`}
-              <button onclick="togglePin('${task.id}', '${listId}')" class="tooltip w-7 h-7 flex items-center justify-center rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all ${task.pinned ? 'bg-orange-50 dark:bg-orange-900/30' : ''}" data-tip="${task.pinned ? 'Lösen' : 'Anpinnen'}">
-                <svg class="w-3.5 h-3.5 ${task.pinned ? 'text-orange-500' : 'text-gray-400'}" fill="${task.pinned ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
-              </button>
-              <button onclick="toggleHighlight('${task.id}', '${listId}')" class="tooltip w-7 h-7 flex items-center justify-center rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all ${task.highlighted ? 'bg-orange-50 dark:bg-orange-900/30' : ''}" data-tip="Highlight">
-                <svg class="w-3.5 h-3.5 ${task.highlighted ? 'text-orange-500' : 'text-gray-400'}" fill="${task.highlighted ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
-                </svg>
-              </button>
-              <button onclick="deleteTask('${task.id}', '${listId}')" class="tooltip w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all" data-tip="Löschen">
-                <svg class="w-3.5 h-3.5 text-gray-400 hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                </svg>
-              </button>
-            </div>
+            <!-- More Menu -->
+            <button class="more-menu-btn w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all flex-shrink-0" onclick="event.stopPropagation(); showContextMenu(event, '${task.id}', '${listId}')" title="Mehr">
+              <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+            </button>
           </div>
 
           <!-- Subtasks -->
@@ -994,7 +1169,7 @@
                 <svg class="w-3 h-3 transition-transform duration-300" id="subtask-chevron-${task.id}" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="transform: rotate(${isListCollapsed ? '0' : '90'}deg)">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                 </svg>
-                Unteraufgaben
+                Unteraufgaben <span class="text-[10px] text-gray-400 dark:text-gray-500">${doneSubtasks}/${task.subtasks.length}</span>
               </button>
               <div id="subtasks-${task.id}" class="space-y-0.5" style="display: ${isListCollapsed ? 'none' : ''}">
                 ${task.subtasks.map(st => renderSubtask(st, depth + 1, listId, task.id)).join('')}
@@ -1008,12 +1183,22 @@
       const indent = depth * 24;
       const hasSubtasks = st.subtasks && st.subtasks.length > 0;
       return `
-        <div class="flex items-center gap-2.5 px-3 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-all duration-200" style="margin-left: ${indent}px">
+        <div class="subtask-item flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-all duration-200"
+             style="margin-left: ${indent}px"
+             draggable="true"
+             ondragstart="event.stopPropagation(); onSubtaskDragStart(event, '${st.id}', '${listId}')"
+             ondragover="onDragOver(event)"
+             ondrop="event.stopPropagation(); onSubtaskDrop(event, '${st.id}', '${listId}')"
+             ondragend="onDragEnd(event)"
+             id="subtask-${st.id}">
+          <div class="subtask-drag-handle text-gray-300 dark:text-gray-600">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="1.5"/><circle cx="15" cy="8" r="1.5"/><circle cx="9" cy="16" r="1.5"/><circle cx="15" cy="16" r="1.5"/></svg>
+          </div>
           <label class="custom-checkbox" style="width:16px;height:16px">
             <input type="checkbox" ${st.done ? 'checked' : ''} onchange="toggleSubtask('${st.id}', '${listId}')">
             <span class="checkmark" style="border-radius:4px; border-width:1.5px"></span>
           </label>
-          <span class="text-xs text-gray-600 dark:text-gray-400 ${st.done ? 'line-through opacity-40' : ''} transition-all duration-300">${st.text}</span>
+          <span class="text-xs text-gray-600 dark:text-gray-400 ${st.done ? 'line-through opacity-40' : ''} transition-all duration-300 cursor-default flex-1 min-w-0" style="word-break:break-word" ondblclick="event.stopPropagation(); startEditSubtaskText('${st.id}', '${listId}', this)" title="Doppelklick zum Bearbeiten">${st.text}</span>
         </div>
         ${hasSubtasks ? st.subtasks.map(s => renderSubtask(s, depth + 1, listId, st.id)).join('') : ''}
       `;
@@ -1067,13 +1252,78 @@
     }
 
     // =============================================
+    // SINGLE RESIZE (rightmost list)
+    // =============================================
+    function startResizeSingle(e) {
+      e.preventDefault();
+      const handle = e.target.closest('.col-resize-handle');
+      const leftId = handle.dataset.leftList;
+      const leftPanel = handle.previousElementSibling;
+      if (!leftPanel) return;
+
+      handle.classList.add('dragging');
+      const startX = e.clientX;
+      const startLeftW = leftPanel.offsetWidth;
+
+      function onMove(e) {
+        const dx = e.clientX - startX;
+        const newLeft = Math.max(280, Math.min(600, startLeftW + dx));
+        leftPanel.style.width = newLeft + 'px';
+        listWidths[leftId] = newLeft;
+      }
+      function onUp() {
+        handle.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+
+    // =============================================
+    // FOCUS CLICK HANDLER
+    // =============================================
+    function handleTaskCardClick(e, taskId, listId) {
+      // Only trigger focus from the card frame/padding, not from inner content
+      // Inner elements (task-content, checkbox, badges, more-btn) all stopPropagation
+      if (focusClickTimer) return;
+      focusClickTimer = setTimeout(() => { focusClickTimer = null; enterFocusMode(taskId, listId); }, 280);
+    }
+
+    // =============================================
+    // PINBOARD DRAG & DROP
+    // =============================================
+    function initPinboardDnD() {
+      const pinboard = document.getElementById('pinboard');
+      pinboard.addEventListener('dragover', (e) => {
+        if (draggedPinCard || (draggedItem && draggedItem.type === 'task')) {
+          e.preventDefault();
+          pinboard.classList.add('pin-drag-over');
+        }
+      });
+      pinboard.addEventListener('dragleave', () => pinboard.classList.remove('pin-drag-over'));
+      pinboard.addEventListener('drop', (e) => {
+        e.preventDefault();
+        pinboard.classList.remove('pin-drag-over');
+        // Pin card dropped back on pinboard → keep pinned
+        if (draggedPinCard) { draggedPinCard = null; return; }
+        // Task from list dropped on pinboard → pin it
+        if (!draggedItem || draggedItem.type !== 'task') return;
+        const list = findList(draggedItem.listId);
+        const task = findTaskRecursive(list.tasks, draggedItem.id);
+        if (task) { task.pinned = true; draggedItem = null; render(); }
+      });
+    }
+
+    // =============================================
     // PROGRESS
     // =============================================
     function cycleProgress(taskId, listId) {
       const list = findList(listId);
       const task = findTaskRecursive(list.tasks, taskId);
       if (!task) return;
-      task.progress = ((task.progress || 0) + 1) % 4;
+      task._prevProgress = task.progress || 0;
+      task.progress = (task._prevProgress + 1) % 4;
       if (task.progress === 3) {
         task.done = true;
         if (task.subtasks) task.subtasks.forEach(s => { s.done = true; });
@@ -1087,6 +1337,7 @@
       const list = findList(listId);
       const task = findTaskRecursive(list.tasks, taskId);
       if (!task) return;
+      task._prevProgress = task.progress || 0;
       task.progress = level;
       if (level === 3) {
         task.done = true;
@@ -1146,6 +1397,7 @@
           <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
           <div class="context-submenu hidden bg-white dark:bg-[#1e1e2e] border border-gray-200 dark:border-gray-700" data-submenu="timeframe">
             <div class="context-menu-item" onclick="setTimeframe('${taskId}', '${listId}', 'akut')"><span class="text-red-500">●</span> Akut</div>
+            <div class="context-menu-item" onclick="setTimeframe('${taskId}', '${listId}', 'zeitnah')"><span class="text-orange-500">●</span> Zeitnah</div>
             <div class="context-menu-item" onclick="setTimeframe('${taskId}', '${listId}', 'mittelfristig')"><span class="text-amber-500">●</span> Mittelfristig</div>
             <div class="context-menu-item" onclick="setTimeframe('${taskId}', '${listId}', 'langfristig')"><span class="text-green-500">●</span> Langfristig</div>
           </div>
@@ -1182,6 +1434,14 @@
         <div class="context-menu-item" onclick="openEmojiPickerForTask('${taskId}', '${listId}', event)">
           <span class="text-base">😊</span>
           <span>Mit Symbol versehen</span>
+        </div>
+        <div class="context-menu-item" onclick="showNote(event, '${taskId}', '${listId}'); hideContextMenu()">
+          <svg class="w-4 h-4 ${task.note ? 'text-blue-500' : 'text-gray-400'}" fill="${task.note ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+          <span>${task.note ? 'Notiz bearbeiten' : 'Notiz hinzufügen'}</span>
+        </div>
+        <div class="context-menu-item" onclick="toggleHighlight('${taskId}', '${listId}'); hideContextMenu()">
+          <svg class="w-4 h-4 ${task.highlighted ? 'text-orange-500' : 'text-gray-400'}" fill="${task.highlighted ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+          <span>${task.highlighted ? 'Highlight entfernen' : 'Hervorheben'}</span>
         </div>
         <div class="context-menu-item" onclick="togglePin('${taskId}', '${listId}'); hideContextMenu()">
           <svg class="w-4 h-4 ${task.pinned ? 'text-orange-500' : 'text-gray-400'}" fill="${task.pinned ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
@@ -1297,6 +1557,31 @@
       el.replaceWith(input); input.focus(); input.select();
     }
 
+    function startEditTaskText(taskId, listId, el) {
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, taskId);
+      if (!task) return;
+      const input = document.createElement('input');
+      input.type = 'text'; input.value = task.text;
+      input.className = 'inline-edit-task text-sm font-medium text-gray-800 dark:text-gray-100';
+      input.style.minWidth = '80px';
+      input.onblur = () => { task.text = input.value.trim() || task.text; render(); };
+      input.onkeydown = (e) => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = task.text; input.blur(); } };
+      el.replaceWith(input); input.focus(); input.select();
+    }
+
+    function startEditSubtaskText(subtaskId, listId, el) {
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, subtaskId);
+      if (!task) return;
+      const input = document.createElement('input');
+      input.type = 'text'; input.value = task.text;
+      input.className = 'inline-edit-task text-xs text-gray-600 dark:text-gray-400';
+      input.onblur = () => { task.text = input.value.trim() || task.text; render(); };
+      input.onkeydown = (e) => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = task.text; input.blur(); } };
+      el.replaceWith(input); input.focus(); input.select();
+    }
+
     // =============================================
     // NOTE POPOVER
     // =============================================
@@ -1336,6 +1621,16 @@
       return null;
     }
     function findList(listId) { return listsData.find(l => l.id === listId); }
+    function findParentOfSubtask(tasks, subtaskId) {
+      for (const t of tasks) {
+        if (t.subtasks) {
+          for (const st of t.subtasks) { if (st.id === subtaskId) return t; }
+          const found = findParentOfSubtask(t.subtasks, subtaskId);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
 
     // =============================================
     // TASK ACTIONS
@@ -1343,7 +1638,7 @@
     function toggleTask(taskId, listId) {
       const list = findList(listId); const task = findTaskRecursive(list.tasks, taskId); if (!task) return;
       task.done = !task.done;
-      if (task.done) task.progress = 3;
+      if (task.done) { task._prevProgress = task.progress; task.progress = 3; }
       function setAllDone(t, done) { t.done = done; if (t.subtasks) t.subtasks.forEach(s => setAllDone(s, done)); }
       if (task.subtasks) task.subtasks.forEach(s => setAllDone(s, task.done));
       const el = document.getElementById('task-' + taskId);
@@ -1356,7 +1651,7 @@
     }
     function undoTask(taskId, listId) {
       const list = findList(listId); const task = findTaskRecursive(list.tasks, taskId);
-      if (task) { task.done = false; task.progress = 0; if (task.subtasks) task.subtasks.forEach(s => { s.done = false; }); render(); }
+      if (task) { task.done = false; task.progress = (task._prevProgress !== undefined) ? task._prevProgress : 0; delete task._prevProgress; if (task.subtasks) task.subtasks.forEach(s => { s.done = false; }); render(); }
     }
     function toggleHighlight(taskId, listId) {
       const list = findList(listId); const task = list.tasks.find(t => t.id === taskId); if (!task) return;
@@ -1391,25 +1686,216 @@
     // =============================================
     // DRAG & DROP
     // =============================================
-    function onDragStart(e, taskId, listId) { draggedTask = { taskId, listId }; e.target.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
+    function onDragStart(e, taskId, listId) {
+      draggedItem = { id: taskId, listId, type: 'task' };
+      e.target.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    function onSubtaskDragStart(e, subtaskId, listId) {
+      draggedItem = { id: subtaskId, listId, type: 'subtask' };
+      e.target.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
     function onDragOver(e) {
       e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-      const taskItem = e.target.closest('.task-item');
+      const item = e.target.closest('.task-item') || e.target.closest('.subtask-item');
       document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-      if (taskItem) taskItem.classList.add('drag-over');
+      if (item) item.classList.add('drag-over');
     }
     function onDrop(e, targetId, targetListId) {
-      e.preventDefault(); document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-      if (!draggedTask || draggedTask.taskId === targetId) return;
-      const sourceList = findList(draggedTask.listId), targetList = findList(targetListId);
-      const sourceIdx = sourceList.tasks.findIndex(t => t.id === draggedTask.taskId);
-      const targetIdx = targetList.tasks.findIndex(t => t.id === targetId);
-      if (sourceIdx === -1 || targetIdx === -1) return;
-      const [task] = sourceList.tasks.splice(sourceIdx, 1);
-      targetList.tasks.splice(targetIdx, 0, task);
-      draggedTask = null; render();
+      e.preventDefault();
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      if (!draggedItem || draggedItem.id === targetId) return;
+
+      if (draggedItem.type === 'task') {
+        const sourceList = findList(draggedItem.listId), targetList = findList(targetListId);
+        const sourceIdx = sourceList.tasks.findIndex(t => t.id === draggedItem.id);
+        const targetIdx = targetList.tasks.findIndex(t => t.id === targetId);
+        if (sourceIdx === -1 || targetIdx === -1) { draggedItem = null; return; }
+        const [task] = sourceList.tasks.splice(sourceIdx, 1);
+        targetList.tasks.splice(targetIdx, 0, task);
+      } else if (draggedItem.type === 'subtask') {
+        // Subtask dropped on a task -> move to that task's subtasks
+        const sourceList = findList(draggedItem.listId);
+        const sourceParent = findParentOfSubtask(sourceList.tasks, draggedItem.id);
+        if (!sourceParent) { draggedItem = null; return; }
+        const sourceIdx = sourceParent.subtasks.findIndex(s => s.id === draggedItem.id);
+        if (sourceIdx === -1) { draggedItem = null; return; }
+        const [subtask] = sourceParent.subtasks.splice(sourceIdx, 1);
+        const targetList = findList(targetListId);
+        const targetTask = targetList.tasks.find(t => t.id === targetId);
+        if (targetTask) {
+          if (!targetTask.subtasks) targetTask.subtasks = [];
+          targetTask.subtasks.push(subtask);
+        }
+      }
+      draggedItem = null; render();
     }
-    function onDragEnd(e) { e.target.classList.remove('dragging'); document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over')); draggedTask = null; }
+    function onSubtaskDrop(e, targetSubtaskId, targetListId) {
+      e.preventDefault();
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      if (!draggedItem || draggedItem.type !== 'subtask' || draggedItem.id === targetSubtaskId) return;
+
+      const sourceList = findList(draggedItem.listId);
+      const targetList = findList(targetListId);
+      const sourceParent = findParentOfSubtask(sourceList.tasks, draggedItem.id);
+      if (!sourceParent) { draggedItem = null; return; }
+      const sourceIdx = sourceParent.subtasks.findIndex(s => s.id === draggedItem.id);
+      if (sourceIdx === -1) { draggedItem = null; return; }
+      const [subtask] = sourceParent.subtasks.splice(sourceIdx, 1);
+
+      const targetParent = findParentOfSubtask(targetList.tasks, targetSubtaskId);
+      if (targetParent) {
+        const targetIdx = targetParent.subtasks.findIndex(s => s.id === targetSubtaskId);
+        targetParent.subtasks.splice(targetIdx, 0, subtask);
+      }
+      draggedItem = null; render();
+    }
+    function onDragEnd(e) {
+      e.target.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      draggedItem = null;
+    }
+
+    // =============================================
+    // FOCUS MODE
+    // =============================================
+    function enterFocusMode(taskId, listId) {
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, taskId);
+      if (!task) return;
+      focusedTask = { taskId, listId };
+      const p = priorityConfig[task.priority] || priorityConfig.normal;
+      const tf = task.timeframe ? timeframeConfig[task.timeframe] : null;
+      const prog = task.progress || 0;
+      const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+      const doneSubtasks = hasSubtasks ? task.subtasks.filter(s => s.done).length : 0;
+
+      const overlay = document.getElementById('focus-overlay');
+      overlay.innerHTML = `
+        <div class="focus-card bg-white dark:bg-[#1e1e2e] rounded-2xl shadow-2xl border border-gray-200/60 dark:border-gray-700/60 p-6" onclick="event.stopPropagation()">
+          <div class="flex items-start gap-3 mb-5">
+            <div style="width:4px;min-height:40px;border-radius:2px;background:${p.bar};flex-shrink:0;"></div>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">${task.emoji ? task.emoji + ' ' : ''}${task.text}</h3>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-[11px] font-semibold px-2.5 py-1 rounded-lg" style="background:${p.bar}18;color:${p.bar}">${p.label}</span>
+                ${tf ? `<span class="text-[11px] font-medium px-2.5 py-1 rounded-lg border ${tf.class}">${tf.label}</span>` : ''}
+                ${task.dueDate ? `<span class="text-[11px] text-gray-500 dark:text-gray-400">📅 ${formatDate(task.dueDate)}</span>` : ''}
+                <span class="text-[11px] font-medium" style="color:${progressColors[prog]}">${progressLabels[prog]}</span>
+              </div>
+            </div>
+            <button onclick="exitFocusMode()" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex-shrink-0">
+              <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+          </div>
+          ${task.note ? `
+          <div class="mb-4 p-3.5 rounded-xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/20">
+            <span class="text-[10px] font-semibold text-blue-500 dark:text-blue-400 uppercase tracking-wider block mb-1.5">Notiz</span>
+            <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">${task.note}</p>
+          </div>` : ''}
+          ${hasSubtasks ? `
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unteraufgaben</span>
+              <span class="text-[11px] text-gray-400 dark:text-gray-500">${doneSubtasks}/${task.subtasks.length}</span>
+            </div>
+            <div class="space-y-1">${renderFocusSubtasks(task.subtasks, taskId, listId)}</div>
+          </div>` : ''}
+        </div>`;
+      overlay.classList.remove('hidden');
+    }
+    function renderFocusSubtasks(subtasks, rootTaskId, listId) {
+      return subtasks.map(st => `
+        <div class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/30">
+          <label class="custom-checkbox" style="width:16px;height:16px">
+            <input type="checkbox" ${st.done ? 'checked' : ''} onchange="toggleSubtask('${st.id}', '${listId}'); setTimeout(() => enterFocusMode('${rootTaskId}', '${listId}'), 50)">
+            <span class="checkmark" style="border-radius:4px;border-width:1.5px"></span>
+          </label>
+          <span class="text-sm text-gray-700 dark:text-gray-300 ${st.done ? 'line-through opacity-40' : ''}">${st.text}</span>
+        </div>
+        ${st.subtasks && st.subtasks.length > 0 ? '<div class="ml-5">' + renderFocusSubtasks(st.subtasks, rootTaskId, listId) + '</div>' : ''}
+      `).join('');
+    }
+    function exitFocusMode() {
+      document.getElementById('focus-overlay').classList.add('hidden');
+      focusedTask = null;
+    }
+
+    // =============================================
+    // LIST DRAG & DROP
+    // =============================================
+    // Pin card drag (for unpinning by dragging out)
+    let draggedPinCard = null;
+    function onPinCardDragStart(e, taskId, listId) {
+      draggedPinCard = { taskId, listId };
+      e.target.classList.add('pin-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    function onPinCardDragEnd(e) {
+      e.target.classList.remove('pin-dragging');
+      // draggedPinCard is cleared on drop inside pinboard; if still set → dropped outside → unpin
+      if (draggedPinCard) {
+        const list = findList(draggedPinCard.listId);
+        const task = findTaskRecursive(list.tasks, draggedPinCard.taskId);
+        if (task) { task.pinned = false; render(); }
+        draggedPinCard = null;
+      }
+    }
+
+    function onListDragStart(e, listId) {
+      e.stopPropagation();
+      draggedList = listId;
+      const panel = e.target.closest('.list-panel');
+      if (panel) panel.classList.add('list-dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    function onListDragEnd(e) {
+      document.querySelectorAll('.list-dragging, .list-drag-over').forEach(el => el.classList.remove('list-dragging', 'list-drag-over'));
+      draggedList = null;
+    }
+
+    // =============================================
+    // INLINE BADGE PICKERS
+    // =============================================
+    function showPriorityPicker(e, taskId, listId) {
+      hideAllPopups();
+      const menu = document.getElementById('context-menu');
+      menu.innerHTML = `
+        <div class="context-menu-item" onclick="setPriority('${taskId}', '${listId}', 'low')"><span class="w-2 h-2 rounded-full bg-gray-400 inline-block"></span> Niedrig</div>
+        <div class="context-menu-item" onclick="setPriority('${taskId}', '${listId}', 'normal')"><span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span> Normal</div>
+        <div class="context-menu-item" onclick="setPriority('${taskId}', '${listId}', 'high')"><span class="w-2 h-2 rounded-full bg-orange-500 inline-block"></span> Hoch</div>
+        <div class="context-menu-item" onclick="setPriority('${taskId}', '${listId}', 'asap')"><span class="w-2 h-2 rounded-full bg-red-500 animate-pulse inline-block"></span> ASAP!</div>
+      `;
+      menu.classList.remove('hidden');
+      let x = e.clientX, y = e.clientY;
+      menu.style.left = x + 'px'; menu.style.top = y + 'px';
+      setTimeout(() => {
+        const rect = menu.getBoundingClientRect();
+        if (x + rect.width > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+        if (y + rect.height > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+      }, 0);
+      activeContextMenu = menu;
+    }
+    function showTimeframePicker(e, taskId, listId) {
+      hideAllPopups();
+      const menu = document.getElementById('context-menu');
+      menu.innerHTML = `
+        <div class="context-menu-item" onclick="setTimeframe('${taskId}', '${listId}', 'akut')"><span class="text-red-500">●</span> Akut</div>
+        <div class="context-menu-item" onclick="setTimeframe('${taskId}', '${listId}', 'zeitnah')"><span class="text-orange-500">●</span> Zeitnah</div>
+        <div class="context-menu-item" onclick="setTimeframe('${taskId}', '${listId}', 'mittelfristig')"><span class="text-amber-500">●</span> Mittelfristig</div>
+        <div class="context-menu-item" onclick="setTimeframe('${taskId}', '${listId}', 'langfristig')"><span class="text-green-500">●</span> Langfristig</div>
+      `;
+      menu.classList.remove('hidden');
+      let x = e.clientX, y = e.clientY;
+      menu.style.left = x + 'px'; menu.style.top = y + 'px';
+      setTimeout(() => {
+        const rect = menu.getBoundingClientRect();
+        if (x + rect.width > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+        if (y + rect.height > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+      }, 0);
+      activeContextMenu = menu;
+    }
 
     // =============================================
     // GLOBAL LISTENERS
@@ -1434,7 +1920,10 @@
     // =============================================
     // INIT
     // =============================================
+    // Default: alle Unteraufgaben eingeklappt
+    listsData.forEach(l => { allSubtasksCollapsed[l.id] = true; });
     render();
+    initPinboardDnD();
   </script>
 </body>
 </html>
