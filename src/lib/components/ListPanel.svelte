@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { slide, fade } from 'svelte/transition';
+	import { flip } from 'svelte/animate';
 	import type { Database } from '$lib/types/database';
 	import TaskItem from './TaskItem.svelte';
 	import QuickAdd from './QuickAdd.svelte';
@@ -19,7 +21,10 @@
 		onAddSubtask,
 		onToggleSubtask,
 		onUpdateSubtask,
-		onDeleteSubtask
+		onDeleteSubtask,
+		onChangePriority,
+		onListContext,
+		onTaskContext
 	}: {
 		list: List;
 		tasks: Task[];
@@ -34,6 +39,9 @@
 		onToggleSubtask: (id: string, done: boolean) => void;
 		onUpdateSubtask: (id: string, text: string) => void;
 		onDeleteSubtask: (id: string) => void;
+		onChangePriority: (id: string, priority: 'low' | 'normal' | 'high' | 'asap') => void;
+		onListContext?: (e: MouseEvent) => void;
+		onTaskContext?: (e: MouseEvent, task: Task) => void;
 	} = $props();
 
 	let editingTitle = $state(false);
@@ -44,7 +52,6 @@
 	let topLevelTasks = $derived(tasks.filter((t) => !t.parent_id && t.type === 'task'));
 	let activeTasks = $derived(topLevelTasks.filter((t) => !t.done));
 	let doneTasks = $derived(topLevelTasks.filter((t) => t.done));
-	let displayTasks = $derived(showDone ? topLevelTasks : activeTasks);
 
 	function getSubtasks(parentId: string): Task[] {
 		return tasks.filter((t) => t.parent_id === parentId);
@@ -77,7 +84,8 @@
 </script>
 
 <div class="w-full md:w-[360px] md:min-w-[280px] md:max-w-[500px] md:flex-shrink-0 flex flex-col">
-	<div class="card bg-base-100 border border-base-300 shadow-sm flex-1 flex flex-col">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="card bg-base-100 border border-base-300 shadow-sm flex-1 flex flex-col" oncontextmenu={(e) => onListContext?.(e)}>
 		<!-- Header -->
 		<div class="card-body p-4 pb-2 flex-shrink-0">
 			<div class="flex items-center justify-between">
@@ -108,6 +116,7 @@
 							onblur={saveRename}
 							onkeydown={handleTitleKeydown}
 							class="input input-sm input-ghost font-semibold text-base flex-1 px-1"
+							maxlength="100"
 							autofocus
 						/>
 					{:else}
@@ -147,21 +156,6 @@
 								Umbenennen
 							</button>
 							<button
-								onclick={() => { showDone = !showDone; menuOpen = false; }}
-								class="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-base-200 transition-colors"
-							>
-								<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									{#if showDone}
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-									{:else}
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-									{/if}
-								</svg>
-								{showDone ? 'Erledigte ausblenden' : 'Erledigte anzeigen'} ({doneTasks.length})
-							</button>
-							<div class="divider my-1 h-px"></div>
-							<button
 								onclick={() => { onDelete(list.id); menuOpen = false; }}
 								class="flex items-center gap-2 w-full px-3 py-2 text-sm rounded-lg hover:bg-error/10 text-error transition-colors"
 							>
@@ -178,8 +172,9 @@
 
 		<!-- Tasks -->
 		<div class="card-body p-4 pt-2 flex-1 overflow-y-auto space-y-2">
-			{#each displayTasks as task (task.id)}
-				<TaskItem
+			{#each activeTasks as task (task.id)}
+				<div transition:slide|global={{ duration: 250 }} animate:flip={{ duration: 200 }}>
+					<TaskItem
 					{task}
 					subtasks={getSubtasks(task.id)}
 					onToggle={onToggleTask}
@@ -189,13 +184,52 @@
 					{onToggleSubtask}
 					{onUpdateSubtask}
 					{onDeleteSubtask}
-				/>
+					{onChangePriority}
+					onContext={(e) => onTaskContext?.(e, task)}
+					/>
+				</div>
 			{/each}
 
-			{#if displayTasks.length === 0}
+			{#if activeTasks.length === 0}
 				<p class="text-sm text-base-content/40 text-center py-8 italic">
-					{showDone ? 'Keine Aufgaben vorhanden' : 'Alles erledigt! 🎉'}
+					Alles erledigt! 🎉
 				</p>
+			{/if}
+
+			{#if doneTasks.length > 0}
+				<button
+					onclick={() => (showDone = !showDone)}
+					class="flex items-center gap-2 w-full text-xs text-base-content/40 hover:text-base-content/60 transition-colors py-2"
+				>
+					<div class="flex-1 h-px bg-base-300"></div>
+					<span>{showDone ? 'Erledigte ausblenden' : `${doneTasks.length} erledigt`}</span>
+					<svg class="w-3 h-3 transition-transform {showDone ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+					</svg>
+					<div class="flex-1 h-px bg-base-300"></div>
+				</button>
+
+				{#if showDone}
+					<div transition:slide|global={{ duration: 300 }}>
+					{#each doneTasks as task (task.id)}
+						<div transition:slide|global={{ duration: 250 }} animate:flip={{ duration: 200 }}>
+							<TaskItem
+							{task}
+							subtasks={getSubtasks(task.id)}
+							onToggle={onToggleTask}
+							onUpdate={onUpdateTask}
+							onDelete={onDeleteTask}
+							{onAddSubtask}
+							{onToggleSubtask}
+							{onUpdateSubtask}
+							{onDeleteSubtask}
+							{onChangePriority}
+							onContext={(e) => onTaskContext?.(e, task)}
+							/>
+						</div>
+					{/each}
+					</div>
+				{/if}
 			{/if}
 
 			<!-- Quick Add -->

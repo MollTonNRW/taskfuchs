@@ -42,7 +42,7 @@
 	}
 </script>
 
-<div class="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-base-200/50 group transition-colors">
+<div class="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-base-200/50 group transition-colors">
 	<input
 		type="checkbox"
 		class="checkbox checkbox-xs checkbox-primary"
@@ -58,6 +58,7 @@
 			onblur={saveEdit}
 			onkeydown={handleEditKeydown}
 			class="input input-xs input-ghost flex-1 px-1"
+			maxlength="500"
 			autofocus
 		/>
 	{:else}
@@ -72,7 +73,7 @@
 
 	<button
 		onclick={() => onDelete(subtask.id)}
-		class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-50 hover:!opacity-100 hover:text-error transition-opacity"
+		class="btn btn-ghost btn-xs opacity-100 md:opacity-0 md:group-hover:opacity-50 hover:!opacity-100 hover:text-error transition-opacity"
 		aria-label="Unteraufgabe loeschen"
 	>
 		<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

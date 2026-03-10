@@ -2,7 +2,8 @@
 	let { onAdd }: { onAdd: (text: string) => void } = $props();
 	let text = $state('');
 
-	function handleSubmit() {
+	function handleSubmit(e?: Event) {
+		e?.preventDefault();
 		const trimmed = text.trim();
 		if (!trimmed) return;
 		onAdd(trimmed);
@@ -24,6 +25,7 @@
 		placeholder="Neue Aufgabe..."
 		class="input input-sm input-bordered flex-1 bg-base-200/50 focus:bg-base-100"
 		onkeydown={handleKeydown}
+		maxlength={500}
 	/>
 	<button type="submit" class="btn btn-sm btn-primary" disabled={!text.trim()} aria-label="Aufgabe hinzufuegen">
 		<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

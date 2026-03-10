@@ -14,8 +14,8 @@
 			error = 'Passwörter stimmen nicht überein.';
 			return;
 		}
-		if (password.length < 6) {
-			error = 'Passwort muss mindestens 6 Zeichen lang sein.';
+		if (password.length < 8) {
+			error = 'Passwort muss mindestens 8 Zeichen lang sein.';
 			return;
 		}
 
@@ -99,10 +99,10 @@
 							id="password"
 							type="password"
 							bind:value={password}
-							placeholder="Min. 6 Zeichen"
+							placeholder="Min. 8 Zeichen"
 							class="input input-bordered w-full"
 							required
-							minlength="6"
+							minlength="8"
 						/>
 					</div>
 					<div class="form-control mb-4">

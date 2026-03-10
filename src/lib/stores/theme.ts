@@ -1,11 +1,20 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
-type Theme = 'light' | 'dark';
+export const themes = [
+	{ id: 'light', name: 'Hell', icon: '☀️' },
+	{ id: 'dark', name: 'Dunkel', icon: '🌙' },
+	{ id: 'cupcake', name: 'Minimal', icon: '🧁' },
+	{ id: 'dracula', name: 'Dracula', icon: '🧛' },
+	{ id: 'cyberpunk', name: 'Neon', icon: '⚡' },
+	{ id: 'nord', name: 'Aurora', icon: '🌌' }
+] as const;
 
-const stored = browser ? (localStorage.getItem('theme') as Theme) : null;
+export type ThemeId = (typeof themes)[number]['id'];
 
-export const theme = writable<Theme>(stored ?? 'light');
+const stored = browser ? (localStorage.getItem('theme') as ThemeId) : null;
+
+export const theme = writable<ThemeId>(stored ?? 'light');
 
 theme.subscribe((value) => {
 	if (browser) {
@@ -13,6 +22,10 @@ theme.subscribe((value) => {
 		document.documentElement.setAttribute('data-theme', value);
 	}
 });
+
+export function setTheme(id: ThemeId) {
+	theme.set(id);
+}
 
 export function toggleTheme() {
 	theme.update((t) => (t === 'light' ? 'dark' : 'light'));

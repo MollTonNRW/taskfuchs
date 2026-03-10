@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { slide } from 'svelte/transition';
 	import type { Database } from '$lib/types/database';
 	import SubtaskItem from './SubtaskItem.svelte';
 
@@ -13,7 +14,9 @@
 		onAddSubtask,
 		onToggleSubtask,
 		onUpdateSubtask,
-		onDeleteSubtask
+		onDeleteSubtask,
+		onChangePriority,
+		onContext
 	}: {
 		task: Task;
 		subtasks: Task[];
@@ -24,6 +27,8 @@
 		onToggleSubtask: (id: string, done: boolean) => void;
 		onUpdateSubtask: (id: string, text: string) => void;
 		onDeleteSubtask: (id: string) => void;
+		onChangePriority: (id: string, priority: 'low' | 'normal' | 'high' | 'asap') => void;
+		onContext?: (e: MouseEvent) => void;
 	} = $props();
 
 	let editing = $state(false);
@@ -41,6 +46,28 @@
 		high: 'bg-warning',
 		asap: 'bg-error'
 	};
+
+	const priorityBadgeColors: Record<string, string> = {
+		low: 'badge-ghost',
+		normal: 'badge-info',
+		high: 'badge-warning',
+		asap: 'badge-error'
+	};
+
+	const priorityLabels: Record<string, string> = {
+		low: 'Niedrig',
+		normal: 'Normal',
+		high: 'Hoch',
+		asap: 'ASAP'
+	};
+
+	const priorityOrder: ('low' | 'normal' | 'high' | 'asap')[] = ['low', 'normal', 'high', 'asap'];
+
+	function cyclePriority() {
+		const currentIdx = priorityOrder.indexOf(task.priority);
+		const nextIdx = (currentIdx + 1) % priorityOrder.length;
+		onChangePriority(task.id, priorityOrder[nextIdx]);
+	}
 
 	let subtaskCount = $derived(subtasks.length);
 	let subtasksDone = $derived(subtasks.filter((s) => s.done).length);
@@ -109,7 +136,8 @@
 <div
 	class="task-enter {animClass} {task.priority === 'asap' ? 'asap-blink' : ''} {task.highlighted ? 'highlighted' : ''}"
 >
-	<div class="flex items-start gap-2 p-3 rounded-xl bg-base-200/50 border border-base-300/50 hover:bg-base-200 transition-all group">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="flex items-start gap-2 p-3 rounded-xl bg-base-200/50 border border-base-300/50 hover:bg-base-200 transition-all group" oncontextmenu={(e) => { if (onContext) { e.preventDefault(); e.stopPropagation(); onContext(e); } }}>
 		<!-- Priority Bar -->
 		<div class="w-1 self-stretch rounded-full {priorityColors[task.priority]} flex-shrink-0"></div>
 
@@ -136,6 +164,7 @@
 						onblur={saveEdit}
 						onkeydown={handleEditKeydown}
 						class="input input-sm input-ghost flex-1 px-1"
+						maxlength="500"
 						autofocus
 					/>
 				{:else}
@@ -149,10 +178,15 @@
 				{/if}
 			</div>
 
-			<!-- Badges -->
-			{#if task.timeframe || task.due_date}
+			<!-- Priority + Badges -->
+			{#if task.priority !== 'normal' || task.timeframe || task.due_date}
 				<div class="flex items-center gap-1.5 mt-1">
-					{#if task.timeframe}
+					{#if task.priority !== 'normal'}
+					<button onclick={cyclePriority} class="badge badge-xs {priorityBadgeColors[task.priority]} cursor-pointer hover:opacity-80 transition-opacity" title="Prioritaet aendern">
+						{priorityLabels[task.priority]}
+					</button>
+				{/if}
+				{#if task.timeframe}
 						<span class="badge badge-xs badge-outline">{task.timeframe}</span>
 					{/if}
 					{#if task.due_date}
@@ -181,7 +215,7 @@
 
 			<!-- Subtasks List -->
 			{#if subtasksOpen && subtaskCount > 0}
-				<div class="mt-2 ml-1 pl-3 border-l-2 border-base-300 space-y-0.5">
+				<div transition:slide|global={{ duration: 200 }} class="mt-2 ml-1 pl-3 border-l-2 border-base-300 space-y-0.5">
 					{#each subtasks as sub (sub.id)}
 						<SubtaskItem
 							subtask={sub}
@@ -195,7 +229,7 @@
 
 			<!-- Add Subtask Input -->
 			{#if addingSubtask}
-				<div class="mt-2 ml-1 pl-3 border-l-2 border-base-300">
+				<div transition:slide|global={{ duration: 200 }} class="mt-2 ml-1 pl-3 border-l-2 border-base-300">
 					<div class="flex gap-1.5">
 						<!-- svelte-ignore a11y_autofocus -->
 						<input
@@ -203,6 +237,7 @@
 							bind:value={newSubtaskText}
 							placeholder="Unteraufgabe..."
 							class="input input-xs input-bordered flex-1"
+							maxlength="500"
 							onkeydown={handleSubtaskKeydown}
 							onblur={() => { if (!newSubtaskText.trim()) addingSubtask = false; }}
 							autofocus
@@ -221,7 +256,7 @@
 		<div class="relative">
 			<button
 				onclick={() => (menuOpen = !menuOpen)}
-				class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity"
+				class="btn btn-ghost btn-xs opacity-100 md:opacity-0 md:group-hover:opacity-50 hover:!opacity-100 transition-opacity"
 				aria-label="Mehr Optionen"
 			>
 				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -252,6 +287,20 @@
 						</svg>
 						Unteraufgabe
 					</button>
+					<div class="px-3 py-1.5">
+						<span class="text-xs text-base-content/40">Prioritaet</span>
+						<div class="flex gap-1 mt-1">
+							{#each priorityOrder as p}
+								<button
+									onclick={() => { onChangePriority(task.id, p); menuOpen = false; }}
+									class="badge badge-xs {priorityBadgeColors[p]} {task.priority === p ? 'ring-1 ring-offset-1 ring-base-content/30' : 'opacity-50'} cursor-pointer hover:opacity-100 transition-opacity"
+									title={priorityLabels[p]}
+								>
+									{priorityLabels[p]}
+								</button>
+							{/each}
+						</div>
+					</div>
 					<div class="divider my-1 h-px"></div>
 					<button
 						onclick={() => { handleDelete(); menuOpen = false; }}

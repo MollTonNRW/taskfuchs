@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 @plugin 'daisyui' {
-	themes: light --default, dark --prefersdark;
+	themes: light --default, dark --prefersdark, cupcake, dracula, cyberpunk, nord;
 }
 
 /* ===== Custom Scrollbar ===== */
@@ -66,4 +66,73 @@
 }
 .asap-blink {
 	animation: asap-pulse 2.5s ease-in-out infinite;
+}
+
+/* ===== Checkbox Animation ===== */
+@keyframes checkbox-pop {
+	0% { transform: scale(1); }
+	40% { transform: scale(1.25); }
+	70% { transform: scale(0.9); }
+	100% { transform: scale(1); }
+}
+.checkbox:active,
+.checkbox:checked {
+	animation: checkbox-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ===== Smooth Transitions ===== */
+.scrollbar-none::-webkit-scrollbar {
+	display: none;
+}
+.scrollbar-none {
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
+/* ===== Menu Animation ===== */
+@keyframes menu-in {
+	from {
+		opacity: 0;
+		transform: scale(0.95) translateY(-4px);
+	}
+	to {
+		opacity: 1;
+		transform: scale(1) translateY(0);
+	}
+}
+.animate-in {
+	animation: menu-in 0.15s ease-out forwards;
+}
+
+/* ===== Strikethrough Animation ===== */
+.line-through {
+	text-decoration-color: currentColor;
+	transition: color 0.3s ease, text-decoration-color 0.3s ease;
+}
+
+/* ===== Touch Targets ===== */
+@media (pointer: coarse) {
+	.checkbox {
+		min-width: 20px;
+		min-height: 20px;
+	}
+	.btn-xs {
+		min-height: 36px;
+		min-width: 36px;
+	}
+}
+
+/* ===== iOS Safe Area ===== */
+body {
+	padding-top: env(safe-area-inset-top);
+	padding-bottom: env(safe-area-inset-bottom);
+	padding-left: env(safe-area-inset-left);
+	padding-right: env(safe-area-inset-right);
+}
+
+/* ===== Desktop Card Height ===== */
+@media (min-width: 768px) {
+	.card-body.overflow-y-auto {
+		max-height: calc(100vh - 10rem);
+	}
 }

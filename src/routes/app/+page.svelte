@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { fade } from 'svelte/transition';
 	import type { Database } from '$lib/types/database';
 	import ListPanel from '$lib/components/ListPanel.svelte';
+	import ContextMenu from '$lib/components/ContextMenu.svelte';
 	import type { SupabaseClient } from '@supabase/supabase-js';
+	import { listsStore } from '$lib/stores/lists';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -17,6 +20,11 @@
 	$effect(() => {
 		lists = data.lists as List[];
 		tasks = data.tasks as Task[];
+	});
+
+	// Keep shared store in sync for sidebar
+	$effect(() => {
+		listsStore.set(lists);
 	});
 
 	function tasksForList(listId: string): Task[] {
@@ -41,7 +49,10 @@
 				{ event: '*', schema: 'public', table: 'lists' },
 				(payload: any) => {
 					if (payload.eventType === 'INSERT') {
-						lists = [...lists, payload.new as List];
+						const newList = payload.new as List;
+						if (!lists.some((l) => l.id === newList.id)) {
+							lists = [...lists, newList];
+						}
 					} else if (payload.eventType === 'UPDATE') {
 						const updated = payload.new as List;
 						lists = lists.map((l) => (l.id === updated.id ? updated : l));
@@ -60,7 +71,10 @@
 				{ event: '*', schema: 'public', table: 'tasks' },
 				(payload: any) => {
 					if (payload.eventType === 'INSERT') {
-						tasks = [...tasks, payload.new as Task];
+						const newTask = payload.new as Task;
+						if (!tasks.some((t) => t.id === newTask.id)) {
+							tasks = [...tasks, newTask];
+						}
 					} else if (payload.eventType === 'UPDATE') {
 						const updated = payload.new as Task;
 						tasks = tasks.map((t) => (t.id === updated.id ? updated : t));
@@ -90,27 +104,46 @@
 			.select()
 			.single();
 
-		if (newList && !error) {
+		if (error) {
+			console.error('Liste erstellen fehlgeschlagen:', error);
+			alert('Fehler beim Erstellen der Liste: ' + error.message);
+			return;
+		}
+
+		if (newList) {
 			lists = [...lists, newList as List];
 			activeListIndex = lists.length - 1;
 		}
 	}
 
 	async function renameList(id: string, title: string) {
+		const oldLists = lists;
 		lists = lists.map((l) => (l.id === id ? { ...l, title } : l));
-		await getSupabase().from('lists').update({ title }).eq('id', id);
+		const { error } = await getSupabase().from('lists').update({ title }).eq('id', id);
+		if (error) lists = oldLists;
 	}
 
 	async function deleteList(id: string) {
+		if (!confirm('Liste wirklich loeschen? Alle Aufgaben werden geloescht.')) return;
+		const oldLists = lists;
+		const oldTasks = tasks;
+		const oldIndex = activeListIndex;
 		lists = lists.filter((l) => l.id !== id);
 		tasks = tasks.filter((t) => t.list_id !== id);
 		if (activeListIndex >= lists.length) activeListIndex = Math.max(0, lists.length - 1);
-		await getSupabase().from('lists').delete().eq('id', id);
+		const { error } = await getSupabase().from('lists').delete().eq('id', id);
+		if (error) {
+			lists = oldLists;
+			tasks = oldTasks;
+			activeListIndex = oldIndex;
+		}
 	}
 
 	async function changeListIcon(id: string, icon: string) {
+		const oldLists = lists;
 		lists = lists.map((l) => (l.id === id ? { ...l, icon } : l));
-		await getSupabase().from('lists').update({ icon }).eq('id', id);
+		const { error } = await getSupabase().from('lists').update({ icon }).eq('id', id);
+		if (error) lists = oldLists;
 	}
 
 	// ==========================================
@@ -152,15 +185,20 @@
 			.select()
 			.single();
 
-		if (newTask && !error) {
-			tasks = tasks.map((t) => (t.id === optimisticTask.id ? (newTask as Task) : t));
-		} else if (error) {
+		if (error) {
+			console.error('Aufgabe erstellen fehlgeschlagen:', error);
 			tasks = tasks.filter((t) => t.id !== optimisticTask.id);
+			return;
+		}
+
+		if (newTask) {
+			tasks = tasks.map((t) => (t.id === optimisticTask.id ? (newTask as Task) : t));
 		}
 	}
 
 	async function toggleTask(id: string, done: boolean) {
 		const sb = getSupabase();
+		const oldTasks = tasks;
 		tasks = tasks.map((t) => (t.id === id ? { ...t, done } : t));
 
 		// Checkbox propagation: parent check → all subtasks checked
@@ -168,11 +206,25 @@
 			const subtaskIds = tasks.filter((t) => t.parent_id === id).map((t) => t.id);
 			if (subtaskIds.length > 0) {
 				tasks = tasks.map((t) => (subtaskIds.includes(t.id) ? { ...t, done: true } : t));
-				await sb.from('tasks').update({ done: true }).in('id', subtaskIds);
+				const { error: subError } = await sb.from('tasks').update({ done: true }).in('id', subtaskIds);
+				if (subError) { tasks = oldTasks; return; }
 			}
 		}
 
-		await sb.from('tasks').update({ done }).eq('id', id);
+		const { error } = await sb.from('tasks').update({ done }).eq('id', id);
+		if (error) { tasks = oldTasks; return; }
+
+		// Reverse propagation: if all subtasks done → auto-check parent
+		const task = tasks.find((t) => t.id === id);
+		if (task?.parent_id) {
+			const siblings = tasks.filter((t) => t.parent_id === task.parent_id);
+			const allDone = siblings.every((t) => t.done);
+			const parent = tasks.find((t) => t.id === task.parent_id);
+			if (parent && parent.done !== allDone) {
+				tasks = tasks.map((t) => (t.id === parent.id ? { ...t, done: allDone } : t));
+				await sb.from('tasks').update({ done: allDone }).eq('id', parent.id);
+			}
+		}
 	}
 
 	async function updateTask(id: string, text: string) {
@@ -181,8 +233,20 @@
 	}
 
 	async function deleteTask(id: string) {
+		if (!confirm('Aufgabe wirklich loeschen?')) return;
+		const oldTasks = tasks;
 		tasks = tasks.filter((t) => t.id !== id && t.parent_id !== id);
-		await getSupabase().from('tasks').delete().eq('id', id);
+		const { error } = await getSupabase().from('tasks').delete().eq('id', id);
+		if (error) tasks = oldTasks;
+	}
+
+	type Priority = 'low' | 'normal' | 'high' | 'asap';
+
+	async function changeTaskPriority(id: string, priority: Priority) {
+		const oldTasks = tasks;
+		tasks = tasks.map((t) => (t.id === id ? { ...t, priority } : t));
+		const { error } = await getSupabase().from('tasks').update({ priority }).eq('id', id);
+		if (error) tasks = oldTasks;
 	}
 
 	// ==========================================
@@ -241,8 +305,23 @@
 	}
 
 	async function toggleSubtask(id: string, done: boolean) {
+		const sb = getSupabase();
+		const oldTasks = tasks;
 		tasks = tasks.map((t) => (t.id === id ? { ...t, done } : t));
-		await getSupabase().from('tasks').update({ done }).eq('id', id);
+		const { error } = await sb.from('tasks').update({ done }).eq('id', id);
+		if (error) { tasks = oldTasks; return; }
+
+		// Reverse propagation: if all subtasks done → auto-check parent
+		const subtask = tasks.find((t) => t.id === id);
+		if (subtask?.parent_id) {
+			const siblings = tasks.filter((t) => t.parent_id === subtask.parent_id);
+			const allDone = siblings.every((t) => t.done);
+			const parent = tasks.find((t) => t.id === subtask.parent_id);
+			if (parent && parent.done !== allDone) {
+				tasks = tasks.map((t) => (t.id === parent.id ? { ...t, done: allDone } : t));
+				await sb.from('tasks').update({ done: allDone }).eq('id', parent.id);
+			}
+		}
 	}
 
 	async function updateSubtask(id: string, text: string) {
@@ -254,11 +333,60 @@
 		tasks = tasks.filter((t) => t.id !== id);
 		await getSupabase().from('tasks').delete().eq('id', id);
 	}
+
+	// ==========================================
+	// CONTEXT MENU
+	// ==========================================
+	type ContextMenuState = {
+		show: boolean;
+		x: number;
+		y: number;
+		items: { label: string; icon?: string; action: () => void; danger?: boolean; divider?: boolean }[];
+	};
+
+	let contextMenu = $state<ContextMenuState>({ show: false, x: 0, y: 0, items: [] });
+
+	function handleListContext(e: MouseEvent, list: List) {
+		e.preventDefault();
+		contextMenu = {
+			show: true,
+			x: e.clientX,
+			y: e.clientY,
+			items: [
+				{ label: 'Neue Aufgabe', icon: '➕', action: () => addTask(list.id, 'Neue Aufgabe') },
+				{ label: 'Liste umbenennen', icon: '✏️', action: () => { /* handled via ListPanel */ } },
+				{ label: 'Liste loeschen', icon: '🗑️', action: () => deleteList(list.id), danger: true, divider: true }
+			]
+		};
+	}
+
+	function handleTaskContext(e: MouseEvent, task: Task) {
+		e.preventDefault();
+		contextMenu = {
+			show: true,
+			x: e.clientX,
+			y: e.clientY,
+			items: [
+				{ label: 'Unteraufgabe', icon: '➕', action: () => addSubtask(task.id, 'Neue Unteraufgabe') },
+				{ label: task.done ? 'Nicht erledigt' : 'Erledigt', icon: task.done ? '⬜' : '✅', action: () => toggleTask(task.id, !task.done) },
+				{ label: 'Loeschen', icon: '🗑️', action: () => { tasks = tasks.filter((t) => t.id !== task.id && t.parent_id !== task.id); getSupabase().from('tasks').delete().eq('id', task.id); }, danger: true, divider: true }
+			]
+		};
+	}
 </script>
 
 <svelte:head>
 	<title>TaskFuchs</title>
 </svelte:head>
+
+{#if contextMenu.show}
+	<ContextMenu
+		items={contextMenu.items}
+		x={contextMenu.x}
+		y={contextMenu.y}
+		onClose={() => (contextMenu = { ...contextMenu, show: false })}
+	/>
+{/if}
 
 <div class="max-w-7xl mx-auto p-4 md:p-6">
 	{#if lists.length === 0}
@@ -278,8 +406,8 @@
 		</div>
 	{:else}
 		<!-- Mobile: Tab Navigation -->
-		<div class="md:hidden mb-4">
-			<div class="flex gap-1 overflow-x-auto pb-2 scrollbar-none">
+		<div class="md:hidden mb-4 -mx-4 px-4 sticky top-[57px] z-20 bg-base-100/90 backdrop-blur-sm border-b border-base-300/50 pb-2 pt-2">
+			<div class="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
 				{#each lists as list, i (list.id)}
 					<button
 						onclick={() => (activeListIndex = i)}
@@ -299,21 +427,28 @@
 		<!-- Mobile: Single List View -->
 		<div class="md:hidden">
 			{#if lists[activeListIndex]}
-				<ListPanel
-					list={lists[activeListIndex]}
-					tasks={tasksForList(lists[activeListIndex].id)}
-					onRename={renameList}
-					onDelete={deleteList}
-					onIconChange={changeListIcon}
-					onAddTask={addTask}
-					onToggleTask={toggleTask}
-					onUpdateTask={updateTask}
-					onDeleteTask={deleteTask}
-					onAddSubtask={addSubtask}
-					onToggleSubtask={toggleSubtask}
-					onUpdateSubtask={updateSubtask}
-					onDeleteSubtask={deleteSubtask}
-				/>
+				{#key activeListIndex}
+					<div in:fade={{ duration: 150, delay: 50 }} out:fade={{ duration: 100 }}>
+						<ListPanel
+							list={lists[activeListIndex]}
+							tasks={tasksForList(lists[activeListIndex].id)}
+							onRename={renameList}
+							onDelete={deleteList}
+							onIconChange={changeListIcon}
+							onAddTask={addTask}
+							onToggleTask={toggleTask}
+							onUpdateTask={updateTask}
+							onDeleteTask={deleteTask}
+							onAddSubtask={addSubtask}
+							onToggleSubtask={toggleSubtask}
+							onUpdateSubtask={updateSubtask}
+							onDeleteSubtask={deleteSubtask}
+							onChangePriority={changeTaskPriority}
+							onListContext={(e) => handleListContext(e, lists[activeListIndex])}
+							onTaskContext={handleTaskContext}
+						/>
+					</div>
+				{/key}
 			{/if}
 		</div>
 
@@ -334,6 +469,9 @@
 					onToggleSubtask={toggleSubtask}
 					onUpdateSubtask={updateSubtask}
 					onDeleteSubtask={deleteSubtask}
+					onChangePriority={changeTaskPriority}
+					onListContext={(e) => handleListContext(e, list)}
+					onTaskContext={handleTaskContext}
 				/>
 			{/each}
 
