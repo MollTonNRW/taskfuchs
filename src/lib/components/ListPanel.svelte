@@ -82,10 +82,9 @@
 	let activeTasks = $derived(
 		topLevelTasks.filter((t) => (t.type === 'divider' || !t.done))
 			.sort((a, b) => {
-				if (a.type === 'divider' || b.type === 'divider') return 0;
 				if (a.highlighted && !b.highlighted) return -1;
 				if (!a.highlighted && b.highlighted) return 1;
-				return 0;
+				return a.position - b.position;
 			})
 	);
 	let doneTasks = $derived(topLevelTasks.filter((t) => t.type !== 'divider' && t.done));
