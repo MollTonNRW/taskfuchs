@@ -69,7 +69,7 @@ body {
 }
 @keyframes context-menu-in {
 	from { opacity: 0; transform: scale(.92) translateY(-4px); }
-	to { opacity: 1; transform: scale(1) translateY(0); }
+	to { opacity: 1; transform: none; }
 }
 @keyframes pin-card-in {
 	from { opacity: 0; transform: scale(.9) translateY(8px); }
@@ -205,7 +205,7 @@ body {
    CONTEXT MENU
    ============================================= */
 .context-menu {
-	position: fixed; z-index: 100; min-width: 220px;
+	min-width: 220px;
 	border-radius: 12px; padding: 6px;
 	animation: context-menu-in .2s cubic-bezier(.34,1.56,.64,1) forwards;
 	box-shadow: 0 20px 60px rgba(0,0,0,.15), 0 4px 16px rgba(0,0,0,.1);
@@ -459,6 +459,9 @@ body {
 }
 .theme-neon .custom-checkbox input:checked + .checkmark { background: #6366f1; border-color: #6366f1; }
 .theme-neon .progress-segment { background: #374151; }
+.theme-neon .progress-segment.active-1 { background: #60a5fa; }
+.theme-neon .progress-segment.active-2 { background: #fbbf24; }
+.theme-neon .progress-segment.active-3 { background: #4ade80; }
 
 /* Neon: task-item + hover glow */
 .theme-neon .task-item { background: rgba(20,20,50,.8); border: 1px solid rgba(100,100,255,.15); }
@@ -520,6 +523,9 @@ body {
 .theme-colorful .quick-add-btn { background: linear-gradient(135deg, #8b5cf6, #ec4899); }
 /* Colorful: progress bar */
 .theme-colorful .progress-segment { background: rgba(0,0,0,.08); }
+.theme-colorful .progress-segment.active-1 { background: #3b82f6; }
+.theme-colorful .progress-segment.active-2 { background: #f59e0b; }
+.theme-colorful .progress-segment.active-3 { background: #22c55e; }
 /* Colorful: header overrides */
 .theme-colorful .tf-header * { color: white; }
 .theme-colorful .tf-header .theme-btn { color: rgba(255,255,255,.7); background: transparent; box-shadow: none; }
@@ -587,6 +593,9 @@ body {
 	background: linear-gradient(135deg, #38bdf8, #a78bfa); border-color: transparent;
 }
 .theme-aurora .progress-segment { background: rgba(148,163,184,.12); }
+.theme-aurora .progress-segment.active-1 { background: #60a5fa; }
+.theme-aurora .progress-segment.active-2 { background: #fbbf24; }
+.theme-aurora .progress-segment.active-3 { background: #4ade80; }
 .theme-aurora .highlighted::before {
 	background: linear-gradient(135deg, rgba(56,189,248,.15), rgba(168,85,247,.1));
 }
@@ -672,6 +681,9 @@ body {
 .dark .avatar-stack .avatar { border-color: var(--tf-surface); }
 .dark .section-divider .divider-line { background: var(--tf-border); }
 .theme-minimal.dark .progress-segment, .theme-colorful.dark .progress-segment { background: #374151; }
+.theme-minimal.dark .progress-segment.active-1, .theme-colorful.dark .progress-segment.active-1 { background: #60a5fa; }
+.theme-minimal.dark .progress-segment.active-2, .theme-colorful.dark .progress-segment.active-2 { background: #fbbf24; }
+.theme-minimal.dark .progress-segment.active-3, .theme-colorful.dark .progress-segment.active-3 { background: #4ade80; }
 .dark .focus-overlay { background: rgba(0,0,0,.7); }
 .dark .focus-card { background: var(--tf-surface); border-color: var(--tf-border); }
 .dark .tf-surface-interactive:hover { box-shadow: 0 2px 12px rgba(0,0,0,.2); }

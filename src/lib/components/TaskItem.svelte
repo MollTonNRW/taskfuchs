@@ -58,9 +58,6 @@
 	let subtasksOpen = $state(false);
 	let addingSubtask = $state(false);
 	let newSubtaskText = $state('');
-	let menuOpen = $state(false);
-	let menuPos = $state({ x: 0, y: 0 });
-	let menuEl: HTMLDivElement | undefined = $state();
 	let animating = $state(false);
 	let animClass = $state('');
 
@@ -71,15 +68,6 @@
 		e.preventDefault();
 		onTaskClick?.(task.id);
 	}
-
-	// Clamp more-menu to viewport
-	$effect(() => {
-		if (menuEl) {
-			const rect = menuEl.getBoundingClientRect();
-			if (rect.right > window.innerWidth) menuEl.style.left = `${window.innerWidth - rect.width - 8}px`;
-			if (rect.bottom > window.innerHeight) menuEl.style.top = `${window.innerHeight - rect.height - 8}px`;
-		}
-	});
 
 	// Picker popovers
 	type PickerState = { show: boolean; x: number; y: number };
@@ -306,7 +294,7 @@
 						onclick={(e) => { e.stopPropagation(); if (autoProgress < 0 && onChangeProgress) onChangeProgress(task.id, ((task.progress || 0) + 1) % 4); }}
 					>
 						{#each [0,1,2,3] as i}
-							<div class="progress-segment {i < displayProgress ? `active-${displayProgress}` : ''}"></div>
+							<div class="progress-segment {(displayProgress === 3 ? true : i < displayProgress) ? `active-${displayProgress}` : ''}"></div>
 						{/each}
 					</button>
 					{#if autoProgress >= 0}
@@ -318,58 +306,14 @@
 			<!-- More Menu -->
 			<button
 				class="more-menu-btn w-7 h-7 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-all flex-shrink-0"
-				onclick={(e) => { e.stopPropagation(); menuPos = { x: e.clientX, y: e.clientY }; menuOpen = !menuOpen; }}
+				onclick={(e) => { e.stopPropagation(); onContext?.(e); }}
 				aria-label="Mehr Optionen"
 			>
 				<svg class="w-4 h-4 tf-text-muted" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
 			</button>
 		</div>
 
-		{#if menuOpen}
-			<!-- Backdrop -->
-			<div class="fixed inset-0 z-[79]" onclick={() => (menuOpen = false)} role="presentation"></div>
-			<!-- Menu -->
-			<div bind:this={menuEl} class="fixed z-[80] w-52 rounded-xl p-1.5 animate-in" style="left: {menuPos.x}px; top: {menuPos.y}px; background: var(--tf-surface); border: 1px solid var(--tf-border); box-shadow: 0 12px 40px rgba(0,0,0,.15);">
-				<button
-					onclick={() => { startEdit(); menuOpen = false; }}
-					class="context-menu-item w-full"
-				>
-					<svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-					<span class="tf-text">Bearbeiten</span>
-				</button>
-				<button
-					onclick={() => { addingSubtask = true; subtasksOpen = true; menuOpen = false; }}
-					class="context-menu-item w-full"
-				>
-					<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-					<span class="tf-text">Unteraufgabe</span>
-				</button>
-				<div class="px-3 py-1.5">
-					<span class="text-xs tf-text-muted">Priorität</span>
-					<div class="flex gap-1 mt-1">
-						{#each priorityOrder as p}
-							<button
-								onclick={() => { onChangePriority(task.id, p); menuOpen = false; }}
-								class="text-[10px] font-medium px-1.5 py-0.5 rounded-md transition-opacity {priorityBadgeBg[p]} {task.priority === p ? 'ring-2 ring-current/30' : 'opacity-50'} cursor-pointer hover:opacity-100"
-								title={priorityLabels[p]}
-							>
-								{priorityLabels[p]}
-							</button>
-						{/each}
-					</div>
-				</div>
-				<div class="context-menu-divider"></div>
-				<button
-					onclick={() => { handleDelete(); menuOpen = false; }}
-					class="context-menu-item w-full text-red-500 hover:!bg-red-50 dark:hover:!bg-red-900/20"
-				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-					<span>Löschen</span>
-				</button>
-			</div>
-		{/if}
-
-		<!-- Subtasks Toggle -->
+			<!-- Subtasks Toggle -->
 		{#if subtaskCount > 0}
 			<div class="mt-1 ml-10">
 				<button
@@ -430,25 +374,25 @@
 		{/if}
 	</div>
 
-	<!-- Priority Picker Popover -->
-	{#if priorityPicker.show}
-		<PriorityPicker
-			x={priorityPicker.x}
-			y={priorityPicker.y}
-			current={task.priority}
-			onSelect={(p) => onChangePriority(task.id, p)}
-			onClose={() => (priorityPicker = { ...priorityPicker, show: false })}
-		/>
-	{/if}
-
-	<!-- Timeframe Picker Popover -->
-	{#if timeframePicker.show}
-		<TimeframePicker
-			x={timeframePicker.x}
-			y={timeframePicker.y}
-			current={task.timeframe}
-			onSelect={(tf) => onChangeTimeframe?.(task.id, tf)}
-			onClose={() => (timeframePicker = { ...timeframePicker, show: false })}
-		/>
-	{/if}
 </div>
+
+<!-- Pickers outside task-enter to avoid transform/stacking issues -->
+{#if priorityPicker.show}
+	<PriorityPicker
+		x={priorityPicker.x}
+		y={priorityPicker.y}
+		current={task.priority}
+		onSelect={(p) => onChangePriority(task.id, p)}
+		onClose={() => (priorityPicker = { ...priorityPicker, show: false })}
+	/>
+{/if}
+
+{#if timeframePicker.show}
+	<TimeframePicker
+		x={timeframePicker.x}
+		y={timeframePicker.y}
+		current={task.timeframe}
+		onSelect={(tf) => onChangeTimeframe?.(task.id, tf)}
+		onClose={() => (timeframePicker = { ...timeframePicker, show: false })}
+	/>
+{/if}
