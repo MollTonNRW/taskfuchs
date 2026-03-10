@@ -109,13 +109,19 @@
 	}
 
 	let descendantStats = $derived(countDescendants(task.id));
-	// Auto-progress: 0-3 scale from subtask completion ratio
+	// Auto-progress: percentage from subtask completion
 	let autoProgress = $derived(
 		descendantStats.total > 0
-			? Math.round((descendantStats.done / descendantStats.total) * 3)
+			? Math.round((descendantStats.done / descendantStats.total) * 100)
 			: -1 // -1 means no subtasks, use manual progress
 	);
-	let displayProgress = $derived(autoProgress >= 0 ? autoProgress : task.progress);
+	// Manual progress: 0=0%, 1=33%, 2=66%, 3=100%
+	const manualProgressPercent = [0, 33, 66, 100] as const;
+	let displayPercent = $derived(autoProgress >= 0 ? autoProgress : manualProgressPercent[task.progress ?? 0]);
+	// For backwards compat with glow effects
+	let displayProgress = $derived(
+		displayPercent === 100 ? 3 : displayPercent >= 50 ? 2 : displayPercent > 0 ? 1 : 0
+	);
 
 	function startEdit() {
 		editText = task.text;
@@ -294,20 +300,27 @@
 							onclick={(e) => { e.stopPropagation(); if (onNoteClick) onNoteClick(task.id, e.clientX, e.clientY); }}
 						>💬</button>
 					{/if}
-					<!-- Progress Bar (always visible, clickable to cycle) -->
+					<!-- Progress Bar -->
 					<button
 						type="button"
-						class="progress-bar progress-bar-lg cursor-pointer p-0 border-0 bg-transparent"
-						title={autoProgress >= 0 ? `${descendantStats.done}/${descendantStats.total} erledigt` : progressLabels[task.progress]}
+						class="progress-bar-modern cursor-pointer p-0 border-0 bg-transparent"
+						title={autoProgress >= 0 ? `${descendantStats.done}/${descendantStats.total} erledigt (${displayPercent}%)` : `${displayPercent}%`}
 						onclick={(e) => { e.stopPropagation(); if (autoProgress < 0 && onChangeProgress) onChangeProgress(task.id, ((task.progress || 0) + 1) % 4); }}
 					>
-						{#each [0,1,2,3] as i}
-							<div class="progress-segment {(displayProgress === 3 ? true : i < displayProgress) ? `active-${displayProgress}` : ''}"></div>
-						{/each}
+						<div class="progress-track">
+							<div
+								class="progress-fill progress-fill-{displayProgress}"
+								style="width: {displayPercent}%"
+							></div>
+						</div>
 					</button>
-					{#if autoProgress >= 0}
-						<span class="text-[9px] tf-text-muted">{descendantStats.done}/{descendantStats.total}</span>
-					{/if}
+					<span class="text-[9px] tf-text-muted tabular-nums">
+						{#if autoProgress >= 0}
+							{descendantStats.done}/{descendantStats.total}
+						{:else if displayPercent > 0}
+							{displayPercent}%
+						{/if}
+					</span>
 				</div>
 			</div>
 
