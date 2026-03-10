@@ -141,8 +141,11 @@
 			const data = JSON.parse(e.dataTransfer.getData('text/plain'));
 			if (data.taskId) {
 				// idx ist Position in activeTasks (enthält Divider).
-				// Store erwartet Position unter non-divider Tasks.
-				const nonDividerPos = activeTasks.slice(0, idx).filter(t => t.type !== 'divider').length;
+				// Store erwartet Position unter non-divider Tasks, OHNE den gezogenen Task.
+				const nonDividerPos = activeTasks
+					.slice(0, idx)
+					.filter(t => t.type !== 'divider' && t.id !== data.taskId)
+					.length;
 				onReorderTask(data.taskId, list.id, nonDividerPos);
 			}
 		} catch { /* ignore */ }
@@ -155,7 +158,7 @@
 		try {
 			const data = JSON.parse(e.dataTransfer.getData('text/plain'));
 			if (data.taskId) {
-				const nonDividerCount = activeTasks.filter(t => t.type !== 'divider').length;
+				const nonDividerCount = activeTasks.filter(t => t.type !== 'divider' && t.id !== data.taskId).length;
 				onReorderTask(data.taskId, list.id, nonDividerCount);
 			}
 		} catch { /* ignore */ }
@@ -434,6 +437,15 @@
 						<span class="text-xs tf-text-muted mt-1">Erstelle eine neue Aufgabe unten</span>
 					{/if}
 				</div>
+			{:else}
+				<!-- Bottom drop zone (ans Ende der Liste ziehen) -->
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div
+					class="h-6 -mt-1 rounded-b-lg transition-colors {dragOverIdx === activeTasks.length ? 'border-t-2 border-blue-500' : ''}"
+					ondragover={(e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; dragOverIdx = activeTasks.length; }}
+					ondragleave={() => { if (dragOverIdx === activeTasks.length) dragOverIdx = null; }}
+					ondrop={(e) => handleTaskDrop(e, activeTasks.length)}
+				></div>
 			{/if}
 
 			<!-- Done Section -->
