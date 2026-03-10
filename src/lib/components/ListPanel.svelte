@@ -130,23 +130,21 @@
 	function handleTaskDragOver(e: DragEvent, idx: number) {
 		e.preventDefault();
 		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-		dragOverIdx = idx;
+		// Oberhalb/unterhalb der Mitte bestimmt ob vor oder nach diesem Element
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		const isBelow = e.clientY > rect.top + rect.height / 2;
+		dragOverIdx = isBelow ? idx + 1 : idx;
 	}
 
 	function handleTaskDrop(e: DragEvent, idx: number) {
 		e.preventDefault();
-		dragOverIdx = null;
 		if (!e.dataTransfer || !onReorderTask) return;
+		const dropIdx = dragOverIdx ?? idx;
+		dragOverIdx = null;
 		try {
 			const data = JSON.parse(e.dataTransfer.getData('text/plain'));
 			if (data.taskId) {
-				// idx ist Position in activeTasks (enthält Divider).
-				// Store erwartet Position unter non-divider Tasks, OHNE den gezogenen Task.
-				const nonDividerPos = activeTasks
-					.slice(0, idx)
-					.filter(t => t.type !== 'divider' && t.id !== data.taskId)
-					.length;
-				onReorderTask(data.taskId, list.id, nonDividerPos);
+				onReorderTask(data.taskId, list.id, dropIdx);
 			}
 		} catch { /* ignore */ }
 	}
@@ -158,8 +156,7 @@
 		try {
 			const data = JSON.parse(e.dataTransfer.getData('text/plain'));
 			if (data.taskId) {
-				const nonDividerCount = activeTasks.filter(t => t.type !== 'divider' && t.id !== data.taskId).length;
-				onReorderTask(data.taskId, list.id, nonDividerCount);
+				onReorderTask(data.taskId, list.id, activeTasks.length);
 			}
 		} catch { /* ignore */ }
 	}
@@ -365,7 +362,6 @@
 						ondragend={handleTaskDragEnd}
 						ondragover={(e) => handleTaskDragOver(e, idx)}
 						ondrop={(e) => handleTaskDrop(e, idx)}
-						ondragleave={() => { if (dragOverIdx === idx) dragOverIdx = null; }}
 					>
 						<div class="divider-line" style="background: var(--tf-border);"></div>
 						<span class="text-xs font-semibold uppercase tracking-wider tf-text-muted cursor-grab">{task.divider_label || task.text}</span>
@@ -378,7 +374,6 @@
 						class="flex items-start gap-1 {dragOverIdx === idx ? 'drag-over' : ''}"
 						ondragover={(e) => handleTaskDragOver(e, idx)}
 						ondrop={(e) => handleTaskDrop(e, idx)}
-						ondragleave={() => { if (dragOverIdx === idx) dragOverIdx = null; }}
 					>
 						{#if bulkMode && onBulkToggle}
 							<label class="flex-shrink-0 mt-3 ml-1 cursor-pointer" onclick={(e) => e.stopPropagation()}>

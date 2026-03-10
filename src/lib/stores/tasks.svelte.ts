@@ -374,30 +374,32 @@ export function createTaskStore() {
 		const sourceListId = task.list_id;
 		const isMoving = sourceListId !== targetListId;
 
-		// 1. Alle Top-Level Tasks (ohne Divider) in der Zielliste, ohne den verschobenen Task
-		const targetList = tasks
-			.filter((t) => t.list_id === targetListId && !t.parent_id && t.id !== taskId && t.type !== 'divider')
+		// 1. ALLE Top-Level-Items (Tasks + Divider) in der Zielliste, OHNE den gezogenen Task
+		const targetItems = tasks
+			.filter((t) => t.list_id === targetListId && !t.parent_id && t.id !== taskId)
+			.filter((t) => t.type === 'divider' || !t.done)
 			.sort((a, b) => a.position - b.position);
 
-		// 2. Task an neuer Position einfügen
-		const clampedPos = Math.max(0, Math.min(newPosition, targetList.length));
-		targetList.splice(clampedPos, 0, { ...task, list_id: targetListId } as Task);
+		// 2. Task an neuer Position einfügen (unter allen Items inkl. Divider)
+		const clampedPos = Math.max(0, Math.min(newPosition, targetItems.length));
+		targetItems.splice(clampedPos, 0, { ...task, list_id: targetListId } as Task);
 
-		// 3. Neue Positionen zuweisen (sequentiell 0, 1, 2, ...)
+		// 3. Neue Positionen zuweisen — ALLE Items (Tasks + Divider) sequentiell 0, 1, 2, ...
 		const updates: { id: string; position: number; list_id?: string }[] = [];
-		targetList.forEach((t, i) => {
+		targetItems.forEach((t, i) => {
 			const needsListUpdate = t.id === taskId && isMoving;
 			if (t.position !== i || needsListUpdate) {
 				updates.push({ id: t.id, position: i, ...(needsListUpdate ? { list_id: targetListId } : {}) });
 			}
 		});
 
-		// 4. Bei Listwechsel: Quell-Liste neu nummerieren
+		// 4. Bei Listwechsel: Quell-Liste komplett neu nummerieren (inkl. Divider)
 		if (isMoving) {
-			const sourceList = tasks
-				.filter((t) => t.list_id === sourceListId && !t.parent_id && t.id !== taskId && t.type !== 'divider')
+			const sourceItems = tasks
+				.filter((t) => t.list_id === sourceListId && !t.parent_id && t.id !== taskId)
+				.filter((t) => t.type === 'divider' || !t.done)
 				.sort((a, b) => a.position - b.position);
-			sourceList.forEach((t, i) => {
+			sourceItems.forEach((t, i) => {
 				if (t.position !== i) {
 					updates.push({ id: t.id, position: i });
 				}
