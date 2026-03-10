@@ -76,6 +76,26 @@
       100% { opacity: 1; filter: blur(0); }
     }
     .theme-transition { animation: themeFade .4s ease forwards; }
+    @keyframes slideInRight {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(0); }
+    }
+    @keyframes slideOutLeft {
+      from { transform: translateX(0); }
+      to { transform: translateX(-100%); }
+    }
+    @keyframes contextMenuIn {
+      from { opacity: 0; transform: scale(.92) translateY(-4px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @keyframes pinCardIn {
+      from { opacity: 0; transform: scale(.9) translateY(8px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    @keyframes notePopIn {
+      from { opacity: 0; transform: translateY(4px) scale(.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
 
     /* ===== Checkbox Custom ===== */
     .custom-checkbox { position: relative; width: 20px; height: 20px; cursor: pointer; flex-shrink: 0; }
@@ -116,6 +136,68 @@
     .lists-container { scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
     .list-panel { scroll-snap-align: start; }
 
+    /* ===== Sidebar ===== */
+    .sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
+      width: 280px; transform: translateX(-100%);
+      transition: transform .35s cubic-bezier(.4,0,.2,1);
+      overflow-y: auto;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-overlay {
+      position: fixed; inset: 0; z-index: 55; background: rgba(0,0,0,.4);
+      opacity: 0; pointer-events: none; transition: opacity .3s;
+    }
+    .sidebar-overlay.active { opacity: 1; pointer-events: all; }
+    @media (min-width: 768px) {
+      .sidebar-overlay.active { opacity: 0; pointer-events: none; }
+      .main-content { transition: margin-left .35s cubic-bezier(.4,0,.2,1); }
+      .main-content.shifted { margin-left: 280px; }
+    }
+
+    /* ===== Context Menu ===== */
+    .context-menu {
+      position: fixed; z-index: 100; min-width: 220px;
+      border-radius: 12px; padding: 6px;
+      animation: contextMenuIn .2s cubic-bezier(.34,1.56,.64,1) forwards;
+      box-shadow: 0 20px 60px rgba(0,0,0,.15), 0 4px 16px rgba(0,0,0,.1);
+    }
+    .context-menu-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
+      transition: background .15s;
+    }
+    .context-menu-item:hover { background: rgba(0,0,0,.05); }
+    .dark .context-menu-item:hover { background: rgba(255,255,255,.08); }
+    .context-menu-divider { height: 1px; margin: 4px 8px; }
+    .context-submenu {
+      position: absolute; left: 100%; top: 0; min-width: 180px;
+      border-radius: 12px; padding: 6px;
+      animation: contextMenuIn .15s ease forwards;
+      box-shadow: 0 12px 40px rgba(0,0,0,.12);
+    }
+
+    /* ===== Pinboard ===== */
+    .pinboard { transition: max-height .4s cubic-bezier(.4,0,.2,1), opacity .3s, padding .3s; overflow: hidden; }
+    .pinboard.collapsed { max-height: 0 !important; opacity: 0; padding-top: 0 !important; padding-bottom: 0 !important; }
+    .pin-card { animation: pinCardIn .3s cubic-bezier(.34,1.56,.64,1) forwards; }
+
+    /* ===== Note Popover ===== */
+    .note-popover {
+      position: absolute; z-index: 80; min-width: 200px; max-width: 280px;
+      border-radius: 12px; padding: 12px 14px;
+      animation: notePopIn .25s cubic-bezier(.34,1.56,.64,1) forwards;
+      box-shadow: 0 12px 40px rgba(0,0,0,.12);
+    }
+    .note-icon { opacity: 0; transition: opacity .2s; }
+    .task-item:hover .note-icon { opacity: 1; }
+
+    /* ===== Avatar ===== */
+    .avatar-stack { display: flex; }
+    .avatar-stack .avatar { margin-left: -6px; border: 2px solid white; }
+    .avatar-stack .avatar:first-child { margin-left: 0; }
+    .dark .avatar-stack .avatar { border-color: #1e1e2e; }
+
     /* ===== Theme: Neon ===== */
     .theme-neon { background: #0a0a1a !important; color: #e0e0ff !important; }
     .theme-neon .list-panel { background: rgba(15,15,40,.9) !important; border: 1px solid rgba(100,100,255,.2) !important; }
@@ -132,15 +214,71 @@
     .theme-neon .highlighted::before { background: linear-gradient(135deg, rgba(99,102,241,.2), rgba(139,92,246,.15)) !important; }
     .theme-neon .badge-timeframe { border-color: rgba(100,100,255,.3) !important; color: rgba(180,180,255,.8) !important; }
     .theme-neon .section-divider { border-color: rgba(100,100,255,.15) !important; }
+    .theme-neon .sidebar { background: rgba(10,10,30,.98) !important; border-right: 1px solid rgba(100,100,255,.2) !important; }
+    .theme-neon .context-menu { background: rgba(15,15,40,.98) !important; border: 1px solid rgba(100,100,255,.25) !important; }
+    .theme-neon .context-submenu { background: rgba(15,15,40,.98) !important; border: 1px solid rgba(100,100,255,.25) !important; }
+    .theme-neon .note-popover { background: rgba(15,15,40,.98) !important; border: 1px solid rgba(100,100,255,.25) !important; }
+    .theme-neon .pinboard-area { background: rgba(15,15,40,.6) !important; border: 1px solid rgba(100,100,255,.15) !important; }
+    .theme-neon .pin-card { background: rgba(20,20,50,.9) !important; border: 1px solid rgba(100,100,255,.2) !important; }
 
     /* ===== Theme: Colorful ===== */
     .theme-colorful .list-panel:nth-child(1) { background: linear-gradient(135deg, #fef3c7, #fde68a) !important; }
     .theme-colorful .list-panel:nth-child(2) { background: linear-gradient(135deg, #dbeafe, #bfdbfe) !important; }
     .theme-colorful .list-panel:nth-child(3) { background: linear-gradient(135deg, #fce7f3, #fbcfe8) !important; }
+    .theme-colorful .list-panel:nth-child(4) { background: linear-gradient(135deg, #d1fae5, #a7f3d0) !important; }
+    .theme-colorful .list-panel:nth-child(5) { background: linear-gradient(135deg, #ede9fe, #ddd6fe) !important; }
     .theme-colorful .task-item { background: rgba(255,255,255,.85) !important; }
     .theme-colorful .custom-checkbox input:checked + .checkmark { background: #8b5cf6; border-color: #8b5cf6; }
     .theme-colorful .header-bar { background: linear-gradient(135deg, #f0abfc, #c084fc, #818cf8) !important; }
     .theme-colorful .header-bar * { color: white !important; }
+    /* Colorful text contrast fix — ensure readable text on colored backgrounds */
+    .theme-colorful .list-panel h2 { color: #1e293b !important; }
+    .theme-colorful .list-panel .text-gray-800,
+    .theme-colorful .list-panel .text-gray-900 { color: #1e293b !important; }
+    .theme-colorful .list-panel .text-gray-600 { color: #374151 !important; }
+    .theme-colorful .list-panel .text-gray-500 { color: #4b5563 !important; }
+    .theme-colorful .list-panel .text-gray-400 { color: #6b7280 !important; }
+    .theme-colorful .task-item span { color: #1f2937 !important; }
+    .theme-colorful .task-item .text-red-500 { color: #dc2626 !important; }
+    .theme-colorful .task-item .text-orange-500 { color: #c2410c !important; }
+    .theme-colorful .task-item .text-blue-500 { color: #1d4ed8 !important; }
+    .theme-colorful .badge-timeframe { background: rgba(255,255,255,.6) !important; color: #374151 !important; border-color: rgba(0,0,0,.12) !important; }
+    .theme-colorful .text-xs.text-gray-600,
+    .theme-colorful .text-xs.text-gray-400,
+    .theme-colorful .text-xs.text-gray-500 { color: #4b5563 !important; }
+    .theme-colorful .quick-add-input { background: rgba(255,255,255,.7) !important; border-color: rgba(0,0,0,.1) !important; color: #1f2937 !important; }
+    .theme-colorful .quick-add-input::placeholder { color: #6b7280 !important; }
+    .theme-colorful .section-divider span { color: #4b5563 !important; }
+    .theme-colorful .section-divider .h-px { background: rgba(0,0,0,.12) !important; }
+    .theme-colorful .sidebar { background: linear-gradient(180deg, #fef3c7, #dbeafe, #fce7f3) !important; }
+    .theme-colorful .sidebar * { color: #1e293b !important; }
+    .theme-colorful .context-menu { background: rgba(255,255,255,.97) !important; }
+    .theme-colorful .note-popover { background: rgba(255,255,255,.97) !important; }
+    .theme-colorful .pinboard-area { background: linear-gradient(135deg, rgba(251,191,36,.1), rgba(139,92,246,.1)) !important; }
+    .theme-colorful .pin-card { background: rgba(255,255,255,.9) !important; }
+    /* Dark colorful overrides */
+    .dark.theme-colorful .list-panel:nth-child(1) { background: linear-gradient(135deg, #78350f, #92400e) !important; }
+    .dark.theme-colorful .list-panel:nth-child(2) { background: linear-gradient(135deg, #1e3a5f, #1e40af) !important; }
+    .dark.theme-colorful .list-panel:nth-child(3) { background: linear-gradient(135deg, #831843, #9d174d) !important; }
+    .dark.theme-colorful .list-panel:nth-child(4) { background: linear-gradient(135deg, #064e3b, #065f46) !important; }
+    .dark.theme-colorful .list-panel:nth-child(5) { background: linear-gradient(135deg, #3b0764, #4c1d95) !important; }
+    .dark.theme-colorful .task-item { background: rgba(0,0,0,.35) !important; }
+    .dark.theme-colorful .list-panel h2 { color: #f1f5f9 !important; }
+    .dark.theme-colorful .list-panel .text-gray-800,
+    .dark.theme-colorful .list-panel .text-gray-900 { color: #f1f5f9 !important; }
+    .dark.theme-colorful .list-panel .text-gray-600 { color: #d1d5db !important; }
+    .dark.theme-colorful .list-panel .text-gray-500 { color: #9ca3af !important; }
+    .dark.theme-colorful .list-panel .text-gray-400 { color: #9ca3af !important; }
+    .dark.theme-colorful .task-item span { color: #f3f4f6 !important; }
+    .dark.theme-colorful .task-item .text-red-500 { color: #fca5a5 !important; }
+    .dark.theme-colorful .task-item .text-orange-500 { color: #fdba74 !important; }
+    .dark.theme-colorful .task-item .text-blue-500 { color: #93c5fd !important; }
+    .dark.theme-colorful .badge-timeframe { background: rgba(0,0,0,.3) !important; color: #d1d5db !important; border-color: rgba(255,255,255,.15) !important; }
+    .dark.theme-colorful .quick-add-input { background: rgba(0,0,0,.3) !important; border-color: rgba(255,255,255,.15) !important; color: #f3f4f6 !important; }
+    .dark.theme-colorful .section-divider span { color: #d1d5db !important; }
+    .dark.theme-colorful .section-divider .h-px { background: rgba(255,255,255,.15) !important; }
+    .dark.theme-colorful .sidebar { background: linear-gradient(180deg, #78350f, #1e3a5f, #831843) !important; }
+    .dark.theme-colorful .sidebar * { color: #f1f5f9 !important; }
 
     /* Dark mode overrides */
     .dark .list-panel { background: #1e1e2e; border-color: #2e2e3e; }
@@ -149,6 +287,13 @@
     .dark .header-bar { background: #16161e; border-color: #2e2e3e; }
     .dark .quick-add-input { background: #1e1e2e; border-color: #333348; color: #e4e4ef; }
     .dark .section-divider { border-color: #333348; }
+    .dark .sidebar { background: #16161e; border-color: #2e2e3e; }
+    .dark .context-menu { background: #1e1e2e; border: 1px solid #333348; }
+    .dark .context-submenu { background: #1e1e2e; border: 1px solid #333348; }
+    .dark .context-menu-divider { background: #333348; }
+    .dark .note-popover { background: #1e1e2e; border: 1px solid #333348; }
+    .dark .pinboard-area { background: #1a1a2a; border-color: #2e2e3e; }
+    .dark .pin-card { background: #262637; border-color: #333348; }
 
     /* ===== Tooltip ===== */
     .tooltip { position: relative; }
@@ -159,17 +304,129 @@
       opacity: 0; pointer-events: none; transition: opacity .2s;
     }
     .tooltip:hover::after { opacity: 1; }
+
+    /* ===== Inline Edit ===== */
+    .inline-edit-title {
+      background: transparent; border: none; outline: none; font-size: inherit;
+      font-weight: inherit; color: inherit; width: 100%; padding: 2px 4px;
+      border-radius: 6px;
+    }
+    .inline-edit-title:focus {
+      background: rgba(0,0,0,.05); box-shadow: 0 0 0 2px rgba(251,146,60,.4);
+    }
+    .dark .inline-edit-title:focus { background: rgba(255,255,255,.08); }
+
+    /* ===== Emoji Picker ===== */
+    .emoji-picker {
+      position: absolute; z-index: 90; background: white; border-radius: 12px;
+      padding: 8px; box-shadow: 0 12px 40px rgba(0,0,0,.15);
+      display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;
+      animation: contextMenuIn .2s cubic-bezier(.34,1.56,.64,1) forwards;
+    }
+    .dark .emoji-picker { background: #1e1e2e; border: 1px solid #333348; }
+    .emoji-picker button {
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      border-radius: 6px; cursor: pointer; font-size: 16px; border: none; background: none;
+      transition: background .15s, transform .15s;
+    }
+    .emoji-picker button:hover { background: rgba(0,0,0,.06); transform: scale(1.15); }
+    .dark .emoji-picker button:hover { background: rgba(255,255,255,.1); }
   </style>
 </head>
 <body class="bg-gray-50 dark:bg-[#0f0f17] text-gray-900 dark:text-gray-100 transition-colors duration-500">
 
+  <!-- ===== SIDEBAR OVERLAY ===== -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar bg-white dark:bg-[#16161e] border-r border-gray-200/60 dark:border-gray-800/60" id="sidebar">
+    <div class="p-5">
+      <!-- Sidebar Header -->
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🦊</span>
+          <span class="text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">TaskFuchs</span>
+        </div>
+        <button onclick="toggleSidebar()" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+          <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Filters -->
+      <div class="mb-6">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">Filter</h3>
+        <div class="space-y-2">
+          <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-lg transition-colors">
+            <input type="checkbox" checked class="accent-orange-500 w-4 h-4" onchange="toggleFilter('low')">
+            <span class="w-2 h-2 rounded-full bg-gray-400"></span> Niedrig
+          </label>
+          <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-lg transition-colors">
+            <input type="checkbox" checked class="accent-orange-500 w-4 h-4" onchange="toggleFilter('normal')">
+            <span class="w-2 h-2 rounded-full bg-blue-500"></span> Normal
+          </label>
+          <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-lg transition-colors">
+            <input type="checkbox" checked class="accent-orange-500 w-4 h-4" onchange="toggleFilter('high')">
+            <span class="w-2 h-2 rounded-full bg-orange-500"></span> Hoch
+          </label>
+          <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-lg transition-colors">
+            <input type="checkbox" checked class="accent-orange-500 w-4 h-4" onchange="toggleFilter('asap')">
+            <span class="w-2 h-2 rounded-full bg-red-500"></span> ASAP!
+          </label>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">Ansicht</h3>
+        <div class="space-y-2">
+          <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-lg transition-colors">
+            <input type="checkbox" checked class="accent-orange-500 w-4 h-4" onchange="toggleViewFilter('highlighted')">
+            <svg class="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+            Nur Highlights
+          </label>
+          <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-lg transition-colors">
+            <input type="checkbox" class="accent-orange-500 w-4 h-4" onchange="toggleViewFilter('withDate')">
+            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Mit Termin
+          </label>
+          <label class="flex items-center gap-2.5 text-sm text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/40 px-3 py-2 rounded-lg transition-colors">
+            <input type="checkbox" class="accent-orange-500 w-4 h-4" onchange="toggleViewFilter('shared')">
+            <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Geteilte Listen
+          </label>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="h-px bg-gray-200 dark:bg-gray-700 mb-4"></div>
+
+      <!-- Lists -->
+      <div class="mb-4">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">Listen</h3>
+        <div class="space-y-1" id="sidebar-lists"></div>
+      </div>
+
+      <!-- New List Button -->
+      <button onclick="createNewList()" class="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl transition-all duration-200">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Neue Liste erstellen
+      </button>
+    </div>
+  </aside>
+
   <!-- ===== HEADER ===== -->
   <header class="header-bar sticky top-0 z-50 bg-white/80 dark:bg-[#16161e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-800/60 px-4 py-3 transition-all duration-500">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
-      <!-- Logo -->
-      <div class="flex items-center gap-2.5">
-        <span class="text-2xl">🦊</span>
-        <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">TaskFuchs</h1>
+      <!-- Left: Hamburger + Logo -->
+      <div class="flex items-center gap-3">
+        <button onclick="toggleSidebar()" class="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200" id="hamburger-btn">
+          <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+        <div class="flex items-center gap-2.5">
+          <span class="text-2xl">🦊</span>
+          <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">TaskFuchs</h1>
+        </div>
       </div>
 
       <!-- Controls -->
@@ -189,23 +446,59 @@
     </div>
   </header>
 
-  <!-- ===== LISTS CONTAINER ===== -->
-  <main class="lists-container flex gap-5 p-5 max-w-7xl mx-auto overflow-x-auto pb-8 md:grid md:grid-cols-3 md:overflow-x-visible" id="lists-container">
-  </main>
+  <!-- ===== MAIN CONTENT ===== -->
+  <div class="main-content transition-all duration-350" id="main-content">
+
+    <!-- ===== PINBOARD ===== -->
+    <div class="max-w-7xl mx-auto px-5 pt-4">
+      <div class="flex items-center gap-2 mb-2">
+        <button onclick="togglePinboard()" class="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
+          <svg class="w-4 h-4 transition-transform duration-300" id="pinboard-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+          Pinnwand
+          <span class="text-xs font-normal text-gray-400 dark:text-gray-500" id="pin-count">(0)</span>
+        </button>
+      </div>
+      <div class="pinboard pinboard-area rounded-2xl border border-gray-200/60 dark:border-gray-800/60 bg-gray-100/50 dark:bg-[#1a1a2a] p-4" id="pinboard">
+        <div class="flex gap-3 overflow-x-auto pb-1" id="pinboard-cards">
+          <div class="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center w-full" id="pinboard-empty">
+            Aufgaben hier anpinnen per Rechtsklick oder Pin-Icon
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== LISTS CONTAINER ===== -->
+    <main class="lists-container flex gap-5 p-5 max-w-7xl mx-auto overflow-x-auto pb-8 md:grid md:overflow-x-visible" id="lists-container" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+    </main>
+  </div>
+
+  <!-- ===== CONTEXT MENU (dynamically positioned) ===== -->
+  <div class="context-menu hidden bg-white dark:bg-[#1e1e2e] border border-gray-200 dark:border-gray-700" id="context-menu"></div>
+
+  <!-- ===== EMOJI PICKER (dynamically positioned) ===== -->
+  <div class="emoji-picker hidden" id="emoji-picker"></div>
+
+  <!-- ===== NOTE POPOVER ===== -->
+  <div class="note-popover hidden bg-white dark:bg-[#1e1e2e] border border-gray-200 dark:border-gray-700" id="note-popover"></div>
 
   <!-- ===== JAVASCRIPT ===== -->
   <script>
     // =============================================
     // DATA
     // =============================================
+    const dummyUsers = [
+      { name: 'Frank M.', initials: 'FM', color: '#f97316' },
+      { name: 'Lisa K.', initials: 'LK', color: '#8b5cf6' },
+      { name: 'Tom S.', initials: 'TS', color: '#3b82f6' },
+    ];
+
     const listsData = [
       {
-        id: 'homelab',
-        title: 'Homelab',
-        icon: '🖥️',
+        id: 'homelab', title: 'Homelab', icon: '🖥️', visible: true, shared: false, sharedUsers: [],
         tasks: [
           {
-            id: 'h1', text: 'Pi-hole Update durchführen', priority: 'high', timeframe: 'akut', highlighted: false, done: false,
+            id: 'h1', text: 'Pi-hole Update durchführen', priority: 'high', timeframe: 'akut', highlighted: false, done: false, pinned: false, note: 'Vorher unbedingt Backup machen! Letzte Version hatte Probleme mit Custom DNS.', emoji: null, dueDate: '2026-03-15', assignee: null,
             subtasks: [
               { id: 'h1a', text: 'Backup der Config erstellen', done: false, subtasks: [
                 { id: 'h1a1', text: 'pihole -a -t erstellen', done: false, subtasks: [] },
@@ -217,36 +510,34 @@
           },
           { id: 'h-div1', type: 'divider', label: 'Infrastruktur' },
           {
-            id: 'h2', text: 'n8n Workflows aufräumen', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false,
+            id: 'h2', text: 'n8n Workflows aufräumen', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: 'Mindestens 5 inaktive Workflows gefunden beim letzten Check.', emoji: null, dueDate: null, assignee: null,
             subtasks: [
               { id: 'h2a', text: 'Inaktive Workflows identifizieren', done: false, subtasks: [] },
               { id: 'h2b', text: 'Error-Workflows prüfen', done: false, subtasks: [] }
             ]
           },
           {
-            id: 'h3', text: 'NAS Backup-Strategie überprüfen', priority: 'normal', timeframe: 'langfristig', highlighted: false, done: false,
+            id: 'h3', text: 'NAS Backup-Strategie überprüfen', priority: 'normal', timeframe: 'langfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null,
             subtasks: []
           },
           {
-            id: 'h4', text: 'SSL-Zertifikate erneuern', priority: 'asap', timeframe: 'akut', highlighted: true, done: false,
+            id: 'h4', text: 'SSL-Zertifikate erneuern', priority: 'asap', timeframe: 'akut', highlighted: true, done: false, pinned: true, note: 'Läuft am 20.03. ab! Cloudflare Tunnel checken.', emoji: '🔒', dueDate: '2026-03-20', assignee: null,
             subtasks: [
               { id: 'h4a', text: 'Ablaufdatum prüfen', done: false, subtasks: [] },
               { id: 'h4b', text: 'Cloudflare Tunnel config checken', done: false, subtasks: [] }
             ]
           },
           {
-            id: 'h5', text: 'Home Assistant Automations dokumentieren', priority: 'low', timeframe: 'langfristig', highlighted: false, done: false,
+            id: 'h5', text: 'Home Assistant Automations dokumentieren', priority: 'low', timeframe: 'langfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null,
             subtasks: []
           }
         ]
       },
       {
-        id: 'privat',
-        title: 'Privat',
-        icon: '🏠',
+        id: 'privat', title: 'Privat', icon: '🏠', visible: true, shared: false, sharedUsers: [],
         tasks: [
           {
-            id: 'p1', text: 'Steuererklärung vorbereiten', priority: 'high', timeframe: 'akut', highlighted: false, done: false,
+            id: 'p1', text: 'Steuererklärung vorbereiten', priority: 'high', timeframe: 'akut', highlighted: false, done: false, pinned: true, note: 'Frist: 31.07.2026. Steuerberater Müller hat neue Nummer.', emoji: '📋', dueDate: '2026-07-31', assignee: null,
             subtasks: [
               { id: 'p1a', text: 'Belege sortieren', done: false, subtasks: [] },
               { id: 'p1b', text: 'ELSTER Login testen', done: false, subtasks: [] },
@@ -254,7 +545,7 @@
             ]
           },
           {
-            id: 'p2', text: 'Wohnung aufräumen', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false,
+            id: 'p2', text: 'Wohnung aufräumen', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null,
             subtasks: [
               { id: 'p2a', text: 'Kleiderschrank ausmisten', done: false, subtasks: [] },
               { id: 'p2b', text: 'Keller sortieren', done: false, subtasks: [] }
@@ -262,26 +553,24 @@
           },
           { id: 'p-div1', type: 'divider', label: 'Gesundheit' },
           {
-            id: 'p3', text: 'Zahnarzt-Termin vereinbaren', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false,
+            id: 'p3', text: 'Zahnarzt-Termin vereinbaren', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: 'Dr. Schmidt, Tel: 0221/123456', emoji: '🦷', dueDate: null, assignee: null,
             subtasks: []
           },
           {
-            id: 'p4', text: 'Sport-Abo kündigen', priority: 'asap', timeframe: 'akut', highlighted: false, done: false,
+            id: 'p4', text: 'Sport-Abo kündigen', priority: 'asap', timeframe: 'akut', highlighted: false, done: false, pinned: false, note: 'Kündigungsfrist: 1 Monat zum Quartalsende!', emoji: null, dueDate: '2026-03-31', assignee: null,
             subtasks: []
           },
           {
-            id: 'p5', text: 'Bücher zurückgeben (Bibliothek)', priority: 'low', timeframe: 'mittelfristig', highlighted: false, done: false,
+            id: 'p5', text: 'Bücher zurückgeben (Bibliothek)', priority: 'low', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null,
             subtasks: []
           }
         ]
       },
       {
-        id: 'arbeit',
-        title: 'Arbeit',
-        icon: '💼',
+        id: 'arbeit', title: 'Arbeit', icon: '💼', visible: true, shared: true, sharedUsers: [dummyUsers[0], dummyUsers[1], dummyUsers[2]],
         tasks: [
           {
-            id: 'a1', text: 'Kundenpräsentation erstellen', priority: 'asap', timeframe: 'akut', highlighted: true, done: false,
+            id: 'a1', text: 'Kundenpräsentation erstellen', priority: 'asap', timeframe: 'akut', highlighted: true, done: false, pinned: true, note: 'Kunde: Warmwelt GmbH. Meeting am Freitag 14 Uhr.', emoji: '🎯', dueDate: '2026-03-14', assignee: dummyUsers[0],
             subtasks: [
               { id: 'a1a', text: 'Daten aufbereiten', done: false, subtasks: [
                 { id: 'a1a1', text: 'Q4-Zahlen exportieren', done: false, subtasks: [] },
@@ -292,12 +581,12 @@
             ]
           },
           {
-            id: 'a2', text: 'Meeting-Notizen zusammenfassen', priority: 'normal', timeframe: 'akut', highlighted: false, done: false,
+            id: 'a2', text: 'Meeting-Notizen zusammenfassen', priority: 'normal', timeframe: 'akut', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: dummyUsers[1],
             subtasks: []
           },
           { id: 'a-div1', type: 'divider', label: 'Projekte' },
           {
-            id: 'a3', text: 'TaskFuchs MVP planen', priority: 'high', timeframe: 'mittelfristig', highlighted: false, done: false,
+            id: 'a3', text: 'TaskFuchs MVP planen', priority: 'high', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: 'Tech-Stack: Supabase + Next.js + Tailwind. Prototyp fertig!', emoji: '🦊', dueDate: null, assignee: dummyUsers[0],
             subtasks: [
               { id: 'a3a', text: 'Tech-Stack festlegen', done: true, subtasks: [] },
               { id: 'a3b', text: 'UI-Prototyp erstellen', done: false, subtasks: [] },
@@ -305,11 +594,11 @@
             ]
           },
           {
-            id: 'a4', text: 'Code Review für PR #42', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false,
+            id: 'a4', text: 'Code Review für PR #42', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: dummyUsers[2],
             subtasks: []
           },
           {
-            id: 'a5', text: 'Dokumentation aktualisieren', priority: 'low', timeframe: 'langfristig', highlighted: false, done: false,
+            id: 'a5', text: 'Dokumentation aktualisieren', priority: 'low', timeframe: 'langfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null,
             subtasks: []
           }
         ]
@@ -322,6 +611,167 @@
     let currentTheme = 'minimal';
     let isDark = false;
     let draggedTask = null;
+    let sidebarOpen = false;
+    let pinboardCollapsed = false;
+    let activeFilters = { low: true, normal: true, high: true, asap: true };
+    let viewFilters = { highlighted: false, withDate: false, shared: false };
+    let activeContextMenu = null;
+    let activeEmojiPicker = null;
+    let activeNotePopover = null;
+
+    const commonEmojis = ['📋','🎯','🔒','🦊','💡','🚀','⚡','🔥','📌','🏠','💼','🖥️','📝','✨','🎨','🛠️','📊','🗂️','🔔','❤️','⭐','🎉','📦','🌟','🦷','📅','🎪','💎','🧩','📱','🌍','🔧'];
+
+    // =============================================
+    // SIDEBAR
+    // =============================================
+    function toggleSidebar() {
+      sidebarOpen = !sidebarOpen;
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      const main = document.getElementById('main-content');
+
+      sidebar.classList.toggle('open', sidebarOpen);
+      overlay.classList.toggle('active', sidebarOpen);
+      if (window.innerWidth >= 768) {
+        main.classList.toggle('shifted', sidebarOpen);
+      }
+      renderSidebarLists();
+    }
+
+    function renderSidebarLists() {
+      const container = document.getElementById('sidebar-lists');
+      container.innerHTML = listsData.map(list => `
+        <div class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors group">
+          <span class="text-base">${list.icon}</span>
+          <span class="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300 truncate">${list.title}</span>
+          ${list.shared ? '<svg class="w-3.5 h-3.5 text-purple-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>' : ''}
+          <button onclick="toggleListVisibility('${list.id}')" class="tooltip w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all" data-tip="${list.visible ? 'Ausblenden' : 'Einblenden'}">
+            <svg class="w-4 h-4 ${list.visible ? 'text-gray-500' : 'text-gray-300'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              ${list.visible
+                ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>'
+                : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.11 6.11m3.768 3.768L3 3m18 18l-6.12-6.12m0 0L21 21"/>'
+              }
+            </svg>
+          </button>
+          <button onclick="deleteList('${list.id}')" class="tooltip w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all" data-tip="Liste löschen">
+            <svg class="w-3.5 h-3.5 text-gray-400 hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function toggleListVisibility(listId) {
+      const list = findList(listId);
+      if (list) { list.visible = !list.visible; render(); renderSidebarLists(); }
+    }
+
+    function deleteList(listId) {
+      if (listsData.length <= 1) return;
+      const idx = listsData.findIndex(l => l.id === listId);
+      if (idx > -1) { listsData.splice(idx, 1); render(); renderSidebarLists(); }
+    }
+
+    function createNewList() {
+      const newList = {
+        id: 'list-' + Date.now(),
+        title: 'Neue Liste',
+        icon: '📝',
+        visible: true,
+        shared: false,
+        sharedUsers: [],
+        tasks: []
+      };
+      listsData.push(newList);
+      render();
+      renderSidebarLists();
+    }
+
+    // =============================================
+    // FILTERS
+    // =============================================
+    function toggleFilter(priority) {
+      activeFilters[priority] = !activeFilters[priority];
+      render();
+    }
+
+    function toggleViewFilter(filter) {
+      viewFilters[filter] = !viewFilters[filter];
+      render();
+    }
+
+    function shouldShowTask(task, list) {
+      if (task.type === 'divider') return true;
+      if (!activeFilters[task.priority]) return false;
+      if (viewFilters.highlighted && !task.highlighted) return false;
+      if (viewFilters.withDate && !task.dueDate) return false;
+      if (viewFilters.shared && !list.shared) return false;
+      return true;
+    }
+
+    // =============================================
+    // PINBOARD
+    // =============================================
+    function togglePinboard() {
+      pinboardCollapsed = !pinboardCollapsed;
+      const pinboard = document.getElementById('pinboard');
+      const chevron = document.getElementById('pinboard-chevron');
+      pinboard.classList.toggle('collapsed', pinboardCollapsed);
+      chevron.style.transform = pinboardCollapsed ? 'rotate(-90deg)' : '';
+    }
+
+    function togglePin(taskId, listId) {
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, taskId);
+      if (task) {
+        task.pinned = !task.pinned;
+        render();
+      }
+    }
+
+    function renderPinboard() {
+      const cards = document.getElementById('pinboard-cards');
+      const pinnedTasks = [];
+
+      listsData.forEach(list => {
+        list.tasks.forEach(task => {
+          if (task.pinned && task.type !== 'divider') {
+            pinnedTasks.push({ task, listTitle: list.title, listId: list.id });
+          }
+        });
+      });
+
+      document.getElementById('pin-count').textContent = `(${pinnedTasks.length})`;
+
+      if (pinnedTasks.length === 0) {
+        cards.innerHTML = '<div class="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center w-full">Aufgaben hier anpinnen per Rechtsklick oder Pin-Icon</div>';
+        return;
+      }
+
+      cards.innerHTML = pinnedTasks.map(({ task, listTitle, listId }) => {
+        const p = priorityConfig[task.priority] || priorityConfig.normal;
+        return `
+          <div class="pin-card flex-shrink-0 w-56 rounded-xl border border-gray-200/60 dark:border-gray-700/60 bg-white dark:bg-[#262637] p-3.5 cursor-pointer hover:shadow-md transition-all duration-200" onclick="scrollToTask('${task.id}')">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-medium px-2 py-0.5 rounded-full" style="background: ${p.bar}20; color: ${p.bar}">${priorityConfig[task.priority]?.label || 'Normal'}</span>
+              <button onclick="event.stopPropagation(); togglePin('${task.id}', '${listId}')" class="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                <svg class="w-3 h-3 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+              </button>
+            </div>
+            <p class="text-sm font-medium text-gray-800 dark:text-gray-100 mb-1.5 line-clamp-2">${task.emoji ? task.emoji + ' ' : ''}${task.text}</p>
+            <span class="text-[10px] text-gray-400 dark:text-gray-500">${listTitle}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function scrollToTask(taskId) {
+      const el = document.getElementById('task-' + taskId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('task-highlight-in');
+        setTimeout(() => el.classList.remove('task-highlight-in'), 800);
+      }
+    }
 
     // =============================================
     // THEME MANAGEMENT
@@ -347,7 +797,6 @@
         document.body.classList.add('theme-colorful');
       }
 
-      // Update button states
       document.querySelectorAll('.theme-btn').forEach(btn => {
         if (btn.dataset.theme === theme) {
           btn.classList.add('bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-900', 'dark:text-gray-100');
@@ -389,11 +838,11 @@
       const container = document.getElementById('lists-container');
       container.innerHTML = '';
 
-      listsData.forEach(list => {
-        const activeTasks = list.tasks.filter(t => t.type === 'divider' || !t.done);
-        const doneTasks = list.tasks.filter(t => t.type !== 'divider' && t.done);
+      listsData.filter(l => l.visible).forEach(list => {
+        const allTasks = list.tasks;
+        const activeTasks = allTasks.filter(t => (t.type === 'divider' || !t.done) && shouldShowTask(t, list));
+        const doneTasks = allTasks.filter(t => t.type !== 'divider' && t.done);
 
-        // Sort: highlighted first
         const sorted = [...activeTasks].sort((a, b) => {
           if (a.type === 'divider' || b.type === 'divider') return 0;
           if (a.highlighted && !b.highlighted) return -1;
@@ -407,9 +856,10 @@
           <!-- List Header -->
           <div class="px-5 pt-5 pb-3 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
-              <span class="text-xl">${list.icon}</span>
-              <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 tracking-tight">${list.title}</h2>
+              <button class="text-xl hover:scale-110 transition-transform cursor-pointer" onclick="openEmojiPickerForList('${list.id}', event)" title="Symbol ändern">${list.icon}</button>
+              <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 tracking-tight cursor-pointer" ondblclick="startEditListTitle('${list.id}', this)" title="Doppelklick zum Bearbeiten">${list.title}</h2>
               <span class="text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">${activeTasks.filter(t => t.type !== 'divider').length}</span>
+              ${list.shared ? renderAvatarStack(list.sharedUsers) : ''}
             </div>
           </div>
 
@@ -446,6 +896,16 @@
         `;
         container.appendChild(panel);
       });
+
+      renderPinboard();
+      if (sidebarOpen) renderSidebarLists();
+    }
+
+    function renderAvatarStack(users) {
+      if (!users || users.length === 0) return '';
+      return `<div class="avatar-stack ml-2">
+        ${users.map(u => `<div class="avatar w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white" style="background:${u.color}" title="${u.name}">${u.initials}</div>`).join('')}
+      </div>`;
     }
 
     function renderDivider(task) {
@@ -463,6 +923,7 @@
       const hasSubtasks = task.subtasks && task.subtasks.length > 0;
       const doneSubtasks = hasSubtasks ? task.subtasks.filter(s => s.done).length : 0;
       const indent = depth * 24;
+      const list = findList(listId);
 
       return `
         <div class="task-item group rounded-xl px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-all duration-200 ${task.highlighted ? 'highlighted' : ''}"
@@ -472,6 +933,7 @@
              ondragover="onDragOver(event)"
              ondrop="onDrop(event, '${task.id}', '${listId}')"
              ondragend="onDragEnd(event)"
+             oncontextmenu="showContextMenu(event, '${task.id}', '${listId}')"
              id="task-${task.id}">
           <div class="flex items-start gap-2.5">
             <!-- Priority Bar -->
@@ -491,17 +953,34 @@
             <!-- Content -->
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
+                ${task.emoji ? `<span class="text-sm">${task.emoji}</span>` : ''}
                 <span class="text-sm font-medium text-gray-800 dark:text-gray-100 ${task.done ? 'line-through opacity-50' : ''} transition-all duration-300">${task.text}</span>
                 ${task.priority === 'asap' ? '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-red-500 text-white animate-pulse">ASAP!</span>' : ''}
               </div>
               <div class="flex items-center gap-2 mt-1 flex-wrap">
                 ${tf ? `<span class="badge-timeframe text-[10px] font-medium px-2 py-0.5 rounded-full border ${tf.class}">${tf.label}</span>` : ''}
+                ${task.dueDate ? `<span class="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>${formatDate(task.dueDate)}</span>` : ''}
                 ${hasSubtasks ? `<span class="text-[10px] text-gray-400 dark:text-gray-500">${doneSubtasks}/${task.subtasks.length} erledigt</span>` : ''}
               </div>
             </div>
 
+            <!-- Assignee Avatar -->
+            ${task.assignee ? `<div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 mt-0.5" style="background:${task.assignee.color}" title="${task.assignee.name}">${task.assignee.initials}</div>` : ''}
+
             <!-- Actions -->
-            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <!-- Note Icon -->
+              ${task.note ? `
+              <button onclick="showNote(event, '${task.id}', '${listId}')" class="note-icon w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200" style="opacity:0.7" title="Notiz anzeigen">
+                <svg class="w-3.5 h-3.5 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+              </button>` : `
+              <button onclick="showNote(event, '${task.id}', '${listId}')" class="note-icon w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200" title="Notiz hinzufügen">
+                <svg class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+              </button>`}
+              <!-- Pin -->
+              <button onclick="togglePin('${task.id}', '${listId}')" class="tooltip w-7 h-7 flex items-center justify-center rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all duration-200 ${task.pinned ? 'bg-orange-50 dark:bg-orange-900/30' : ''}" data-tip="${task.pinned ? 'Lösen' : 'Anpinnen'}">
+                <svg class="w-3.5 h-3.5 ${task.pinned ? 'text-orange-500' : 'text-gray-400'} transition-colors" fill="${task.pinned ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+              </button>
               <!-- Highlight -->
               <button onclick="toggleHighlight('${task.id}', '${listId}')" class="tooltip w-7 h-7 flex items-center justify-center rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all duration-200 ${task.highlighted ? 'bg-orange-50 dark:bg-orange-900/30' : ''}" data-tip="Highlight">
                 <svg class="w-3.5 h-3.5 ${task.highlighted ? 'text-orange-500' : 'text-gray-400'} transition-colors" fill="${task.highlighted ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
@@ -562,6 +1041,312 @@
     }
 
     // =============================================
+    // CONTEXT MENU
+    // =============================================
+    function showContextMenu(e, taskId, listId) {
+      e.preventDefault();
+      hideAllPopups();
+
+      const menu = document.getElementById('context-menu');
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, taskId);
+      if (!task) return;
+
+      const otherLists = listsData.filter(l => l.id !== listId);
+
+      menu.innerHTML = `
+        <div class="context-menu-item" onclick="addTaskAfter('${taskId}', '${listId}')">
+          <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span>Neue Aufgabe</span>
+        </div>
+        <div class="context-menu-item" onclick="addSubtaskTo('${taskId}', '${listId}')">
+          <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+          <span>Unteraufgabe erstellen</span>
+        </div>
+        <div class="context-menu-divider bg-gray-200 dark:bg-gray-700"></div>
+        <div class="context-menu-item relative" onmouseenter="showSubmenu(this, 'priority')" onmouseleave="hideSubmenu(this)">
+          <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"/></svg>
+          <span class="flex-1">Priorität</span>
+          <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          <div class="context-submenu hidden bg-white dark:bg-[#1e1e2e] border border-gray-200 dark:border-gray-700" data-submenu="priority">
+            <div class="context-menu-item" onclick="setPriority('${taskId}', '${listId}', 'low')"><span class="w-2 h-2 rounded-full bg-gray-400"></span> Niedrig</div>
+            <div class="context-menu-item" onclick="setPriority('${taskId}', '${listId}', 'normal')"><span class="w-2 h-2 rounded-full bg-blue-500"></span> Normal</div>
+            <div class="context-menu-item" onclick="setPriority('${taskId}', '${listId}', 'high')"><span class="w-2 h-2 rounded-full bg-orange-500"></span> Hoch</div>
+            <div class="context-menu-item" onclick="setPriority('${taskId}', '${listId}', 'asap')"><span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> ASAP!</div>
+          </div>
+        </div>
+        <div class="context-menu-item relative" onmouseenter="showSubmenu(this, 'timeframe')" onmouseleave="hideSubmenu(this)">
+          <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <span class="flex-1">Zeitraum</span>
+          <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          <div class="context-submenu hidden bg-white dark:bg-[#1e1e2e] border border-gray-200 dark:border-gray-700" data-submenu="timeframe">
+            <div class="context-menu-item" onclick="setTimeframe('${taskId}', '${listId}', 'akut')"><span class="text-red-500">●</span> Akut</div>
+            <div class="context-menu-item" onclick="setTimeframe('${taskId}', '${listId}', 'mittelfristig')"><span class="text-amber-500">●</span> Mittelfristig</div>
+            <div class="context-menu-item" onclick="setTimeframe('${taskId}', '${listId}', 'langfristig')"><span class="text-green-500">●</span> Langfristig</div>
+          </div>
+        </div>
+        <div class="context-menu-item" onclick="promptDueDate('${taskId}', '${listId}')">
+          <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          <span>Terminieren</span>
+        </div>
+        <div class="context-menu-divider bg-gray-200 dark:bg-gray-700"></div>
+        <div class="context-menu-item" onclick="addDividerAfter('${taskId}', '${listId}')">
+          <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12h16"/></svg>
+          <span>Trenner erstellen</span>
+        </div>
+        <div class="context-menu-item" onclick="openEmojiPickerForTask('${taskId}', '${listId}', event)">
+          <span class="text-base">😊</span>
+          <span>Mit Symbol versehen</span>
+        </div>
+        <div class="context-menu-item" onclick="togglePin('${taskId}', '${listId}'); hideContextMenu()">
+          <svg class="w-4 h-4 ${task.pinned ? 'text-orange-500' : 'text-gray-400'}" fill="${task.pinned ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+          <span>${task.pinned ? 'Von Pinnwand lösen' : 'An Pinnwand pinnen'}</span>
+        </div>
+        ${otherLists.length > 0 ? `
+        <div class="context-menu-divider bg-gray-200 dark:bg-gray-700"></div>
+        <div class="context-menu-item relative" onmouseenter="showSubmenu(this, 'move')" onmouseleave="hideSubmenu(this)">
+          <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+          <span class="flex-1">In andere Liste</span>
+          <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          <div class="context-submenu hidden bg-white dark:bg-[#1e1e2e] border border-gray-200 dark:border-gray-700" data-submenu="move">
+            ${otherLists.map(l => `<div class="context-menu-item" onclick="moveTaskToList('${taskId}', '${listId}', '${l.id}')">${l.icon} ${l.title}</div>`).join('')}
+          </div>
+        </div>` : ''}
+        <div class="context-menu-divider bg-gray-200 dark:bg-gray-700"></div>
+        <div class="context-menu-item" onclick="deleteTask('${task.id}', '${listId}'); hideContextMenu()">
+          <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          <span class="text-red-500">Aufgabe löschen</span>
+        </div>
+      `;
+
+      // Position
+      menu.classList.remove('hidden');
+      const rect = menu.getBoundingClientRect();
+      let x = e.clientX;
+      let y = e.clientY;
+      if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 8;
+      if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 8;
+      menu.style.left = x + 'px';
+      menu.style.top = y + 'px';
+
+      activeContextMenu = menu;
+    }
+
+    function hideContextMenu() {
+      const menu = document.getElementById('context-menu');
+      menu.classList.add('hidden');
+      activeContextMenu = null;
+    }
+
+    function showSubmenu(parent, type) {
+      const sub = parent.querySelector('[data-submenu="' + type + '"]');
+      if (sub) sub.classList.remove('hidden');
+    }
+
+    function hideSubmenu(parent) {
+      const subs = parent.querySelectorAll('.context-submenu');
+      subs.forEach(s => s.classList.add('hidden'));
+    }
+
+    // Context Menu Actions
+    function setPriority(taskId, listId, priority) {
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, taskId);
+      if (task) { task.priority = priority; hideContextMenu(); render(); }
+    }
+
+    function setTimeframe(taskId, listId, timeframe) {
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, taskId);
+      if (task) { task.timeframe = timeframe; hideContextMenu(); render(); }
+    }
+
+    function promptDueDate(taskId, listId) {
+      hideContextMenu();
+      const date = prompt('Datum eingeben (YYYY-MM-DD):');
+      if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const list = findList(listId);
+        const task = findTaskRecursive(list.tasks, taskId);
+        if (task) { task.dueDate = date; render(); }
+      }
+    }
+
+    function addTaskAfter(taskId, listId) {
+      hideContextMenu();
+      const list = findList(listId);
+      const idx = list.tasks.findIndex(t => t.id === taskId);
+      const text = prompt('Neue Aufgabe:');
+      if (text && text.trim()) {
+        const newTask = { id: 'task-' + Date.now(), text: text.trim(), priority: 'normal', timeframe: null, highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null, subtasks: [] };
+        list.tasks.splice(idx + 1, 0, newTask);
+        render();
+      }
+    }
+
+    function addSubtaskTo(taskId, listId) {
+      hideContextMenu();
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, taskId);
+      const text = prompt('Neue Unteraufgabe:');
+      if (text && text.trim() && task) {
+        if (!task.subtasks) task.subtasks = [];
+        task.subtasks.push({ id: 'st-' + Date.now(), text: text.trim(), done: false, subtasks: [] });
+        render();
+      }
+    }
+
+    function addDividerAfter(taskId, listId) {
+      hideContextMenu();
+      const list = findList(listId);
+      const idx = list.tasks.findIndex(t => t.id === taskId);
+      const label = prompt('Trenner-Text:', 'Abschnitt');
+      if (label) {
+        list.tasks.splice(idx + 1, 0, { id: 'div-' + Date.now(), type: 'divider', label: label });
+        render();
+      }
+    }
+
+    function moveTaskToList(taskId, fromListId, toListId) {
+      hideContextMenu();
+      const fromList = findList(fromListId);
+      const toList = findList(toListId);
+      const idx = fromList.tasks.findIndex(t => t.id === taskId);
+      if (idx > -1) {
+        const [task] = fromList.tasks.splice(idx, 1);
+        toList.tasks.push(task);
+        render();
+      }
+    }
+
+    // =============================================
+    // EMOJI PICKER
+    // =============================================
+    function openEmojiPickerForList(listId, e) {
+      e.stopPropagation();
+      hideAllPopups();
+      const picker = document.getElementById('emoji-picker');
+      picker.innerHTML = commonEmojis.map(em => `<button onclick="setListEmoji('${listId}', '${em}')">${em}</button>`).join('');
+      picker.classList.remove('hidden');
+      const rect = e.target.getBoundingClientRect();
+      picker.style.left = rect.left + 'px';
+      picker.style.top = (rect.bottom + 4) + 'px';
+      activeEmojiPicker = picker;
+    }
+
+    function openEmojiPickerForTask(taskId, listId, e) {
+      e.stopPropagation();
+      hideContextMenu();
+      const picker = document.getElementById('emoji-picker');
+      picker.innerHTML = `<button onclick="setTaskEmoji('${taskId}', '${listId}', null)" style="font-size:12px;color:#999">✕</button>` +
+        commonEmojis.map(em => `<button onclick="setTaskEmoji('${taskId}', '${listId}', '${em}')">${em}</button>`).join('');
+      picker.classList.remove('hidden');
+      picker.style.left = (e.clientX || e.pageX) + 'px';
+      picker.style.top = (e.clientY || e.pageY) + 'px';
+      activeEmojiPicker = picker;
+    }
+
+    function setListEmoji(listId, emoji) {
+      const list = findList(listId);
+      if (list) { list.icon = emoji; hideEmojiPicker(); render(); }
+    }
+
+    function setTaskEmoji(taskId, listId, emoji) {
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, taskId);
+      if (task) { task.emoji = emoji; hideEmojiPicker(); render(); }
+    }
+
+    function hideEmojiPicker() {
+      const picker = document.getElementById('emoji-picker');
+      picker.classList.add('hidden');
+      activeEmojiPicker = null;
+    }
+
+    // =============================================
+    // INLINE EDIT LIST TITLE
+    // =============================================
+    function startEditListTitle(listId, el) {
+      const list = findList(listId);
+      if (!list) return;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = list.title;
+      input.className = 'inline-edit-title text-lg font-semibold text-gray-800 dark:text-gray-100 tracking-tight';
+      input.onblur = () => { list.title = input.value.trim() || list.title; render(); };
+      input.onkeydown = (e) => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = list.title; input.blur(); } };
+      el.replaceWith(input);
+      input.focus();
+      input.select();
+    }
+
+    // =============================================
+    // NOTE POPOVER
+    // =============================================
+    function showNote(e, taskId, listId) {
+      e.stopPropagation();
+      hideAllPopups();
+
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, taskId);
+      if (!task) return;
+
+      const popover = document.getElementById('note-popover');
+      popover.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Notiz</span>
+          <button onclick="hideNotePopover()" class="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+            <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <textarea class="w-full text-sm text-gray-700 dark:text-gray-300 bg-transparent resize-none outline-none min-h-[60px]" placeholder="Notiz eingeben..." id="note-textarea-${taskId}" oninput="updateNote('${taskId}', '${listId}', this.value)">${task.note || ''}</textarea>
+      `;
+
+      popover.classList.remove('hidden');
+      const rect = e.target.closest('button').getBoundingClientRect();
+      let left = rect.left - 100;
+      let top = rect.bottom + 8;
+      if (left + 280 > window.innerWidth) left = window.innerWidth - 290;
+      if (left < 8) left = 8;
+      if (top + 120 > window.innerHeight) top = rect.top - 128;
+      popover.style.left = left + 'px';
+      popover.style.top = top + 'px';
+      activeNotePopover = popover;
+
+      setTimeout(() => document.getElementById('note-textarea-' + taskId)?.focus(), 50);
+    }
+
+    function updateNote(taskId, listId, value) {
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, taskId);
+      if (task) task.note = value.trim() || null;
+    }
+
+    function hideNotePopover() {
+      const popover = document.getElementById('note-popover');
+      popover.classList.add('hidden');
+      activeNotePopover = null;
+      render();
+    }
+
+    // =============================================
+    // HIDE ALL POPUPS
+    // =============================================
+    function hideAllPopups() {
+      hideContextMenu();
+      hideEmojiPicker();
+      if (activeNotePopover) hideNotePopover();
+    }
+
+    // =============================================
+    // HELPERS
+    // =============================================
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr);
+      return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    // =============================================
     // TASK ACTIONS
     // =============================================
     function findTaskRecursive(tasks, id) {
@@ -585,15 +1370,12 @@
       if (!task) return;
 
       task.done = !task.done;
-
-      // Propagate to all subtasks
       function setAllDone(t, done) {
         t.done = done;
         if (t.subtasks) t.subtasks.forEach(s => setAllDone(s, done));
       }
       if (task.subtasks) task.subtasks.forEach(s => setAllDone(s, task.done));
 
-      // Animate
       const el = document.getElementById(`task-${taskId}`);
       if (el) {
         if (task.done) {
@@ -612,7 +1394,6 @@
       const task = findTaskRecursive(list.tasks, subtaskId);
       if (task) {
         task.done = !task.done;
-        // Also set child subtasks
         function setAllDone(t, done) {
           t.done = done;
           if (t.subtasks) t.subtasks.forEach(s => setAllDone(s, done));
@@ -637,10 +1418,7 @@
       const task = list.tasks.find(t => t.id === taskId);
       if (!task) return;
       task.highlighted = !task.highlighted;
-
       render();
-
-      // Animate highlight
       setTimeout(() => {
         const el = document.getElementById(`task-${taskId}`);
         if (el && task.highlighted) {
@@ -659,6 +1437,9 @@
           list.tasks = list.tasks.filter(t => t.id !== taskId);
           render();
         }, 300);
+      } else {
+        list.tasks = list.tasks.filter(t => t.id !== taskId);
+        render();
       }
     }
 
@@ -669,19 +1450,14 @@
 
       const list = findList(listId);
       const newTask = {
-        id: 'task-' + Date.now(),
-        text: text,
-        priority: 'normal',
-        timeframe: null,
-        highlighted: false,
-        done: false,
-        subtasks: []
+        id: 'task-' + Date.now(), text, priority: 'normal', timeframe: null,
+        highlighted: false, done: false, pinned: false, note: null, emoji: null,
+        dueDate: null, assignee: null, subtasks: []
       };
       list.tasks.push(newTask);
       input.value = '';
       render();
 
-      // Animate new task
       setTimeout(() => {
         const el = document.getElementById(`task-${newTask.id}`);
         if (el) {
@@ -695,7 +1471,6 @@
       const el = document.getElementById(`subtasks-${taskId}`);
       const chevron = document.getElementById(`subtask-chevron-${taskId}`);
       if (!el) return;
-
       if (el.style.display === 'none') {
         el.style.display = '';
         chevron.style.transform = 'rotate(90deg)';
@@ -709,7 +1484,6 @@
       const el = document.getElementById(`done-section-${listId}`);
       const chevron = document.getElementById(`done-chevron-${listId}`);
       if (!el) return;
-
       if (el.classList.contains('hidden')) {
         el.classList.remove('hidden');
         el.classList.add('fade-in');
@@ -762,6 +1536,36 @@
       document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
       draggedTask = null;
     }
+
+    // =============================================
+    // GLOBAL LISTENERS
+    // =============================================
+    document.addEventListener('click', (e) => {
+      if (activeContextMenu && !e.target.closest('.context-menu')) hideContextMenu();
+      if (activeEmojiPicker && !e.target.closest('.emoji-picker')) hideEmojiPicker();
+    });
+
+    // Long press for mobile note display
+    let longPressTimer = null;
+    document.addEventListener('touchstart', (e) => {
+      const taskItem = e.target.closest('.task-item');
+      if (taskItem) {
+        const taskId = taskItem.id.replace('task-', '');
+        longPressTimer = setTimeout(() => {
+          // Find task in all lists
+          for (const list of listsData) {
+            const task = findTaskRecursive(list.tasks, taskId);
+            if (task && task.note) {
+              const fakeEvent = { stopPropagation: () => {}, target: taskItem, clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+              showNote(fakeEvent, taskId, list.id);
+              break;
+            }
+          }
+        }, 600);
+      }
+    });
+    document.addEventListener('touchend', () => { clearTimeout(longPressTimer); });
+    document.addEventListener('touchmove', () => { clearTimeout(longPressTimer); });
 
     // =============================================
     // INIT
