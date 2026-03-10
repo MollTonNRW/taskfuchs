@@ -60,6 +60,7 @@
 	let newSubtaskText = $state('');
 	let menuOpen = $state(false);
 	let menuPos = $state({ x: 0, y: 0 });
+	let menuEl: HTMLDivElement | undefined = $state();
 	let animating = $state(false);
 	let animClass = $state('');
 
@@ -84,6 +85,15 @@
 			longPressTimer = null;
 		}
 	}
+
+	// Clamp more-menu to viewport
+	$effect(() => {
+		if (menuEl) {
+			const rect = menuEl.getBoundingClientRect();
+			if (rect.right > window.innerWidth) menuEl.style.left = `${window.innerWidth - rect.width - 8}px`;
+			if (rect.bottom > window.innerHeight) menuEl.style.top = `${window.innerHeight - rect.height - 8}px`;
+		}
+	});
 
 	// Picker popovers
 	type PickerState = { show: boolean; x: number; y: number };
@@ -328,7 +338,7 @@
 			<!-- More Menu -->
 			<button
 				class="more-menu-btn w-7 h-7 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-all flex-shrink-0"
-				onclick={(e) => { e.stopPropagation(); const rect = (e.currentTarget as HTMLElement).getBoundingClientRect(); menuPos = { x: rect.right - 208, y: rect.bottom + 4 }; menuOpen = !menuOpen; }}
+				onclick={(e) => { e.stopPropagation(); menuPos = { x: e.clientX, y: e.clientY }; menuOpen = !menuOpen; }}
 				aria-label="Mehr Optionen"
 			>
 				<svg class="w-4 h-4 tf-text-muted" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
@@ -339,7 +349,7 @@
 			<!-- Backdrop -->
 			<div class="fixed inset-0 z-[79]" onclick={() => (menuOpen = false)} role="presentation"></div>
 			<!-- Menu -->
-			<div class="fixed z-[80] w-52 rounded-xl p-1.5 animate-in" style="left: {menuPos.x}px; top: {menuPos.y}px; background: var(--tf-surface); border: 1px solid var(--tf-border); box-shadow: 0 12px 40px rgba(0,0,0,.15);">
+			<div bind:this={menuEl} class="fixed z-[80] w-52 rounded-xl p-1.5 animate-in" style="left: {menuPos.x}px; top: {menuPos.y}px; background: var(--tf-surface); border: 1px solid var(--tf-border); box-shadow: 0 12px 40px rgba(0,0,0,.15);">
 				<button
 					onclick={() => { startEdit(); menuOpen = false; }}
 					class="context-menu-item w-full"
