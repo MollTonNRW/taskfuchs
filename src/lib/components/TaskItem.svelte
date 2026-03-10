@@ -175,10 +175,11 @@
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="task-item rounded-xl px-3 py-2.5 tf-surface tf-surface-interactive border transition-all duration-200 group relative cursor-grab active:cursor-grabbing"
+		class="task-item rounded-xl px-3 py-2.5 tf-surface tf-surface-interactive border transition-all duration-200 group relative {task.highlighted ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}"
 		style="border-color: var(--tf-border);"
-		draggable="true"
+		draggable={!task.highlighted}
 		ondragstart={(e) => {
+			if (task.highlighted) { e.preventDefault(); return; }
 			const target = e.target as HTMLElement;
 			if (target.closest('input') || target.closest('textarea')) { e.preventDefault(); return; }
 			onDragStart?.(e);
@@ -239,6 +240,13 @@
 						onclick={startEdit}
 					>
 						{task.text}
+					</span>
+				{/if}
+
+				{#if task.highlighted}
+					<span class="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-md whitespace-nowrap" style="color: var(--tf-text-muted); background: var(--tf-surface-hover);" title="Hervorgehoben — nicht verschiebbar">
+						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+						Fixiert
 					</span>
 				{/if}
 
