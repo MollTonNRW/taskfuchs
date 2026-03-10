@@ -59,10 +59,10 @@
 	{/if}
 {/snippet}
 
-<!-- Backdrop (closes menu on click anywhere outside) -->
+<!-- Backdrop (closes menu on click/touch anywhere outside) -->
 <div
 	class="fixed inset-0 z-[9998]"
-	onclick={onClose}
+	onpointerdown={onClose}
 	oncontextmenu={(e) => { e.preventDefault(); onClose(); }}
 	role="presentation"
 ></div>
