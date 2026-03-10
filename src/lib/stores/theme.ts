@@ -1,32 +1,74 @@
-import { writable } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 import { browser } from '$app/environment';
 
-export const themes = [
-	{ id: 'light', name: 'Hell', icon: '☀️' },
-	{ id: 'dark', name: 'Dunkel', icon: '🌙' },
-	{ id: 'cupcake', name: 'Minimal', icon: '🧁' },
-	{ id: 'dracula', name: 'Dracula', icon: '🧛' },
-	{ id: 'cyberpunk', name: 'Neon', icon: '⚡' },
-	{ id: 'nord', name: 'Aurora', icon: '🌌' }
+// Theme presets (visual style)
+export const themePresets = [
+	{ id: 'minimal', name: 'Minimal', icon: '✨' },
+	{ id: 'colorful', name: 'Colorful', icon: '🎨' },
+	{ id: 'neon', name: 'Neon', icon: '⚡' },
+	{ id: 'aurora', name: 'Aurora', icon: '🌌' }
 ] as const;
 
-export type ThemeId = (typeof themes)[number]['id'];
+export type ThemePreset = (typeof themePresets)[number]['id'];
 
-const stored = browser ? (localStorage.getItem('theme') as ThemeId) : null;
+// Dark mode state
+const storedDark = browser ? localStorage.getItem('tf-dark') === 'true' : false;
+export const isDark = writable<boolean>(storedDark);
 
-export const theme = writable<ThemeId>(stored ?? 'light');
+// Theme preset state
+const storedPreset = browser ? (localStorage.getItem('tf-preset') as ThemePreset) : null;
+export const themePreset = writable<ThemePreset>(storedPreset ?? 'minimal');
 
-theme.subscribe((value) => {
+// Neon and Aurora force dark mode
+export const effectiveDark = derived([isDark, themePreset], ([$isDark, $preset]) => {
+	if ($preset === 'neon' || $preset === 'aurora') return true;
+	return $isDark;
+});
+
+// CSS class string for <body>
+export const themeClass = derived([themePreset, effectiveDark], ([$preset, $dark]) => {
+	const classes = [`theme-${$preset}`];
+	if ($dark) classes.push('dark');
+	return classes.join(' ');
+});
+
+// Persist to localStorage
+isDark.subscribe((value) => {
 	if (browser) {
-		localStorage.setItem('theme', value);
-		document.documentElement.setAttribute('data-theme', value);
+		localStorage.setItem('tf-dark', String(value));
 	}
 });
 
-export function setTheme(id: ThemeId) {
-	theme.set(id);
+themePreset.subscribe((value) => {
+	if (browser) {
+		localStorage.setItem('tf-preset', value);
+		// Set DaisyUI data-theme for base utility classes
+		document.documentElement.setAttribute('data-theme',
+			value === 'neon' || value === 'aurora' ? 'dark' :
+			localStorage.getItem('tf-dark') === 'true' ? 'dark' : 'light'
+		);
+	}
+});
+
+effectiveDark.subscribe((value) => {
+	if (browser) {
+		document.documentElement.setAttribute('data-theme', value ? 'dark' : 'light');
+	}
+});
+
+export function setPreset(id: ThemePreset) {
+	themePreset.set(id);
 }
 
-export function toggleTheme() {
-	theme.update((t) => (t === 'light' ? 'dark' : 'light'));
+export function toggleDark() {
+	isDark.update((d) => !d);
+}
+
+// Legacy exports for compatibility
+export const theme = effectiveDark;
+export const themes = themePresets;
+export function setTheme(id: string) {
+	if (id === 'dark') { isDark.set(true); }
+	else if (id === 'light') { isDark.set(false); }
+	else { setPreset(id as ThemePreset); }
 }

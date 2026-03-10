@@ -1,22 +1,36 @@
 <script lang="ts">
+	import { slide } from 'svelte/transition';
 	import type { Database } from '$lib/types/database';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 
 	let {
 		subtask,
+		allTasks = [],
+		depth = 1,
 		onToggle,
 		onUpdate,
-		onDelete
+		onDelete,
+		onAddSubtask
 	}: {
 		subtask: Task;
+		allTasks: Task[];
+		depth?: number;
 		onToggle: (id: string, done: boolean) => void;
 		onUpdate: (id: string, text: string) => void;
 		onDelete: (id: string) => void;
+		onAddSubtask?: (parentId: string, text: string) => void;
 	} = $props();
 
 	let editing = $state(false);
 	let editText = $state('');
+	let childrenOpen = $state(false);
+	let addingChild = $state(false);
+	let newChildText = $state('');
+
+	let children = $derived(allTasks.filter((t) => t.parent_id === subtask.id));
+	let childrenDone = $derived(children.filter((c) => c.done).length);
+	let canNest = $derived(depth < 2 && !!onAddSubtask);
 
 	function startEdit() {
 		editText = subtask.text;
@@ -32,23 +46,35 @@
 	}
 
 	function handleEditKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter') {
-			e.preventDefault();
-			saveEdit();
-		}
-		if (e.key === 'Escape') {
-			editing = false;
-		}
+		if (e.key === 'Enter') { e.preventDefault(); saveEdit(); }
+		if (e.key === 'Escape') { editing = false; }
+	}
+
+	function handleAddChild() {
+		const trimmed = newChildText.trim();
+		if (!trimmed || !onAddSubtask) return;
+		onAddSubtask(subtask.id, trimmed);
+		newChildText = '';
+		addingChild = false;
+	}
+
+	function handleChildKeydown(e: KeyboardEvent) {
+		if (e.key === 'Enter') { e.preventDefault(); handleAddChild(); }
+		if (e.key === 'Escape') { addingChild = false; newChildText = ''; }
 	}
 </script>
 
-<div class="flex items-center gap-2 py-2 px-2 rounded-lg hover:bg-base-200/50 group transition-colors">
-	<input
-		type="checkbox"
-		class="checkbox checkbox-xs checkbox-primary"
-		checked={subtask.done}
-		onchange={() => onToggle(subtask.id, !subtask.done)}
-	/>
+<div class="subtask-item flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 group transition-all duration-200">
+	<!-- Drag Handle (desktop only) -->
+	<div class="subtask-drag-handle hidden md:block" style="color: var(--tf-text-muted);">
+		<svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="1.5"/><circle cx="15" cy="8" r="1.5"/><circle cx="9" cy="16" r="1.5"/><circle cx="15" cy="16" r="1.5"/></svg>
+	</div>
+
+	<!-- Checkbox -->
+	<label class="custom-checkbox" style="width: 16px; height: 16px;">
+		<input type="checkbox" checked={subtask.done} onchange={() => onToggle(subtask.id, !subtask.done)} />
+		<span class="checkmark" style="border-radius: 4px; border-width: 1.5px;"></span>
+	</label>
 
 	{#if editing}
 		<!-- svelte-ignore a11y_autofocus -->
@@ -57,27 +83,95 @@
 			bind:value={editText}
 			onblur={saveEdit}
 			onkeydown={handleEditKeydown}
-			class="input input-xs input-ghost flex-1 px-1"
+			class="inline-edit-task text-xs flex-1"
 			maxlength="500"
 			autofocus
 		/>
 	{:else}
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<span
-			class="text-sm flex-1 cursor-default {subtask.done ? 'line-through text-base-content/40' : ''}"
-			ondblclick={startEdit}
+			class="text-xs flex-1 cursor-text tf-text {subtask.done ? 'line-through opacity-40' : ''} transition-all duration-300"
+			style="word-break: break-word;"
+			onclick={startEdit}
+			title="Klick zum Bearbeiten"
 		>
 			{subtask.text}
 		</span>
 	{/if}
 
+	<!-- Children count badge -->
+	{#if children.length > 0}
+		<button
+			onclick={() => (childrenOpen = !childrenOpen)}
+			class="text-[9px] tf-text-muted hover:opacity-80 px-1 py-0.5 rounded"
+			title="Unteraufgaben anzeigen"
+		>
+			{childrenDone}/{children.length}
+		</button>
+	{/if}
+
+	<!-- Add child button (only if nesting allowed) -->
+	{#if canNest}
+		<button
+			onclick={() => { addingChild = true; childrenOpen = true; }}
+			class="w-4 h-4 flex items-center justify-center rounded opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-all tf-text-muted"
+			title="Unter-Unteraufgabe"
+		>
+			<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+		</button>
+	{/if}
+
 	<button
 		onclick={() => onDelete(subtask.id)}
-		class="btn btn-ghost btn-xs opacity-100 md:opacity-0 md:group-hover:opacity-50 hover:!opacity-100 hover:text-error transition-opacity"
-		aria-label="Unteraufgabe loeschen"
+		class="w-5 h-5 flex items-center justify-center rounded opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-red-500 transition-all"
+		aria-label="Unteraufgabe löschen"
 	>
 		<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
 		</svg>
 	</button>
 </div>
+
+<!-- Nested children (level 2) -->
+{#if childrenOpen && children.length > 0}
+	<div transition:slide|global={{ duration: 200 }} class="ml-6 pl-3 space-y-0.5" style="border-left: 1.5px solid var(--tf-border);">
+		{#each children as child (child.id)}
+			<svelte:self
+				subtask={child}
+				{allTasks}
+				depth={depth + 1}
+				{onToggle}
+				{onUpdate}
+				{onDelete}
+				{onAddSubtask}
+			/>
+		{/each}
+	</div>
+{/if}
+
+<!-- Add child input -->
+{#if addingChild && canNest}
+	<div transition:slide|global={{ duration: 200 }} class="ml-6 pl-3" style="border-left: 1.5px solid var(--tf-border);">
+		<div class="flex gap-1.5 py-1">
+			<!-- svelte-ignore a11y_autofocus -->
+			<input
+				type="text"
+				bind:value={newChildText}
+				placeholder="Unter-Unteraufgabe..."
+				class="tf-input flex-1 px-2 py-1 text-[11px] rounded-lg border"
+				maxlength="500"
+				onkeydown={handleChildKeydown}
+				onblur={() => { if (!newChildText.trim()) addingChild = false; }}
+				autofocus
+			/>
+			<button
+				onclick={handleAddChild}
+				class="px-2 py-1 text-white text-[10px] rounded-lg"
+				style="background: var(--tf-accent);"
+				disabled={!newChildText.trim()}
+			>
+				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+			</button>
+		</div>
+	</div>
+{/if}

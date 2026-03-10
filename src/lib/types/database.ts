@@ -57,6 +57,7 @@ export interface Database {
 					type: 'task' | 'divider';
 					divider_label: string | null;
 					parent_id: string | null;
+					assigned_to: string | null;
 					created_at: string;
 					updated_at: string;
 					version: number;
@@ -79,6 +80,7 @@ export interface Database {
 					type?: 'task' | 'divider';
 					divider_label?: string | null;
 					parent_id?: string | null;
+					assigned_to?: string | null;
 					created_at?: string;
 					updated_at?: string;
 					version?: number;
@@ -101,6 +103,7 @@ export interface Database {
 					type?: 'task' | 'divider';
 					divider_label?: string | null;
 					parent_id?: string | null;
+					assigned_to?: string | null;
 					updated_at?: string;
 					version?: number;
 				};
@@ -192,7 +195,12 @@ export interface Database {
 			};
 		};
 		Views: {};
-		Functions: {};
+		Functions: {
+			lookup_user_by_email: {
+				Args: { lookup_email: string };
+				Returns: string | null;
+			};
+		};
 		Enums: {};
 		CompositeTypes: {};
 	};
