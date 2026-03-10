@@ -80,10 +80,6 @@
       from { transform: translateX(-100%); }
       to { transform: translateX(0); }
     }
-    @keyframes slideOutLeft {
-      from { transform: translateX(0); }
-      to { transform: translateX(-100%); }
-    }
     @keyframes contextMenuIn {
       from { opacity: 0; transform: scale(.92) translateY(-4px); }
       to { opacity: 1; transform: scale(1) translateY(0); }
@@ -198,6 +194,27 @@
     .avatar-stack .avatar:first-child { margin-left: 0; }
     .dark .avatar-stack .avatar { border-color: #1e1e2e; }
 
+    /* ===== Progress Bar ===== */
+    .progress-bar { display: flex; gap: 2px; height: 4px; width: 48px; cursor: pointer; flex-shrink: 0; }
+    .progress-segment { flex: 1; border-radius: 2px; background: #e5e7eb; transition: background .3s; }
+    .dark .progress-segment { background: #374151; }
+    .progress-segment.active-0 { background: #9ca3af; }
+    .progress-segment.active-1 { background: #3b82f6; }
+    .progress-segment.active-2 { background: #f59e0b; }
+    .progress-segment.active-3 { background: #22c55e; }
+
+    /* ===== Column Resize Handle ===== */
+    .col-resize-handle {
+      width: 8px; cursor: col-resize; position: relative; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .col-resize-handle::after {
+      content: ''; width: 3px; height: 32px; border-radius: 2px;
+      background: transparent; transition: background .2s;
+    }
+    .col-resize-handle:hover::after { background: rgba(128,128,128,.4); }
+    .col-resize-handle.dragging::after { background: #f97316; }
+
     /* ===== Theme: Neon ===== */
     .theme-neon { background: #0a0a1a !important; color: #e0e0ff !important; }
     .theme-neon .list-panel { background: rgba(15,15,40,.9) !important; border: 1px solid rgba(100,100,255,.2) !important; }
@@ -221,64 +238,76 @@
     .theme-neon .pinboard-area { background: rgba(15,15,40,.6) !important; border: 1px solid rgba(100,100,255,.15) !important; }
     .theme-neon .pin-card { background: rgba(20,20,50,.9) !important; border: 1px solid rgba(100,100,255,.2) !important; }
 
-    /* ===== Theme: Colorful ===== */
-    .theme-colorful .list-panel:nth-child(1) { background: linear-gradient(135deg, #fef3c7, #fde68a) !important; }
-    .theme-colorful .list-panel:nth-child(2) { background: linear-gradient(135deg, #dbeafe, #bfdbfe) !important; }
-    .theme-colorful .list-panel:nth-child(3) { background: linear-gradient(135deg, #fce7f3, #fbcfe8) !important; }
-    .theme-colorful .list-panel:nth-child(4) { background: linear-gradient(135deg, #d1fae5, #a7f3d0) !important; }
-    .theme-colorful .list-panel:nth-child(5) { background: linear-gradient(135deg, #ede9fe, #ddd6fe) !important; }
+    /* ===== Theme: Colorful — Light ===== */
+    .theme-colorful .list-panel:nth-child(odd):nth-child(1) { background: linear-gradient(135deg, #fef3c7, #fde68a) !important; }
+    .theme-colorful .list-panel:nth-child(odd):nth-child(3) { background: linear-gradient(135deg, #fce7f3, #fbcfe8) !important; }
+    .theme-colorful .list-panel:nth-child(odd):nth-child(5) { background: linear-gradient(135deg, #ede9fe, #ddd6fe) !important; }
+    .theme-colorful .list-panel:nth-child(even):nth-child(2) { background: linear-gradient(135deg, #dbeafe, #bfdbfe) !important; }
+    .theme-colorful .list-panel:nth-child(even):nth-child(4) { background: linear-gradient(135deg, #d1fae5, #a7f3d0) !important; }
     .theme-colorful .task-item { background: rgba(255,255,255,.85) !important; }
     .theme-colorful .custom-checkbox input:checked + .checkmark { background: #8b5cf6; border-color: #8b5cf6; }
     .theme-colorful .header-bar { background: linear-gradient(135deg, #f0abfc, #c084fc, #818cf8) !important; }
     .theme-colorful .header-bar * { color: white !important; }
-    /* Colorful text contrast fix — ensure readable text on colored backgrounds */
-    .theme-colorful .list-panel h2 { color: #1e293b !important; }
-    .theme-colorful .list-panel .text-gray-800,
-    .theme-colorful .list-panel .text-gray-900 { color: #1e293b !important; }
-    .theme-colorful .list-panel .text-gray-600 { color: #374151 !important; }
-    .theme-colorful .list-panel .text-gray-500 { color: #4b5563 !important; }
-    .theme-colorful .list-panel .text-gray-400 { color: #6b7280 !important; }
-    .theme-colorful .task-item span { color: #1f2937 !important; }
-    .theme-colorful .task-item .text-red-500 { color: #dc2626 !important; }
-    .theme-colorful .task-item .text-orange-500 { color: #c2410c !important; }
-    .theme-colorful .task-item .text-blue-500 { color: #1d4ed8 !important; }
-    .theme-colorful .badge-timeframe { background: rgba(255,255,255,.6) !important; color: #374151 !important; border-color: rgba(0,0,0,.12) !important; }
-    .theme-colorful .text-xs.text-gray-600,
-    .theme-colorful .text-xs.text-gray-400,
-    .theme-colorful .text-xs.text-gray-500 { color: #4b5563 !important; }
-    .theme-colorful .quick-add-input { background: rgba(255,255,255,.7) !important; border-color: rgba(0,0,0,.1) !important; color: #1f2937 !important; }
+    /* Colorful Light: ALL text elements forced dark for contrast */
+    .theme-colorful .list-panel h2,
+    .theme-colorful .list-panel .task-text,
+    .theme-colorful .list-panel .text-sm,
+    .theme-colorful .list-panel .text-xs { color: #1e293b !important; }
+    .theme-colorful .task-item .task-text { color: #111827 !important; }
+    .theme-colorful .task-item .badge-priority { color: #fff !important; }
+    .theme-colorful .task-item .badge-timeframe { background: rgba(255,255,255,.7) !important; color: #374151 !important; border-color: rgba(0,0,0,.15) !important; }
+    .theme-colorful .task-item .task-meta { color: #4b5563 !important; }
+    .theme-colorful .task-item .task-date { color: #4b5563 !important; }
+    .theme-colorful .task-item .subtask-info { color: #4b5563 !important; }
+    .theme-colorful .section-divider span { color: #374151 !important; }
+    .theme-colorful .section-divider .divider-line { background: rgba(0,0,0,.15) !important; }
+    .theme-colorful .list-panel .list-count { color: #374151 !important; background: rgba(255,255,255,.5) !important; }
+    .theme-colorful .quick-add-input { background: rgba(255,255,255,.7) !important; border-color: rgba(0,0,0,.12) !important; color: #1f2937 !important; }
     .theme-colorful .quick-add-input::placeholder { color: #6b7280 !important; }
-    .theme-colorful .section-divider span { color: #4b5563 !important; }
-    .theme-colorful .section-divider .h-px { background: rgba(0,0,0,.12) !important; }
     .theme-colorful .sidebar { background: linear-gradient(180deg, #fef3c7, #dbeafe, #fce7f3) !important; }
     .theme-colorful .sidebar * { color: #1e293b !important; }
     .theme-colorful .context-menu { background: rgba(255,255,255,.97) !important; }
+    .theme-colorful .context-menu * { color: #1e293b !important; }
     .theme-colorful .note-popover { background: rgba(255,255,255,.97) !important; }
     .theme-colorful .pinboard-area { background: linear-gradient(135deg, rgba(251,191,36,.1), rgba(139,92,246,.1)) !important; }
     .theme-colorful .pin-card { background: rgba(255,255,255,.9) !important; }
-    /* Dark colorful overrides */
-    .dark.theme-colorful .list-panel:nth-child(1) { background: linear-gradient(135deg, #78350f, #92400e) !important; }
-    .dark.theme-colorful .list-panel:nth-child(2) { background: linear-gradient(135deg, #1e3a5f, #1e40af) !important; }
-    .dark.theme-colorful .list-panel:nth-child(3) { background: linear-gradient(135deg, #831843, #9d174d) !important; }
-    .dark.theme-colorful .list-panel:nth-child(4) { background: linear-gradient(135deg, #064e3b, #065f46) !important; }
-    .dark.theme-colorful .list-panel:nth-child(5) { background: linear-gradient(135deg, #3b0764, #4c1d95) !important; }
+    .theme-colorful .pin-card * { color: #1e293b !important; }
+    .theme-colorful .done-toggle-btn { color: #4b5563 !important; }
+    .theme-colorful .collapse-all-btn { color: #4b5563 !important; }
+    .theme-colorful .progress-segment { background: rgba(0,0,0,.1) !important; }
+    .theme-colorful .progress-segment.active-0 { background: #9ca3af !important; }
+    .theme-colorful .progress-segment.active-1 { background: #3b82f6 !important; }
+    .theme-colorful .progress-segment.active-2 { background: #f59e0b !important; }
+    .theme-colorful .progress-segment.active-3 { background: #22c55e !important; }
+
+    /* ===== Theme: Colorful — Dark ===== */
+    .dark.theme-colorful .list-panel:nth-child(odd):nth-child(1) { background: linear-gradient(135deg, #78350f, #92400e) !important; }
+    .dark.theme-colorful .list-panel:nth-child(even):nth-child(2) { background: linear-gradient(135deg, #1e3a5f, #1e40af) !important; }
+    .dark.theme-colorful .list-panel:nth-child(odd):nth-child(3) { background: linear-gradient(135deg, #831843, #9d174d) !important; }
+    .dark.theme-colorful .list-panel:nth-child(even):nth-child(4) { background: linear-gradient(135deg, #064e3b, #065f46) !important; }
+    .dark.theme-colorful .list-panel:nth-child(odd):nth-child(5) { background: linear-gradient(135deg, #3b0764, #4c1d95) !important; }
     .dark.theme-colorful .task-item { background: rgba(0,0,0,.35) !important; }
-    .dark.theme-colorful .list-panel h2 { color: #f1f5f9 !important; }
-    .dark.theme-colorful .list-panel .text-gray-800,
-    .dark.theme-colorful .list-panel .text-gray-900 { color: #f1f5f9 !important; }
-    .dark.theme-colorful .list-panel .text-gray-600 { color: #d1d5db !important; }
-    .dark.theme-colorful .list-panel .text-gray-500 { color: #9ca3af !important; }
-    .dark.theme-colorful .list-panel .text-gray-400 { color: #9ca3af !important; }
-    .dark.theme-colorful .task-item span { color: #f3f4f6 !important; }
-    .dark.theme-colorful .task-item .text-red-500 { color: #fca5a5 !important; }
-    .dark.theme-colorful .task-item .text-orange-500 { color: #fdba74 !important; }
-    .dark.theme-colorful .task-item .text-blue-500 { color: #93c5fd !important; }
-    .dark.theme-colorful .badge-timeframe { background: rgba(0,0,0,.3) !important; color: #d1d5db !important; border-color: rgba(255,255,255,.15) !important; }
+    .dark.theme-colorful .list-panel h2,
+    .dark.theme-colorful .list-panel .task-text,
+    .dark.theme-colorful .list-panel .text-sm,
+    .dark.theme-colorful .list-panel .text-xs { color: #f1f5f9 !important; }
+    .dark.theme-colorful .task-item .task-text { color: #f3f4f6 !important; }
+    .dark.theme-colorful .task-item .badge-timeframe { background: rgba(0,0,0,.3) !important; color: #e2e8f0 !important; border-color: rgba(255,255,255,.2) !important; }
+    .dark.theme-colorful .task-item .task-meta,
+    .dark.theme-colorful .task-item .task-date,
+    .dark.theme-colorful .task-item .subtask-info { color: #cbd5e1 !important; }
+    .dark.theme-colorful .section-divider span { color: #e2e8f0 !important; }
+    .dark.theme-colorful .section-divider .divider-line { background: rgba(255,255,255,.2) !important; }
+    .dark.theme-colorful .list-panel .list-count { color: #e2e8f0 !important; background: rgba(0,0,0,.3) !important; }
     .dark.theme-colorful .quick-add-input { background: rgba(0,0,0,.3) !important; border-color: rgba(255,255,255,.15) !important; color: #f3f4f6 !important; }
-    .dark.theme-colorful .section-divider span { color: #d1d5db !important; }
-    .dark.theme-colorful .section-divider .h-px { background: rgba(255,255,255,.15) !important; }
     .dark.theme-colorful .sidebar { background: linear-gradient(180deg, #78350f, #1e3a5f, #831843) !important; }
     .dark.theme-colorful .sidebar * { color: #f1f5f9 !important; }
+    .dark.theme-colorful .context-menu { background: rgba(30,30,50,.97) !important; }
+    .dark.theme-colorful .context-menu * { color: #f1f5f9 !important; }
+    .dark.theme-colorful .pin-card * { color: #f1f5f9 !important; }
+    .dark.theme-colorful .done-toggle-btn { color: #cbd5e1 !important; }
+    .dark.theme-colorful .collapse-all-btn { color: #cbd5e1 !important; }
+    .dark.theme-colorful .progress-segment { background: rgba(255,255,255,.1) !important; }
 
     /* Dark mode overrides */
     .dark .list-panel { background: #1e1e2e; border-color: #2e2e3e; }
@@ -331,6 +360,13 @@
     }
     .emoji-picker button:hover { background: rgba(0,0,0,.06); transform: scale(1.15); }
     .dark .emoji-picker button:hover { background: rgba(255,255,255,.1); }
+
+    /* ===== Task Row Layout Fix ===== */
+    .task-row { display: flex; align-items: center; gap: 8px; min-height: 28px; }
+    .task-content { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+    .task-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
+    .task-badges { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .task-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
   </style>
 </head>
 <body class="bg-gray-50 dark:bg-[#0f0f17] text-gray-900 dark:text-gray-100 transition-colors duration-500">
@@ -341,7 +377,6 @@
   <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar bg-white dark:bg-[#16161e] border-r border-gray-200/60 dark:border-gray-800/60" id="sidebar">
     <div class="p-5">
-      <!-- Sidebar Header -->
       <div class="flex items-center justify-between mb-6">
         <div class="flex items-center gap-2">
           <span class="text-xl">🦊</span>
@@ -396,7 +431,6 @@
         </div>
       </div>
 
-      <!-- Divider -->
       <div class="h-px bg-gray-200 dark:bg-gray-700 mb-4"></div>
 
       <!-- Lists -->
@@ -405,7 +439,6 @@
         <div class="space-y-1" id="sidebar-lists"></div>
       </div>
 
-      <!-- New List Button -->
       <button onclick="createNewList()" class="w-full flex items-center gap-2 px-3 py-2.5 text-sm font-medium text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-xl transition-all duration-200">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         Neue Liste erstellen
@@ -416,7 +449,6 @@
   <!-- ===== HEADER ===== -->
   <header class="header-bar sticky top-0 z-50 bg-white/80 dark:bg-[#16161e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-gray-800/60 px-4 py-3 transition-all duration-500">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
-      <!-- Left: Hamburger + Logo -->
       <div class="flex items-center gap-3">
         <button onclick="toggleSidebar()" class="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200" id="hamburger-btn">
           <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -428,17 +460,12 @@
           <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">TaskFuchs</h1>
         </div>
       </div>
-
-      <!-- Controls -->
       <div class="flex items-center gap-2">
-        <!-- Theme Presets -->
         <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-0.5">
           <button onclick="setTheme('minimal')" id="btn-minimal" class="theme-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100" data-theme="minimal">Minimal</button>
           <button onclick="setTheme('colorful')" id="btn-colorful" class="theme-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700" data-theme="colorful">Colorful</button>
           <button onclick="setTheme('neon')" id="btn-neon" class="theme-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700" data-theme="neon">Neon</button>
         </div>
-
-        <!-- Dark/Light Toggle -->
         <button onclick="toggleDarkMode()" id="dark-toggle" class="tooltip w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300" data-tip="Dark/Light Mode">
           <span id="dark-icon" class="text-lg transition-transform duration-500">🌙</span>
         </button>
@@ -448,8 +475,7 @@
 
   <!-- ===== MAIN CONTENT ===== -->
   <div class="main-content transition-all duration-350" id="main-content">
-
-    <!-- ===== PINBOARD ===== -->
+    <!-- Pinboard -->
     <div class="max-w-7xl mx-auto px-5 pt-4">
       <div class="flex items-center gap-2 mb-2">
         <button onclick="togglePinboard()" class="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors">
@@ -468,21 +494,16 @@
       </div>
     </div>
 
-    <!-- ===== LISTS CONTAINER ===== -->
-    <main class="lists-container flex gap-5 p-5 max-w-7xl mx-auto overflow-x-auto pb-8 md:grid md:overflow-x-visible" id="lists-container" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+    <!-- Lists Container -->
+    <main class="flex gap-0 p-5 max-w-7xl mx-auto overflow-x-auto pb-8" id="lists-container">
     </main>
   </div>
 
-  <!-- ===== CONTEXT MENU (dynamically positioned) ===== -->
+  <!-- Popups -->
   <div class="context-menu hidden bg-white dark:bg-[#1e1e2e] border border-gray-200 dark:border-gray-700" id="context-menu"></div>
-
-  <!-- ===== EMOJI PICKER (dynamically positioned) ===== -->
   <div class="emoji-picker hidden" id="emoji-picker"></div>
-
-  <!-- ===== NOTE POPOVER ===== -->
   <div class="note-popover hidden bg-white dark:bg-[#1e1e2e] border border-gray-200 dark:border-gray-700" id="note-popover"></div>
 
-  <!-- ===== JAVASCRIPT ===== -->
   <script>
     // =============================================
     // DATA
@@ -498,7 +519,7 @@
         id: 'homelab', title: 'Homelab', icon: '🖥️', visible: true, shared: false, sharedUsers: [],
         tasks: [
           {
-            id: 'h1', text: 'Pi-hole Update durchführen', priority: 'high', timeframe: 'akut', highlighted: false, done: false, pinned: false, note: 'Vorher unbedingt Backup machen! Letzte Version hatte Probleme mit Custom DNS.', emoji: null, dueDate: '2026-03-15', assignee: null,
+            id: 'h1', text: 'Pi-hole Update durchführen', priority: 'high', timeframe: 'akut', highlighted: false, done: false, pinned: false, note: 'Vorher unbedingt Backup machen! Letzte Version hatte Probleme mit Custom DNS.', emoji: null, dueDate: '2026-03-15', assignee: null, progress: 0,
             subtasks: [
               { id: 'h1a', text: 'Backup der Config erstellen', done: false, subtasks: [
                 { id: 'h1a1', text: 'pihole -a -t erstellen', done: false, subtasks: [] },
@@ -510,25 +531,25 @@
           },
           { id: 'h-div1', type: 'divider', label: 'Infrastruktur' },
           {
-            id: 'h2', text: 'n8n Workflows aufräumen', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: 'Mindestens 5 inaktive Workflows gefunden beim letzten Check.', emoji: null, dueDate: null, assignee: null,
+            id: 'h2', text: 'n8n Workflows aufräumen', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: 'Mindestens 5 inaktive Workflows gefunden beim letzten Check.', emoji: null, dueDate: null, assignee: null, progress: 1,
             subtasks: [
               { id: 'h2a', text: 'Inaktive Workflows identifizieren', done: false, subtasks: [] },
               { id: 'h2b', text: 'Error-Workflows prüfen', done: false, subtasks: [] }
             ]
           },
           {
-            id: 'h3', text: 'NAS Backup-Strategie überprüfen', priority: 'normal', timeframe: 'langfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null,
+            id: 'h3', text: 'NAS Backup-Strategie überprüfen', priority: 'normal', timeframe: 'langfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null, progress: 0,
             subtasks: []
           },
           {
-            id: 'h4', text: 'SSL-Zertifikate erneuern', priority: 'asap', timeframe: 'akut', highlighted: true, done: false, pinned: true, note: 'Läuft am 20.03. ab! Cloudflare Tunnel checken.', emoji: '🔒', dueDate: '2026-03-20', assignee: null,
+            id: 'h4', text: 'SSL-Zertifikate erneuern', priority: 'asap', timeframe: 'akut', highlighted: true, done: false, pinned: true, note: 'Läuft am 20.03. ab! Cloudflare Tunnel checken.', emoji: '🔒', dueDate: '2026-03-20', assignee: null, progress: 2,
             subtasks: [
               { id: 'h4a', text: 'Ablaufdatum prüfen', done: false, subtasks: [] },
               { id: 'h4b', text: 'Cloudflare Tunnel config checken', done: false, subtasks: [] }
             ]
           },
           {
-            id: 'h5', text: 'Home Assistant Automations dokumentieren', priority: 'low', timeframe: 'langfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null,
+            id: 'h5', text: 'Home Assistant Automations dokumentieren und alle Szenarien beschreiben die im täglichen Betrieb wichtig sind', priority: 'low', timeframe: 'langfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null, progress: 0,
             subtasks: []
           }
         ]
@@ -537,7 +558,7 @@
         id: 'privat', title: 'Privat', icon: '🏠', visible: true, shared: false, sharedUsers: [],
         tasks: [
           {
-            id: 'p1', text: 'Steuererklärung vorbereiten', priority: 'high', timeframe: 'akut', highlighted: false, done: false, pinned: true, note: 'Frist: 31.07.2026. Steuerberater Müller hat neue Nummer.', emoji: '📋', dueDate: '2026-07-31', assignee: null,
+            id: 'p1', text: 'Steuererklärung vorbereiten', priority: 'high', timeframe: 'akut', highlighted: false, done: false, pinned: true, note: 'Frist: 31.07.2026. Steuerberater Müller hat neue Nummer.', emoji: '📋', dueDate: '2026-07-31', assignee: null, progress: 1,
             subtasks: [
               { id: 'p1a', text: 'Belege sortieren', done: false, subtasks: [] },
               { id: 'p1b', text: 'ELSTER Login testen', done: false, subtasks: [] },
@@ -545,7 +566,7 @@
             ]
           },
           {
-            id: 'p2', text: 'Wohnung aufräumen', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null,
+            id: 'p2', text: 'Wohnung aufräumen', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null, progress: 0,
             subtasks: [
               { id: 'p2a', text: 'Kleiderschrank ausmisten', done: false, subtasks: [] },
               { id: 'p2b', text: 'Keller sortieren', done: false, subtasks: [] }
@@ -553,15 +574,15 @@
           },
           { id: 'p-div1', type: 'divider', label: 'Gesundheit' },
           {
-            id: 'p3', text: 'Zahnarzt-Termin vereinbaren', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: 'Dr. Schmidt, Tel: 0221/123456', emoji: '🦷', dueDate: null, assignee: null,
+            id: 'p3', text: 'Zahnarzt-Termin vereinbaren', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: 'Dr. Schmidt, Tel: 0221/123456', emoji: '🦷', dueDate: null, assignee: null, progress: 0,
             subtasks: []
           },
           {
-            id: 'p4', text: 'Sport-Abo kündigen', priority: 'asap', timeframe: 'akut', highlighted: false, done: false, pinned: false, note: 'Kündigungsfrist: 1 Monat zum Quartalsende!', emoji: null, dueDate: '2026-03-31', assignee: null,
+            id: 'p4', text: 'Sport-Abo kündigen', priority: 'asap', timeframe: 'akut', highlighted: false, done: false, pinned: false, note: 'Kündigungsfrist: 1 Monat zum Quartalsende!', emoji: null, dueDate: '2026-03-31', assignee: null, progress: 0,
             subtasks: []
           },
           {
-            id: 'p5', text: 'Bücher zurückgeben (Bibliothek)', priority: 'low', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null,
+            id: 'p5', text: 'Bücher zurückgeben (Bibliothek)', priority: 'low', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null, progress: 0,
             subtasks: []
           }
         ]
@@ -570,7 +591,7 @@
         id: 'arbeit', title: 'Arbeit', icon: '💼', visible: true, shared: true, sharedUsers: [dummyUsers[0], dummyUsers[1], dummyUsers[2]],
         tasks: [
           {
-            id: 'a1', text: 'Kundenpräsentation erstellen', priority: 'asap', timeframe: 'akut', highlighted: true, done: false, pinned: true, note: 'Kunde: Warmwelt GmbH. Meeting am Freitag 14 Uhr.', emoji: '🎯', dueDate: '2026-03-14', assignee: dummyUsers[0],
+            id: 'a1', text: 'Kundenpräsentation erstellen', priority: 'asap', timeframe: 'akut', highlighted: true, done: false, pinned: true, note: 'Kunde: Warmwelt GmbH. Meeting am Freitag 14 Uhr.', emoji: '🎯', dueDate: '2026-03-14', assignee: dummyUsers[0], progress: 2,
             subtasks: [
               { id: 'a1a', text: 'Daten aufbereiten', done: false, subtasks: [
                 { id: 'a1a1', text: 'Q4-Zahlen exportieren', done: false, subtasks: [] },
@@ -581,12 +602,12 @@
             ]
           },
           {
-            id: 'a2', text: 'Meeting-Notizen zusammenfassen', priority: 'normal', timeframe: 'akut', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: dummyUsers[1],
+            id: 'a2', text: 'Meeting-Notizen zusammenfassen', priority: 'normal', timeframe: 'akut', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: dummyUsers[1], progress: 0,
             subtasks: []
           },
           { id: 'a-div1', type: 'divider', label: 'Projekte' },
           {
-            id: 'a3', text: 'TaskFuchs MVP planen', priority: 'high', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: 'Tech-Stack: Supabase + Next.js + Tailwind. Prototyp fertig!', emoji: '🦊', dueDate: null, assignee: dummyUsers[0],
+            id: 'a3', text: 'TaskFuchs MVP planen', priority: 'high', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: 'Tech-Stack: Supabase + SvelteKit + Tailwind. Prototyp fertig!', emoji: '🦊', dueDate: null, assignee: dummyUsers[0], progress: 1,
             subtasks: [
               { id: 'a3a', text: 'Tech-Stack festlegen', done: true, subtasks: [] },
               { id: 'a3b', text: 'UI-Prototyp erstellen', done: false, subtasks: [] },
@@ -594,11 +615,11 @@
             ]
           },
           {
-            id: 'a4', text: 'Code Review für PR #42', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: dummyUsers[2],
+            id: 'a4', text: 'Code Review für PR #42', priority: 'normal', timeframe: 'mittelfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: dummyUsers[2], progress: 0,
             subtasks: []
           },
           {
-            id: 'a5', text: 'Dokumentation aktualisieren', priority: 'low', timeframe: 'langfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null,
+            id: 'a5', text: 'Dokumentation aktualisieren', priority: 'low', timeframe: 'langfristig', highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null, progress: 0,
             subtasks: []
           }
         ]
@@ -618,8 +639,14 @@
     let activeContextMenu = null;
     let activeEmojiPicker = null;
     let activeNotePopover = null;
+    let listWidths = {};
+    let resizing = null;
+    let allSubtasksCollapsed = {};
 
     const commonEmojis = ['📋','🎯','🔒','🦊','💡','🚀','⚡','🔥','📌','🏠','💼','🖥️','📝','✨','🎨','🛠️','📊','🗂️','🔔','❤️','⭐','🎉','📦','🌟','🦷','📅','🎪','💎','🧩','📱','🌍','🔧'];
+
+    const progressLabels = ['Unerledigt', 'Angefangen', 'Fast fertig', 'Fertig'];
+    const progressColors = ['#9ca3af', '#3b82f6', '#f59e0b', '#22c55e'];
 
     // =============================================
     // SIDEBAR
@@ -629,12 +656,9 @@
       const sidebar = document.getElementById('sidebar');
       const overlay = document.getElementById('sidebar-overlay');
       const main = document.getElementById('main-content');
-
       sidebar.classList.toggle('open', sidebarOpen);
       overlay.classList.toggle('active', sidebarOpen);
-      if (window.innerWidth >= 768) {
-        main.classList.toggle('shifted', sidebarOpen);
-      }
+      if (window.innerWidth >= 768) main.classList.toggle('shifted', sidebarOpen);
       renderSidebarLists();
     }
 
@@ -664,41 +688,21 @@
       const list = findList(listId);
       if (list) { list.visible = !list.visible; render(); renderSidebarLists(); }
     }
-
     function deleteList(listId) {
       if (listsData.length <= 1) return;
       const idx = listsData.findIndex(l => l.id === listId);
       if (idx > -1) { listsData.splice(idx, 1); render(); renderSidebarLists(); }
     }
-
     function createNewList() {
-      const newList = {
-        id: 'list-' + Date.now(),
-        title: 'Neue Liste',
-        icon: '📝',
-        visible: true,
-        shared: false,
-        sharedUsers: [],
-        tasks: []
-      };
-      listsData.push(newList);
-      render();
-      renderSidebarLists();
+      listsData.push({ id: 'list-' + Date.now(), title: 'Neue Liste', icon: '📝', visible: true, shared: false, sharedUsers: [], tasks: [] });
+      render(); renderSidebarLists();
     }
 
     // =============================================
     // FILTERS
     // =============================================
-    function toggleFilter(priority) {
-      activeFilters[priority] = !activeFilters[priority];
-      render();
-    }
-
-    function toggleViewFilter(filter) {
-      viewFilters[filter] = !viewFilters[filter];
-      render();
-    }
-
+    function toggleFilter(priority) { activeFilters[priority] = !activeFilters[priority]; render(); }
+    function toggleViewFilter(filter) { viewFilters[filter] = !viewFilters[filter]; render(); }
     function shouldShowTask(task, list) {
       if (task.type === 'divider') return true;
       if (!activeFilters[task.priority]) return false;
@@ -713,68 +717,49 @@
     // =============================================
     function togglePinboard() {
       pinboardCollapsed = !pinboardCollapsed;
-      const pinboard = document.getElementById('pinboard');
-      const chevron = document.getElementById('pinboard-chevron');
-      pinboard.classList.toggle('collapsed', pinboardCollapsed);
-      chevron.style.transform = pinboardCollapsed ? 'rotate(-90deg)' : '';
+      document.getElementById('pinboard').classList.toggle('collapsed', pinboardCollapsed);
+      document.getElementById('pinboard-chevron').style.transform = pinboardCollapsed ? 'rotate(-90deg)' : '';
     }
-
     function togglePin(taskId, listId) {
       const list = findList(listId);
       const task = findTaskRecursive(list.tasks, taskId);
-      if (task) {
-        task.pinned = !task.pinned;
-        render();
-      }
+      if (task) { task.pinned = !task.pinned; render(); }
     }
-
     function renderPinboard() {
       const cards = document.getElementById('pinboard-cards');
       const pinnedTasks = [];
-
       listsData.forEach(list => {
         list.tasks.forEach(task => {
-          if (task.pinned && task.type !== 'divider') {
-            pinnedTasks.push({ task, listTitle: list.title, listId: list.id });
-          }
+          if (task.pinned && task.type !== 'divider') pinnedTasks.push({ task, listTitle: list.title, listId: list.id });
         });
       });
-
       document.getElementById('pin-count').textContent = `(${pinnedTasks.length})`;
-
       if (pinnedTasks.length === 0) {
         cards.innerHTML = '<div class="text-sm text-gray-400 dark:text-gray-500 italic py-4 text-center w-full">Aufgaben hier anpinnen per Rechtsklick oder Pin-Icon</div>';
         return;
       }
-
       cards.innerHTML = pinnedTasks.map(({ task, listTitle, listId }) => {
         const p = priorityConfig[task.priority] || priorityConfig.normal;
         return `
           <div class="pin-card flex-shrink-0 w-56 rounded-xl border border-gray-200/60 dark:border-gray-700/60 bg-white dark:bg-[#262637] p-3.5 cursor-pointer hover:shadow-md transition-all duration-200" onclick="scrollToTask('${task.id}')">
             <div class="flex items-center justify-between mb-2">
-              <span class="text-[10px] font-medium px-2 py-0.5 rounded-full" style="background: ${p.bar}20; color: ${p.bar}">${priorityConfig[task.priority]?.label || 'Normal'}</span>
+              <span class="text-[10px] font-medium px-2 py-0.5 rounded-full" style="background: ${p.bar}20; color: ${p.bar}">${p.label}</span>
               <button onclick="event.stopPropagation(); togglePin('${task.id}', '${listId}')" class="w-5 h-5 flex items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 <svg class="w-3 h-3 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
               </button>
             </div>
             <p class="text-sm font-medium text-gray-800 dark:text-gray-100 mb-1.5 line-clamp-2">${task.emoji ? task.emoji + ' ' : ''}${task.text}</p>
             <span class="text-[10px] text-gray-400 dark:text-gray-500">${listTitle}</span>
-          </div>
-        `;
+          </div>`;
       }).join('');
     }
-
     function scrollToTask(taskId) {
       const el = document.getElementById('task-' + taskId);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('task-highlight-in');
-        setTimeout(() => el.classList.remove('task-highlight-in'), 800);
-      }
+      if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('task-highlight-in'); setTimeout(() => el.classList.remove('task-highlight-in'), 800); }
     }
 
     // =============================================
-    // THEME MANAGEMENT
+    // THEME
     // =============================================
     function toggleDarkMode() {
       isDark = !isDark;
@@ -784,39 +769,21 @@
       setTimeout(() => document.getElementById('dark-icon').style.transform = '', 500);
       applyThemeTransition();
     }
-
     function setTheme(theme) {
       currentTheme = theme;
       document.body.classList.remove('theme-neon', 'theme-colorful');
-      if (theme === 'neon') {
-        isDark = true;
-        document.documentElement.classList.add('dark');
-        document.getElementById('dark-icon').textContent = '☀️';
-        document.body.classList.add('theme-neon');
-      } else if (theme === 'colorful') {
-        document.body.classList.add('theme-colorful');
-      }
-
+      if (theme === 'neon') { isDark = true; document.documentElement.classList.add('dark'); document.getElementById('dark-icon').textContent = '☀️'; document.body.classList.add('theme-neon'); }
+      else if (theme === 'colorful') { document.body.classList.add('theme-colorful'); }
       document.querySelectorAll('.theme-btn').forEach(btn => {
-        if (btn.dataset.theme === theme) {
-          btn.classList.add('bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-900', 'dark:text-gray-100');
-          btn.classList.remove('text-gray-500', 'dark:text-gray-400');
-        } else {
-          btn.classList.remove('bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-900', 'dark:text-gray-100');
-          btn.classList.add('text-gray-500', 'dark:text-gray-400');
-        }
+        if (btn.dataset.theme === theme) { btn.classList.add('bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-900', 'dark:text-gray-100'); btn.classList.remove('text-gray-500', 'dark:text-gray-400'); }
+        else { btn.classList.remove('bg-white', 'dark:bg-gray-700', 'shadow-sm', 'text-gray-900', 'dark:text-gray-100'); btn.classList.add('text-gray-500', 'dark:text-gray-400'); }
       });
-
       applyThemeTransition();
     }
-
-    function applyThemeTransition() {
-      document.body.classList.add('theme-transition');
-      setTimeout(() => document.body.classList.remove('theme-transition'), 400);
-    }
+    function applyThemeTransition() { document.body.classList.add('theme-transition'); setTimeout(() => document.body.classList.remove('theme-transition'), 400); }
 
     // =============================================
-    // PRIORITY HELPERS
+    // PRIORITY / TIMEFRAME
     // =============================================
     const priorityConfig = {
       low:    { color: '#9ca3af', bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500', label: 'Niedrig', bar: '#d1d5db' },
@@ -824,7 +791,6 @@
       high:   { color: '#f97316', bg: 'bg-orange-50 dark:bg-orange-900/20', text: 'text-orange-500', label: 'Hoch', bar: '#fb923c' },
       asap:   { color: '#ef4444', bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-500', label: 'ASAP!', bar: '#f87171' }
     };
-
     const timeframeConfig = {
       akut:          { label: 'Akut', class: 'text-red-600 dark:text-red-400 border-red-200 dark:border-red-800' },
       mittelfristig: { label: 'Mittelfristig', class: 'text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800' },
@@ -838,7 +804,8 @@
       const container = document.getElementById('lists-container');
       container.innerHTML = '';
 
-      listsData.filter(l => l.visible).forEach(list => {
+      const visibleLists = listsData.filter(l => l.visible);
+      visibleLists.forEach((list, listIndex) => {
         const allTasks = list.tasks;
         const activeTasks = allTasks.filter(t => (t.type === 'divider' || !t.done) && shouldShowTask(t, list));
         const doneTasks = allTasks.filter(t => t.type !== 'divider' && t.done);
@@ -850,17 +817,30 @@
           return 0;
         });
 
+        const width = listWidths[list.id] || 360;
         const panel = document.createElement('div');
-        panel.className = 'list-panel min-w-[320px] md:min-w-0 w-full rounded-2xl bg-white dark:bg-[#1e1e2e] border border-gray-200/60 dark:border-gray-800/60 shadow-sm flex flex-col transition-all duration-500';
+        panel.className = 'list-panel rounded-2xl bg-white dark:bg-[#1e1e2e] border border-gray-200/60 dark:border-gray-800/60 shadow-sm flex flex-col transition-colors duration-500';
+        panel.style.width = width + 'px';
+        panel.style.minWidth = '280px';
+        panel.style.maxWidth = '600px';
+        panel.style.flexShrink = '0';
+
+        const isCollapsed = allSubtasksCollapsed[list.id] || false;
+
         panel.innerHTML = `
           <!-- List Header -->
           <div class="px-5 pt-5 pb-3 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
               <button class="text-xl hover:scale-110 transition-transform cursor-pointer" onclick="openEmojiPickerForList('${list.id}', event)" title="Symbol ändern">${list.icon}</button>
               <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 tracking-tight cursor-pointer" ondblclick="startEditListTitle('${list.id}', this)" title="Doppelklick zum Bearbeiten">${list.title}</h2>
-              <span class="text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">${activeTasks.filter(t => t.type !== 'divider').length}</span>
+              <span class="list-count text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">${activeTasks.filter(t => t.type !== 'divider').length}</span>
               ${list.shared ? renderAvatarStack(list.sharedUsers) : ''}
             </div>
+            <button onclick="toggleAllSubtasks('${list.id}')" class="collapse-all-btn tooltip w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-400 dark:text-gray-500" data-tip="${isCollapsed ? 'Alle aufklappen' : 'Alle zuklappen'}">
+              <svg class="w-4 h-4 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="transform: rotate(${isCollapsed ? '0' : '90'}deg)">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+              </svg>
+            </button>
           </div>
 
           <!-- Tasks -->
@@ -871,7 +851,7 @@
           <!-- Done Section -->
           ${doneTasks.length > 0 ? `
           <div class="px-3 pb-2">
-            <button onclick="toggleDoneSection('${list.id}')" class="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50">
+            <button onclick="toggleDoneSection('${list.id}')" class="done-toggle-btn w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50">
               <svg class="w-4 h-4 transition-transform duration-300" id="done-chevron-${list.id}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
               </svg>
@@ -895,6 +875,16 @@
           </div>
         `;
         container.appendChild(panel);
+
+        // Add resize handle between lists
+        if (listIndex < visibleLists.length - 1) {
+          const handle = document.createElement('div');
+          handle.className = 'col-resize-handle';
+          handle.dataset.leftList = list.id;
+          handle.dataset.rightList = visibleLists[listIndex + 1].id;
+          handle.addEventListener('mousedown', startResize);
+          container.appendChild(handle);
+        }
       });
 
       renderPinboard();
@@ -911,9 +901,9 @@
     function renderDivider(task) {
       return `
         <div class="section-divider flex items-center gap-3 px-2 py-3">
-          <div class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+          <div class="divider-line h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
           <span class="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">${task.label}</span>
-          <div class="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+          <div class="divider-line h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
         </div>`;
     }
 
@@ -924,6 +914,13 @@
       const doneSubtasks = hasSubtasks ? task.subtasks.filter(s => s.done).length : 0;
       const indent = depth * 24;
       const list = findList(listId);
+      const isListCollapsed = allSubtasksCollapsed[listId] || false;
+
+      // Progress bar segments
+      const prog = task.progress || 0;
+      const progressHtml = `<div class="progress-bar" title="${progressLabels[prog]}" onclick="event.stopPropagation(); cycleProgress('${task.id}', '${listId}')">
+        ${[0,1,2,3].map(i => `<div class="progress-segment ${i < prog ? 'active-' + prog : ''}"></div>`).join('')}
+      </div>`;
 
       return `
         <div class="task-item group rounded-xl px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-all duration-200 ${task.highlighted ? 'highlighted' : ''}"
@@ -935,60 +932,54 @@
              ondragend="onDragEnd(event)"
              oncontextmenu="showContextMenu(event, '${task.id}', '${listId}')"
              id="task-${task.id}">
-          <div class="flex items-start gap-2.5">
+          <div class="task-row">
             <!-- Priority Bar -->
-            <div class="priority-bar mt-1" style="background: ${p.bar}"></div>
+            <div class="priority-bar" style="background: ${p.bar}; align-self: stretch;"></div>
 
             <!-- Drag Handle -->
-            ${depth === 0 ? `<div class="drag-handle mt-1 text-gray-300 dark:text-gray-600">
+            ${depth === 0 ? `<div class="drag-handle text-gray-300 dark:text-gray-600">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
             </div>` : '<div style="width:16px"></div>'}
 
+            <!-- Assignee Avatar (left of checkbox) -->
+            ${task.assignee ? `<div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style="background:${task.assignee.color}" title="${task.assignee.name}">${task.assignee.initials}</div>` : ''}
+
             <!-- Checkbox -->
-            <label class="custom-checkbox mt-0.5">
+            <label class="custom-checkbox">
               <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleTask('${task.id}', '${listId}')">
               <span class="checkmark"></span>
             </label>
 
-            <!-- Content -->
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                ${task.emoji ? `<span class="text-sm">${task.emoji}</span>` : ''}
-                <span class="text-sm font-medium text-gray-800 dark:text-gray-100 ${task.done ? 'line-through opacity-50' : ''} transition-all duration-300">${task.text}</span>
-                ${task.priority === 'asap' ? '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-red-500 text-white animate-pulse">ASAP!</span>' : ''}
-              </div>
-              <div class="flex items-center gap-2 mt-1 flex-wrap">
-                ${tf ? `<span class="badge-timeframe text-[10px] font-medium px-2 py-0.5 rounded-full border ${tf.class}">${tf.label}</span>` : ''}
-                ${task.dueDate ? `<span class="text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>${formatDate(task.dueDate)}</span>` : ''}
-                ${hasSubtasks ? `<span class="text-[10px] text-gray-400 dark:text-gray-500">${doneSubtasks}/${task.subtasks.length} erledigt</span>` : ''}
+            <!-- Content: text + badges in one row -->
+            <div class="task-content">
+              <span class="task-text text-sm font-medium text-gray-800 dark:text-gray-100 ${task.done ? 'line-through opacity-50' : ''}">${task.emoji ? task.emoji + ' ' : ''}${task.text}</span>
+              <div class="task-badges">
+                ${task.priority === 'asap' ? '<span class="badge-priority text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-red-500 text-white animate-pulse whitespace-nowrap">ASAP!</span>' : ''}
+                ${tf ? `<span class="badge-timeframe text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap ${tf.class}">${tf.label}</span>` : ''}
+                ${task.dueDate ? `<span class="task-date text-[10px] text-gray-400 dark:text-gray-500 flex items-center gap-1 whitespace-nowrap"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>${formatDate(task.dueDate)}</span>` : ''}
+                ${hasSubtasks ? `<span class="subtask-info text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap">${doneSubtasks}/${task.subtasks.length}</span>` : ''}
+                ${progressHtml}
               </div>
             </div>
 
-            <!-- Assignee Avatar -->
-            ${task.assignee ? `<div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0 mt-0.5" style="background:${task.assignee.color}" title="${task.assignee.name}">${task.assignee.initials}</div>` : ''}
-
             <!-- Actions -->
-            <div class="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-              <!-- Note Icon -->
+            <div class="task-actions opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               ${task.note ? `
-              <button onclick="showNote(event, '${task.id}', '${listId}')" class="note-icon w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200" style="opacity:0.7" title="Notiz anzeigen">
+              <button onclick="showNote(event, '${task.id}', '${listId}')" class="note-icon w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all" style="opacity:0.7" title="Notiz">
                 <svg class="w-3.5 h-3.5 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
               </button>` : `
-              <button onclick="showNote(event, '${task.id}', '${listId}')" class="note-icon w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200" title="Notiz hinzufügen">
+              <button onclick="showNote(event, '${task.id}', '${listId}')" class="note-icon w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all" title="Notiz">
                 <svg class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
               </button>`}
-              <!-- Pin -->
-              <button onclick="togglePin('${task.id}', '${listId}')" class="tooltip w-7 h-7 flex items-center justify-center rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all duration-200 ${task.pinned ? 'bg-orange-50 dark:bg-orange-900/30' : ''}" data-tip="${task.pinned ? 'Lösen' : 'Anpinnen'}">
-                <svg class="w-3.5 h-3.5 ${task.pinned ? 'text-orange-500' : 'text-gray-400'} transition-colors" fill="${task.pinned ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+              <button onclick="togglePin('${task.id}', '${listId}')" class="tooltip w-7 h-7 flex items-center justify-center rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all ${task.pinned ? 'bg-orange-50 dark:bg-orange-900/30' : ''}" data-tip="${task.pinned ? 'Lösen' : 'Anpinnen'}">
+                <svg class="w-3.5 h-3.5 ${task.pinned ? 'text-orange-500' : 'text-gray-400'}" fill="${task.pinned ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
               </button>
-              <!-- Highlight -->
-              <button onclick="toggleHighlight('${task.id}', '${listId}')" class="tooltip w-7 h-7 flex items-center justify-center rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all duration-200 ${task.highlighted ? 'bg-orange-50 dark:bg-orange-900/30' : ''}" data-tip="Highlight">
-                <svg class="w-3.5 h-3.5 ${task.highlighted ? 'text-orange-500' : 'text-gray-400'} transition-colors" fill="${task.highlighted ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
+              <button onclick="toggleHighlight('${task.id}', '${listId}')" class="tooltip w-7 h-7 flex items-center justify-center rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all ${task.highlighted ? 'bg-orange-50 dark:bg-orange-900/30' : ''}" data-tip="Highlight">
+                <svg class="w-3.5 h-3.5 ${task.highlighted ? 'text-orange-500' : 'text-gray-400'}" fill="${task.highlighted ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
                 </svg>
               </button>
-              <!-- Delete -->
-              <button onclick="deleteTask('${task.id}', '${listId}')" class="tooltip w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200" data-tip="Löschen">
+              <button onclick="deleteTask('${task.id}', '${listId}')" class="tooltip w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all" data-tip="Löschen">
                 <svg class="w-3.5 h-3.5 text-gray-400 hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                 </svg>
@@ -1000,12 +991,12 @@
           ${hasSubtasks ? `
             <div class="mt-1">
               <button onclick="toggleSubtasks('${task.id}')" class="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 ml-10 mb-1 transition-colors">
-                <svg class="w-3 h-3 transition-transform duration-300" id="subtask-chevron-${task.id}" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="transform: rotate(90deg)">
+                <svg class="w-3 h-3 transition-transform duration-300" id="subtask-chevron-${task.id}" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="transform: rotate(${isListCollapsed ? '0' : '90'}deg)">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                 </svg>
                 Unteraufgaben
               </button>
-              <div id="subtasks-${task.id}" class="space-y-0.5">
+              <div id="subtasks-${task.id}" class="space-y-0.5" style="display: ${isListCollapsed ? 'none' : ''}">
                 ${task.subtasks.map(st => renderSubtask(st, depth + 1, listId, task.id)).join('')}
               </div>
             </div>
@@ -1041,6 +1032,79 @@
     }
 
     // =============================================
+    // COLUMN RESIZE
+    // =============================================
+    function startResize(e) {
+      e.preventDefault();
+      const handle = e.target.closest('.col-resize-handle');
+      const leftId = handle.dataset.leftList;
+      const rightId = handle.dataset.rightList;
+      const leftPanel = handle.previousElementSibling;
+      const rightPanel = handle.nextElementSibling;
+      if (!leftPanel || !rightPanel) return;
+
+      handle.classList.add('dragging');
+      const startX = e.clientX;
+      const startLeftW = leftPanel.offsetWidth;
+      const startRightW = rightPanel.offsetWidth;
+
+      function onMove(e) {
+        const dx = e.clientX - startX;
+        const newLeft = Math.max(280, Math.min(600, startLeftW + dx));
+        const newRight = Math.max(280, Math.min(600, startRightW - dx));
+        leftPanel.style.width = newLeft + 'px';
+        rightPanel.style.width = newRight + 'px';
+        listWidths[leftId] = newLeft;
+        listWidths[rightId] = newRight;
+      }
+      function onUp() {
+        handle.classList.remove('dragging');
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    }
+
+    // =============================================
+    // PROGRESS
+    // =============================================
+    function cycleProgress(taskId, listId) {
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, taskId);
+      if (!task) return;
+      task.progress = ((task.progress || 0) + 1) % 4;
+      if (task.progress === 3) {
+        task.done = true;
+        if (task.subtasks) task.subtasks.forEach(s => { s.done = true; });
+        const el = document.getElementById('task-' + taskId);
+        if (el) { el.classList.add('task-exit'); setTimeout(() => render(), 300); return; }
+      }
+      render();
+    }
+
+    function setProgress(taskId, listId, level) {
+      const list = findList(listId);
+      const task = findTaskRecursive(list.tasks, taskId);
+      if (!task) return;
+      task.progress = level;
+      if (level === 3) {
+        task.done = true;
+        if (task.subtasks) task.subtasks.forEach(s => { s.done = true; });
+      }
+      hideContextMenu();
+      render();
+    }
+
+    // =============================================
+    // TOGGLE ALL SUBTASKS
+    // =============================================
+    function toggleAllSubtasks(listId) {
+      allSubtasksCollapsed[listId] = !allSubtasksCollapsed[listId];
+      render();
+    }
+
+    // =============================================
     // CONTEXT MENU
     // =============================================
     function showContextMenu(e, taskId, listId) {
@@ -1053,6 +1117,7 @@
       if (!task) return;
 
       const otherLists = listsData.filter(l => l.id !== listId);
+      const prog = task.progress || 0;
 
       menu.innerHTML = `
         <div class="context-menu-item" onclick="addTaskAfter('${taskId}', '${listId}')">
@@ -1085,11 +1150,31 @@
             <div class="context-menu-item" onclick="setTimeframe('${taskId}', '${listId}', 'langfristig')"><span class="text-green-500">●</span> Langfristig</div>
           </div>
         </div>
+        <div class="context-menu-item relative" onmouseenter="showSubmenu(this, 'progress')" onmouseleave="hideSubmenu(this)">
+          <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <span class="flex-1">Fortschritt</span>
+          <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          <div class="context-submenu hidden bg-white dark:bg-[#1e1e2e] border border-gray-200 dark:border-gray-700" data-submenu="progress">
+            <div class="context-menu-item ${prog===0?'font-bold':''}" onclick="setProgress('${taskId}', '${listId}', 0)"><span style="color:#9ca3af">●</span> Unerledigt (0%)</div>
+            <div class="context-menu-item ${prog===1?'font-bold':''}" onclick="setProgress('${taskId}', '${listId}', 1)"><span style="color:#3b82f6">●</span> Angefangen (33%)</div>
+            <div class="context-menu-item ${prog===2?'font-bold':''}" onclick="setProgress('${taskId}', '${listId}', 2)"><span style="color:#f59e0b">●</span> Fast fertig (66%)</div>
+            <div class="context-menu-item ${prog===3?'font-bold':''}" onclick="setProgress('${taskId}', '${listId}', 3)"><span style="color:#22c55e">●</span> Fertig (100%)</div>
+          </div>
+        </div>
         <div class="context-menu-item" onclick="promptDueDate('${taskId}', '${listId}')">
           <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
           <span>Terminieren</span>
         </div>
         <div class="context-menu-divider bg-gray-200 dark:bg-gray-700"></div>
+        <div class="context-menu-item relative" onmouseenter="showSubmenu(this, 'assignee')" onmouseleave="hideSubmenu(this)">
+          <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          <span class="flex-1">Zuständigkeit</span>
+          <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          <div class="context-submenu hidden bg-white dark:bg-[#1e1e2e] border border-gray-200 dark:border-gray-700" data-submenu="assignee">
+            <div class="context-menu-item ${!task.assignee?'font-bold':''}" onclick="setAssignee('${taskId}', '${listId}', null)"><span class="text-gray-400">—</span> Niemand</div>
+            ${dummyUsers.map(u => `<div class="context-menu-item ${task.assignee && task.assignee.name===u.name?'font-bold':''}" onclick="setAssignee('${taskId}', '${listId}', '${u.name}')"><div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style="background:${u.color}">${u.initials}</div> ${u.name}</div>`).join('')}
+          </div>
+        </div>
         <div class="context-menu-item" onclick="addDividerAfter('${taskId}', '${listId}')">
           <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12h16"/></svg>
           <span>Trenner erstellen</span>
@@ -1119,177 +1204,105 @@
         </div>
       `;
 
-      // Position
       menu.classList.remove('hidden');
       const rect = menu.getBoundingClientRect();
-      let x = e.clientX;
-      let y = e.clientY;
+      let x = e.clientX, y = e.clientY;
       if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 8;
       if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 8;
       menu.style.left = x + 'px';
       menu.style.top = y + 'px';
-
       activeContextMenu = menu;
     }
 
-    function hideContextMenu() {
-      const menu = document.getElementById('context-menu');
-      menu.classList.add('hidden');
-      activeContextMenu = null;
-    }
-
-    function showSubmenu(parent, type) {
-      const sub = parent.querySelector('[data-submenu="' + type + '"]');
-      if (sub) sub.classList.remove('hidden');
-    }
-
-    function hideSubmenu(parent) {
-      const subs = parent.querySelectorAll('.context-submenu');
-      subs.forEach(s => s.classList.add('hidden'));
-    }
+    function hideContextMenu() { document.getElementById('context-menu').classList.add('hidden'); activeContextMenu = null; }
+    function showSubmenu(parent, type) { const sub = parent.querySelector('[data-submenu="' + type + '"]'); if (sub) sub.classList.remove('hidden'); }
+    function hideSubmenu(parent) { parent.querySelectorAll('.context-submenu').forEach(s => s.classList.add('hidden')); }
 
     // Context Menu Actions
-    function setPriority(taskId, listId, priority) {
+    function setPriority(taskId, listId, priority) { const list = findList(listId); const task = findTaskRecursive(list.tasks, taskId); if (task) { task.priority = priority; hideContextMenu(); render(); } }
+    function setTimeframe(taskId, listId, timeframe) { const list = findList(listId); const task = findTaskRecursive(list.tasks, taskId); if (task) { task.timeframe = timeframe; hideContextMenu(); render(); } }
+    function setAssignee(taskId, listId, userName) {
       const list = findList(listId);
       const task = findTaskRecursive(list.tasks, taskId);
-      if (task) { task.priority = priority; hideContextMenu(); render(); }
+      if (task) { task.assignee = userName ? dummyUsers.find(u => u.name === userName) : null; hideContextMenu(); render(); }
     }
-
-    function setTimeframe(taskId, listId, timeframe) {
-      const list = findList(listId);
-      const task = findTaskRecursive(list.tasks, taskId);
-      if (task) { task.timeframe = timeframe; hideContextMenu(); render(); }
-    }
-
     function promptDueDate(taskId, listId) {
       hideContextMenu();
       const date = prompt('Datum eingeben (YYYY-MM-DD):');
-      if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        const list = findList(listId);
-        const task = findTaskRecursive(list.tasks, taskId);
-        if (task) { task.dueDate = date; render(); }
-      }
+      if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) { const list = findList(listId); const task = findTaskRecursive(list.tasks, taskId); if (task) { task.dueDate = date; render(); } }
     }
-
     function addTaskAfter(taskId, listId) {
       hideContextMenu();
       const list = findList(listId);
       const idx = list.tasks.findIndex(t => t.id === taskId);
       const text = prompt('Neue Aufgabe:');
-      if (text && text.trim()) {
-        const newTask = { id: 'task-' + Date.now(), text: text.trim(), priority: 'normal', timeframe: null, highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null, subtasks: [] };
-        list.tasks.splice(idx + 1, 0, newTask);
-        render();
-      }
+      if (text && text.trim()) { list.tasks.splice(idx + 1, 0, { id: 'task-' + Date.now(), text: text.trim(), priority: 'normal', timeframe: null, highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null, progress: 0, subtasks: [] }); render(); }
     }
-
     function addSubtaskTo(taskId, listId) {
       hideContextMenu();
       const list = findList(listId);
       const task = findTaskRecursive(list.tasks, taskId);
       const text = prompt('Neue Unteraufgabe:');
-      if (text && text.trim() && task) {
-        if (!task.subtasks) task.subtasks = [];
-        task.subtasks.push({ id: 'st-' + Date.now(), text: text.trim(), done: false, subtasks: [] });
-        render();
-      }
+      if (text && text.trim() && task) { if (!task.subtasks) task.subtasks = []; task.subtasks.push({ id: 'st-' + Date.now(), text: text.trim(), done: false, subtasks: [] }); render(); }
     }
-
     function addDividerAfter(taskId, listId) {
       hideContextMenu();
       const list = findList(listId);
       const idx = list.tasks.findIndex(t => t.id === taskId);
       const label = prompt('Trenner-Text:', 'Abschnitt');
-      if (label) {
-        list.tasks.splice(idx + 1, 0, { id: 'div-' + Date.now(), type: 'divider', label: label });
-        render();
-      }
+      if (label) { list.tasks.splice(idx + 1, 0, { id: 'div-' + Date.now(), type: 'divider', label: label }); render(); }
     }
-
     function moveTaskToList(taskId, fromListId, toListId) {
       hideContextMenu();
-      const fromList = findList(fromListId);
-      const toList = findList(toListId);
+      const fromList = findList(fromListId), toList = findList(toListId);
       const idx = fromList.tasks.findIndex(t => t.id === taskId);
-      if (idx > -1) {
-        const [task] = fromList.tasks.splice(idx, 1);
-        toList.tasks.push(task);
-        render();
-      }
+      if (idx > -1) { const [task] = fromList.tasks.splice(idx, 1); toList.tasks.push(task); render(); }
     }
 
     // =============================================
     // EMOJI PICKER
     // =============================================
     function openEmojiPickerForList(listId, e) {
-      e.stopPropagation();
-      hideAllPopups();
+      e.stopPropagation(); hideAllPopups();
       const picker = document.getElementById('emoji-picker');
       picker.innerHTML = commonEmojis.map(em => `<button onclick="setListEmoji('${listId}', '${em}')">${em}</button>`).join('');
       picker.classList.remove('hidden');
       const rect = e.target.getBoundingClientRect();
-      picker.style.left = rect.left + 'px';
-      picker.style.top = (rect.bottom + 4) + 'px';
+      picker.style.left = rect.left + 'px'; picker.style.top = (rect.bottom + 4) + 'px';
       activeEmojiPicker = picker;
     }
-
     function openEmojiPickerForTask(taskId, listId, e) {
-      e.stopPropagation();
-      hideContextMenu();
+      e.stopPropagation(); hideContextMenu();
       const picker = document.getElementById('emoji-picker');
       picker.innerHTML = `<button onclick="setTaskEmoji('${taskId}', '${listId}', null)" style="font-size:12px;color:#999">✕</button>` +
         commonEmojis.map(em => `<button onclick="setTaskEmoji('${taskId}', '${listId}', '${em}')">${em}</button>`).join('');
       picker.classList.remove('hidden');
-      picker.style.left = (e.clientX || e.pageX) + 'px';
-      picker.style.top = (e.clientY || e.pageY) + 'px';
+      picker.style.left = (e.clientX || e.pageX) + 'px'; picker.style.top = (e.clientY || e.pageY) + 'px';
       activeEmojiPicker = picker;
     }
-
-    function setListEmoji(listId, emoji) {
-      const list = findList(listId);
-      if (list) { list.icon = emoji; hideEmojiPicker(); render(); }
-    }
-
-    function setTaskEmoji(taskId, listId, emoji) {
-      const list = findList(listId);
-      const task = findTaskRecursive(list.tasks, taskId);
-      if (task) { task.emoji = emoji; hideEmojiPicker(); render(); }
-    }
-
-    function hideEmojiPicker() {
-      const picker = document.getElementById('emoji-picker');
-      picker.classList.add('hidden');
-      activeEmojiPicker = null;
-    }
+    function setListEmoji(listId, emoji) { const list = findList(listId); if (list) { list.icon = emoji; hideEmojiPicker(); render(); } }
+    function setTaskEmoji(taskId, listId, emoji) { const list = findList(listId); const task = findTaskRecursive(list.tasks, taskId); if (task) { task.emoji = emoji; hideEmojiPicker(); render(); } }
+    function hideEmojiPicker() { document.getElementById('emoji-picker').classList.add('hidden'); activeEmojiPicker = null; }
 
     // =============================================
-    // INLINE EDIT LIST TITLE
+    // INLINE EDIT
     // =============================================
     function startEditListTitle(listId, el) {
-      const list = findList(listId);
-      if (!list) return;
+      const list = findList(listId); if (!list) return;
       const input = document.createElement('input');
-      input.type = 'text';
-      input.value = list.title;
+      input.type = 'text'; input.value = list.title;
       input.className = 'inline-edit-title text-lg font-semibold text-gray-800 dark:text-gray-100 tracking-tight';
       input.onblur = () => { list.title = input.value.trim() || list.title; render(); };
       input.onkeydown = (e) => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = list.title; input.blur(); } };
-      el.replaceWith(input);
-      input.focus();
-      input.select();
+      el.replaceWith(input); input.focus(); input.select();
     }
 
     // =============================================
     // NOTE POPOVER
     // =============================================
     function showNote(e, taskId, listId) {
-      e.stopPropagation();
-      hideAllPopups();
-
-      const list = findList(listId);
-      const task = findTaskRecursive(list.tasks, taskId);
-      if (!task) return;
-
+      e.stopPropagation(); hideAllPopups();
+      const list = findList(listId); const task = findTaskRecursive(list.tasks, taskId); if (!task) return;
       const popover = document.getElementById('note-popover');
       popover.innerHTML = `
         <div class="flex items-center justify-between mb-2">
@@ -1300,242 +1313,103 @@
         </div>
         <textarea class="w-full text-sm text-gray-700 dark:text-gray-300 bg-transparent resize-none outline-none min-h-[60px]" placeholder="Notiz eingeben..." id="note-textarea-${taskId}" oninput="updateNote('${taskId}', '${listId}', this.value)">${task.note || ''}</textarea>
       `;
-
       popover.classList.remove('hidden');
       const rect = e.target.closest('button').getBoundingClientRect();
-      let left = rect.left - 100;
-      let top = rect.bottom + 8;
+      let left = rect.left - 100, top = rect.bottom + 8;
       if (left + 280 > window.innerWidth) left = window.innerWidth - 290;
       if (left < 8) left = 8;
       if (top + 120 > window.innerHeight) top = rect.top - 128;
-      popover.style.left = left + 'px';
-      popover.style.top = top + 'px';
+      popover.style.left = left + 'px'; popover.style.top = top + 'px';
       activeNotePopover = popover;
-
       setTimeout(() => document.getElementById('note-textarea-' + taskId)?.focus(), 50);
     }
-
-    function updateNote(taskId, listId, value) {
-      const list = findList(listId);
-      const task = findTaskRecursive(list.tasks, taskId);
-      if (task) task.note = value.trim() || null;
-    }
-
-    function hideNotePopover() {
-      const popover = document.getElementById('note-popover');
-      popover.classList.add('hidden');
-      activeNotePopover = null;
-      render();
-    }
-
-    // =============================================
-    // HIDE ALL POPUPS
-    // =============================================
-    function hideAllPopups() {
-      hideContextMenu();
-      hideEmojiPicker();
-      if (activeNotePopover) hideNotePopover();
-    }
+    function updateNote(taskId, listId, value) { const list = findList(listId); const task = findTaskRecursive(list.tasks, taskId); if (task) task.note = value.trim() || null; }
+    function hideNotePopover() { document.getElementById('note-popover').classList.add('hidden'); activeNotePopover = null; render(); }
+    function hideAllPopups() { hideContextMenu(); hideEmojiPicker(); if (activeNotePopover) hideNotePopover(); }
 
     // =============================================
     // HELPERS
     // =============================================
-    function formatDate(dateStr) {
-      if (!dateStr) return '';
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    function formatDate(dateStr) { if (!dateStr) return ''; const d = new Date(dateStr); return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+    function findTaskRecursive(tasks, id) {
+      for (const t of tasks) { if (t.id === id) return t; if (t.subtasks) { const found = findTaskRecursive(t.subtasks, id); if (found) return found; } }
+      return null;
     }
+    function findList(listId) { return listsData.find(l => l.id === listId); }
 
     // =============================================
     // TASK ACTIONS
     // =============================================
-    function findTaskRecursive(tasks, id) {
-      for (const t of tasks) {
-        if (t.id === id) return t;
-        if (t.subtasks) {
-          const found = findTaskRecursive(t.subtasks, id);
-          if (found) return found;
-        }
-      }
-      return null;
-    }
-
-    function findList(listId) {
-      return listsData.find(l => l.id === listId);
-    }
-
     function toggleTask(taskId, listId) {
-      const list = findList(listId);
-      const task = findTaskRecursive(list.tasks, taskId);
-      if (!task) return;
-
+      const list = findList(listId); const task = findTaskRecursive(list.tasks, taskId); if (!task) return;
       task.done = !task.done;
-      function setAllDone(t, done) {
-        t.done = done;
-        if (t.subtasks) t.subtasks.forEach(s => setAllDone(s, done));
-      }
+      if (task.done) task.progress = 3;
+      function setAllDone(t, done) { t.done = done; if (t.subtasks) t.subtasks.forEach(s => setAllDone(s, done)); }
       if (task.subtasks) task.subtasks.forEach(s => setAllDone(s, task.done));
-
-      const el = document.getElementById(`task-${taskId}`);
-      if (el) {
-        if (task.done) {
-          el.classList.add('task-exit');
-          setTimeout(() => render(), 300);
-        } else {
-          render();
-        }
-      } else {
-        render();
-      }
+      const el = document.getElementById('task-' + taskId);
+      if (el && task.done) { el.classList.add('task-exit'); setTimeout(() => render(), 300); }
+      else render();
     }
-
     function toggleSubtask(subtaskId, listId) {
-      const list = findList(listId);
-      const task = findTaskRecursive(list.tasks, subtaskId);
-      if (task) {
-        task.done = !task.done;
-        function setAllDone(t, done) {
-          t.done = done;
-          if (t.subtasks) t.subtasks.forEach(s => setAllDone(s, done));
-        }
-        if (task.subtasks) task.subtasks.forEach(s => setAllDone(s, task.done));
-        render();
-      }
+      const list = findList(listId); const task = findTaskRecursive(list.tasks, subtaskId);
+      if (task) { task.done = !task.done; function setAllDone(t, done) { t.done = done; if (t.subtasks) t.subtasks.forEach(s => setAllDone(s, done)); } if (task.subtasks) task.subtasks.forEach(s => setAllDone(s, task.done)); render(); }
     }
-
     function undoTask(taskId, listId) {
-      const list = findList(listId);
-      const task = findTaskRecursive(list.tasks, taskId);
-      if (task) {
-        task.done = false;
-        if (task.subtasks) task.subtasks.forEach(s => { s.done = false; });
-        render();
-      }
+      const list = findList(listId); const task = findTaskRecursive(list.tasks, taskId);
+      if (task) { task.done = false; task.progress = 0; if (task.subtasks) task.subtasks.forEach(s => { s.done = false; }); render(); }
     }
-
     function toggleHighlight(taskId, listId) {
-      const list = findList(listId);
-      const task = list.tasks.find(t => t.id === taskId);
-      if (!task) return;
-      task.highlighted = !task.highlighted;
-      render();
-      setTimeout(() => {
-        const el = document.getElementById(`task-${taskId}`);
-        if (el && task.highlighted) {
-          el.classList.add('task-highlight-in');
-          setTimeout(() => el.classList.remove('task-highlight-in'), 500);
-        }
-      }, 50);
+      const list = findList(listId); const task = list.tasks.find(t => t.id === taskId); if (!task) return;
+      task.highlighted = !task.highlighted; render();
+      setTimeout(() => { const el = document.getElementById('task-' + taskId); if (el && task.highlighted) { el.classList.add('task-highlight-in'); setTimeout(() => el.classList.remove('task-highlight-in'), 500); } }, 50);
     }
-
     function deleteTask(taskId, listId) {
-      const list = findList(listId);
-      const el = document.getElementById(`task-${taskId}`);
-      if (el) {
-        el.classList.add('task-exit');
-        setTimeout(() => {
-          list.tasks = list.tasks.filter(t => t.id !== taskId);
-          render();
-        }, 300);
-      } else {
-        list.tasks = list.tasks.filter(t => t.id !== taskId);
-        render();
-      }
+      const list = findList(listId); const el = document.getElementById('task-' + taskId);
+      if (el) { el.classList.add('task-exit'); setTimeout(() => { list.tasks = list.tasks.filter(t => t.id !== taskId); render(); }, 300); }
+      else { list.tasks = list.tasks.filter(t => t.id !== taskId); render(); }
     }
-
     function addTask(listId) {
-      const input = document.getElementById(`input-${listId}`);
-      const text = input.value.trim();
-      if (!text) return;
-
+      const input = document.getElementById('input-' + listId); const text = input.value.trim(); if (!text) return;
       const list = findList(listId);
-      const newTask = {
-        id: 'task-' + Date.now(), text, priority: 'normal', timeframe: null,
-        highlighted: false, done: false, pinned: false, note: null, emoji: null,
-        dueDate: null, assignee: null, subtasks: []
-      };
-      list.tasks.push(newTask);
-      input.value = '';
-      render();
-
-      setTimeout(() => {
-        const el = document.getElementById(`task-${newTask.id}`);
-        if (el) {
-          el.classList.add('task-enter');
-          setTimeout(() => el.classList.remove('task-enter'), 350);
-        }
-      }, 20);
+      const newTask = { id: 'task-' + Date.now(), text, priority: 'normal', timeframe: null, highlighted: false, done: false, pinned: false, note: null, emoji: null, dueDate: null, assignee: null, progress: 0, subtasks: [] };
+      list.tasks.push(newTask); input.value = ''; render();
+      setTimeout(() => { const el = document.getElementById('task-' + newTask.id); if (el) { el.classList.add('task-enter'); setTimeout(() => el.classList.remove('task-enter'), 350); } }, 20);
     }
-
     function toggleSubtasks(taskId) {
-      const el = document.getElementById(`subtasks-${taskId}`);
-      const chevron = document.getElementById(`subtask-chevron-${taskId}`);
+      const el = document.getElementById('subtasks-' + taskId); const chevron = document.getElementById('subtask-chevron-' + taskId);
       if (!el) return;
-      if (el.style.display === 'none') {
-        el.style.display = '';
-        chevron.style.transform = 'rotate(90deg)';
-      } else {
-        el.style.display = 'none';
-        chevron.style.transform = 'rotate(0deg)';
-      }
+      if (el.style.display === 'none') { el.style.display = ''; chevron.style.transform = 'rotate(90deg)'; }
+      else { el.style.display = 'none'; chevron.style.transform = 'rotate(0deg)'; }
     }
-
     function toggleDoneSection(listId) {
-      const el = document.getElementById(`done-section-${listId}`);
-      const chevron = document.getElementById(`done-chevron-${listId}`);
+      const el = document.getElementById('done-section-' + listId); const chevron = document.getElementById('done-chevron-' + listId);
       if (!el) return;
-      if (el.classList.contains('hidden')) {
-        el.classList.remove('hidden');
-        el.classList.add('fade-in');
-        chevron.style.transform = 'rotate(90deg)';
-      } else {
-        el.classList.add('hidden');
-        el.classList.remove('fade-in');
-        chevron.style.transform = 'rotate(0deg)';
-      }
+      if (el.classList.contains('hidden')) { el.classList.remove('hidden'); el.classList.add('fade-in'); chevron.style.transform = 'rotate(90deg)'; }
+      else { el.classList.add('hidden'); el.classList.remove('fade-in'); chevron.style.transform = 'rotate(0deg)'; }
     }
 
     // =============================================
     // DRAG & DROP
     // =============================================
-    function onDragStart(e, taskId, listId) {
-      draggedTask = { taskId, listId };
-      e.target.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    }
-
+    function onDragStart(e, taskId, listId) { draggedTask = { taskId, listId }; e.target.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
     function onDragOver(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
+      e.preventDefault(); e.dataTransfer.dropEffect = 'move';
       const taskItem = e.target.closest('.task-item');
       document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
       if (taskItem) taskItem.classList.add('drag-over');
     }
-
     function onDrop(e, targetId, targetListId) {
-      e.preventDefault();
-      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      e.preventDefault(); document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
       if (!draggedTask || draggedTask.taskId === targetId) return;
-
-      const sourceList = findList(draggedTask.listId);
-      const targetList = findList(targetListId);
+      const sourceList = findList(draggedTask.listId), targetList = findList(targetListId);
       const sourceIdx = sourceList.tasks.findIndex(t => t.id === draggedTask.taskId);
       const targetIdx = targetList.tasks.findIndex(t => t.id === targetId);
-
       if (sourceIdx === -1 || targetIdx === -1) return;
-
       const [task] = sourceList.tasks.splice(sourceIdx, 1);
       targetList.tasks.splice(targetIdx, 0, task);
-
-      draggedTask = null;
-      render();
+      draggedTask = null; render();
     }
-
-    function onDragEnd(e) {
-      e.target.classList.remove('dragging');
-      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-      draggedTask = null;
-    }
+    function onDragEnd(e) { e.target.classList.remove('dragging'); document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over')); draggedTask = null; }
 
     // =============================================
     // GLOBAL LISTENERS
@@ -1544,23 +1418,13 @@
       if (activeContextMenu && !e.target.closest('.context-menu')) hideContextMenu();
       if (activeEmojiPicker && !e.target.closest('.emoji-picker')) hideEmojiPicker();
     });
-
-    // Long press for mobile note display
     let longPressTimer = null;
     document.addEventListener('touchstart', (e) => {
       const taskItem = e.target.closest('.task-item');
       if (taskItem) {
         const taskId = taskItem.id.replace('task-', '');
         longPressTimer = setTimeout(() => {
-          // Find task in all lists
-          for (const list of listsData) {
-            const task = findTaskRecursive(list.tasks, taskId);
-            if (task && task.note) {
-              const fakeEvent = { stopPropagation: () => {}, target: taskItem, clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
-              showNote(fakeEvent, taskId, list.id);
-              break;
-            }
-          }
+          for (const list of listsData) { const task = findTaskRecursive(list.tasks, taskId); if (task && task.note) { const fakeEvent = { stopPropagation: () => {}, target: taskItem, clientX: e.touches[0].clientX, clientY: e.touches[0].clientY }; showNote(fakeEvent, taskId, list.id); break; } }
         }, 600);
       }
     });
