@@ -319,16 +319,16 @@
 						>💬</button>
 					{/if}
 					<!-- Progress Bar (always visible, clickable to cycle) -->
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
-					<div
-						class="progress-bar progress-bar-lg cursor-pointer"
+					<button
+						type="button"
+						class="progress-bar progress-bar-lg cursor-pointer p-0 border-0 bg-transparent"
 						title={autoProgress >= 0 ? `${descendantStats.done}/${descendantStats.total} erledigt` : progressLabels[task.progress]}
 						onclick={(e) => { e.stopPropagation(); if (autoProgress < 0 && onChangeProgress) onChangeProgress(task.id, ((task.progress || 0) + 1) % 4); }}
 					>
 						{#each [0,1,2,3] as i}
 							<div class="progress-segment {i < displayProgress ? `active-${displayProgress}` : ''}"></div>
 						{/each}
-					</div>
+					</button>
 					{#if autoProgress >= 0}
 						<span class="text-[9px] tf-text-muted">{descendantStats.done}/{descendantStats.total}</span>
 					{/if}
