@@ -64,26 +64,12 @@
 	let animating = $state(false);
 	let animClass = $state('');
 
-	// Long-press für Focus Mode (1.5s)
-	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
-	let longPressFired = $state(false);
-
-	function handleLongPressStart(e: MouseEvent | TouchEvent) {
-		// Nicht starten wenn auf interaktiven Elementen
+	// Double-tap für Focus Mode
+	function handleDoubleTap(e: MouseEvent) {
 		const target = e.target as HTMLElement;
 		if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.task-content') || target.closest('.priority-bar') || target.closest('.drag-handle') || target.closest('.more-menu-btn')) return;
-		longPressFired = false;
-		longPressTimer = setTimeout(() => {
-			longPressFired = true;
-			onTaskClick?.(task.id);
-		}, 1500);
-	}
-
-	function handleLongPressEnd() {
-		if (longPressTimer) {
-			clearTimeout(longPressTimer);
-			longPressTimer = null;
-		}
+		e.preventDefault();
+		onTaskClick?.(task.id);
 	}
 
 	// Clamp more-menu to viewport
@@ -205,19 +191,13 @@
 		style="border-color: var(--tf-border);"
 		draggable="true"
 		ondragstart={(e) => {
-			handleLongPressEnd();
 			const target = e.target as HTMLElement;
 			if (target.closest('input') || target.closest('textarea')) { e.preventDefault(); return; }
 			onDragStart?.(e);
 		}}
 		ondragend={(e) => onDragEnd?.(e)}
-		oncontextmenu={(e) => { handleLongPressEnd(); if (onContext) { e.preventDefault(); e.stopPropagation(); onContext(e); } }}
-		onmousedown={handleLongPressStart}
-		onmouseup={handleLongPressEnd}
-		onmouseleave={handleLongPressEnd}
-		ontouchstart={handleLongPressStart}
-		ontouchend={handleLongPressEnd}
-		ontouchcancel={handleLongPressEnd}
+		oncontextmenu={(e) => { if (onContext) { e.preventDefault(); e.stopPropagation(); onContext(e); } }}
+		ondblclick={handleDoubleTap}
 	>
 		<div class="task-row">
 			<!-- Priority Bar -->
