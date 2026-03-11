@@ -107,17 +107,7 @@
 			<div class="flex items-center gap-3">
 				<div class="w-3 rounded-full" style="background: {priorityColors[task.priority]}; height: 32px;"></div>
 				{#if task.emoji}
-					<button
-						onclick={openEmojiPicker}
-						class="text-2xl hover:scale-110 transition-transform cursor-pointer"
-						title="Symbol ändern"
-					>{task.emoji}</button>
-				{:else}
-					<button
-						onclick={openEmojiPicker}
-						class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors tf-text-muted"
-						title="Symbol hinzufügen"
-					>😊</button>
+					<span class="text-2xl">{task.emoji}</span>
 				{/if}
 			</div>
 			<button
@@ -195,6 +185,14 @@
 			>
 				<svg class="w-3.5 h-3.5" fill={task.pinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
 				{task.pinned ? 'Angepinnt' : 'Anpinnen'}
+			</button>
+			<button
+				onclick={openEmojiPicker}
+				class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+				style={task.emoji ? 'background: rgba(251,146,60,.15); color: #f97316;' : 'background: var(--tf-surface-hover);'}
+			>
+				<span class="text-sm">{task.emoji || '😊'}</span>
+				{task.emoji ? 'Symbol ändern' : 'Symbol'}
 			</button>
 			<button
 				onclick={() => { onDelete(task.id); onClose(); }}
@@ -282,13 +280,13 @@
 			{/if}
 		</div>
 	</div>
-</div>
 
-{#if emojiPickerState.show}
-	<EmojiPicker
-		x={emojiPickerState.x}
-		y={emojiPickerState.y}
-		onSelect={(emoji) => onUpdateEmoji(task.id, emoji)}
-		onClose={() => (emojiPickerState = { ...emojiPickerState, show: false })}
-	/>
-{/if}
+	{#if emojiPickerState.show}
+		<EmojiPicker
+			x={emojiPickerState.x}
+			y={emojiPickerState.y}
+			onSelect={(emoji) => onUpdateEmoji(task.id, emoji)}
+			onClose={() => (emojiPickerState = { ...emojiPickerState, show: false })}
+		/>
+	{/if}
+</div>
