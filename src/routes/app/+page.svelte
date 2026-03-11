@@ -200,7 +200,7 @@
 		const { data: p } = await sb.from('profiles').select('*');
 		if (p) profilesStore.set(p as Database['public']['Tables']['profiles']['Row'][]);
 
-		if (data.user && store.lists.length === 0) {
+		if (data.user && data.lists.length === 0) {
 			const seeded = await seedDemoData(sb, data.user.id);
 			if (seeded) {
 				const result = await crud.loadUserData(sb, data.user.id);
