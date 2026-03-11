@@ -63,8 +63,8 @@
 
 <!-- Dialog -->
 <div
-	class="fixed z-[81] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md rounded-2xl p-6 scale-in"
-	style="background: var(--tf-surface); border: 1px solid var(--tf-border); box-shadow: 0 25px 60px rgba(0,0,0,.2);"
+	class="fixed z-[81] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-md rounded-2xl p-6 scale-in tf-popover-bg"
+	style="border: 1px solid var(--tf-border); box-shadow: 0 25px 60px rgba(0,0,0,.2);"
 	onkeydown={handleKeydown}
 	role="dialog"
 	aria-label="Liste teilen"

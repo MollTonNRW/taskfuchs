@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database';
-import type { Priority, Timeframe } from '$lib/constants';
+import type { Priority } from '$lib/constants';
 import * as crud from '$lib/services/supabase-crud';
 
 type List = Database['public']['Tables']['lists']['Row'];
@@ -151,8 +151,11 @@ export function createTaskStore() {
 
 	async function updateTask(id: string, text: string) {
 		const oldTasks = tasks;
-		tasks = tasks.map((t) => (t.id === id ? { ...t, text } : t));
-		const { error } = await crud.updateTaskField(sb, id, { text });
+		const task = tasks.find((t) => t.id === id);
+		const isDivider = task?.type === 'divider';
+		const fields = isDivider ? { text, divider_label: text } : { text };
+		tasks = tasks.map((t) => (t.id === id ? { ...t, ...fields } : t));
+		const { error } = await crud.updateTaskField(sb, id, fields);
 		if (error) tasks = oldTasks;
 	}
 
@@ -169,13 +172,6 @@ export function createTaskStore() {
 		const oldTasks = tasks;
 		tasks = tasks.map((t) => (t.id === id ? { ...t, priority } : t));
 		const { error } = await crud.updateTaskField(sb, id, { priority });
-		if (error) tasks = oldTasks;
-	}
-
-	async function changeTaskTimeframe(id: string, timeframe: Timeframe | null) {
-		const oldTasks = tasks;
-		tasks = tasks.map((t) => (t.id === id ? { ...t, timeframe } : t));
-		const { error } = await crud.updateTaskField(sb, id, { timeframe });
 		if (error) tasks = oldTasks;
 	}
 
@@ -196,7 +192,6 @@ export function createTaskStore() {
 		const { error } = await crud.updateTaskField(sb, id, update);
 		if (error) { tasks = oldTasks; return; }
 		if (autoDone) {
-			await crud.updateTaskField(sb, id, {}); // subtasks
 			await sb.from('tasks').update({ done: true }).eq('parent_id', id);
 		}
 	}
@@ -493,8 +488,9 @@ export function createTaskStore() {
 
 	// Delete task without confirmation (for context menu inline delete)
 	function deleteTaskDirect(id: string) {
+		const subtaskIds = tasks.filter((t) => t.parent_id === id).map((t) => t.id);
 		tasks = tasks.filter((t) => t.id !== id && t.parent_id !== id);
-		crud.deleteTaskDb(sb, id);
+		crud.deleteTaskWithSubtasks(sb, id, subtaskIds);
 	}
 
 	return {
@@ -507,7 +503,7 @@ export function createTaskStore() {
 		createList, renameList, deleteList, changeListIcon, reorderList,
 		// Task operations
 		addTask, addTaskAfter, toggleTask, updateTask, deleteTask, deleteTaskDirect,
-		changeTaskPriority, changeTaskTimeframe, changeTaskProgress,
+		changeTaskPriority, changeTaskProgress,
 		toggleHighlight, togglePin, clearPinboard,
 		updateTaskNote, assignTask, moveTaskToList,
 		updateTaskEmoji, updateTaskDate,

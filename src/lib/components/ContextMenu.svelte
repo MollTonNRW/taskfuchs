@@ -72,7 +72,7 @@
 <div
 	bind:this={menuEl}
 	class="context-menu fixed z-[9999]"
-	style="left: {x}px; top: {y}px; background: var(--tf-surface); border: 1px solid var(--tf-border);"
+	style="left: {x}px; top: {y}px;"
 >
 	{#each items as item, i}
 		{#if item.divider}
@@ -100,7 +100,6 @@
 				{#if activeSubmenu === item.label}
 					<div
 						class="context-submenu absolute left-full top-0 z-[9999]"
-						style="background: var(--tf-surface); border: 1px solid var(--tf-border);"
 					>
 						{#each item.submenu as sub}
 							<button

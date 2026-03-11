@@ -49,8 +49,8 @@
 <!-- Popover -->
 <div
 	bind:this={popoverEl}
-	class="note-popover fixed z-[71]"
-	style="left: {x}px; top: {y}px; background: var(--tf-surface); border: 1px solid var(--tf-border);"
+	class="note-popover fixed z-[71] tf-popover-bg"
+	style="left: {x}px; top: {y}px; border: 1px solid var(--tf-border);"
 	onkeydown={handleKeydown}
 >
 	<div class="flex items-center justify-between mb-2">

@@ -3,9 +3,8 @@
 	import type { Database } from '$lib/types/database';
 	import SubtaskItem from './SubtaskItem.svelte';
 	import PriorityPicker from './PriorityPicker.svelte';
-	import TimeframePicker from './TimeframePicker.svelte';
 	import { profileMap, getInitials } from '$lib/stores/profiles';
-	import { priorityColors, priorityBadgeBg, priorityLabels, priorityOrder, timeframeClasses, timeframeLabels, progressLabels } from '$lib/constants';
+	import { priorityColors, priorityBadgeBg, priorityLabels, priorityOrder, progressLabels } from '$lib/constants';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 
@@ -26,7 +25,6 @@
 		onDragStart,
 		onDragEnd,
 		onTaskClick,
-		onChangeTimeframe,
 		onEmojiClick,
 		onChangeProgress,
 		forceCollapse = false
@@ -47,7 +45,6 @@
 		onDragStart?: (e: DragEvent) => void;
 		onDragEnd?: (e: DragEvent) => void;
 		onTaskClick?: (taskId: string) => void;
-		onChangeTimeframe?: (id: string, timeframe: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null) => void;
 		onEmojiClick?: (taskId: string, x: number, y: number) => void;
 		onChangeProgress?: (id: string, progress: number) => void;
 		forceCollapse?: boolean;
@@ -73,16 +70,10 @@
 	// Picker popovers
 	type PickerState = { show: boolean; x: number; y: number };
 	let priorityPicker = $state<PickerState>({ show: false, x: 0, y: 0 });
-	let timeframePicker = $state<PickerState>({ show: false, x: 0, y: 0 });
 
 	function openPriorityPicker(e: MouseEvent) {
 		e.stopPropagation();
 		priorityPicker = { show: true, x: e.clientX, y: e.clientY };
-	}
-
-	function openTimeframePicker(e: MouseEvent) {
-		e.stopPropagation();
-		timeframePicker = { show: true, x: e.clientX, y: e.clientY };
 	}
 
 	// All constants imported from $lib/constants
@@ -96,9 +87,21 @@
 	let subtaskCount = $derived(subtasks.length);
 	let subtasksDone = $derived(subtasks.filter((s) => s.done).length);
 
+	// Build parent→children index once per allTasks change
+	let childrenByParent = $derived.by(() => {
+		const map = new Map<string, typeof allTasks>();
+		for (const t of allTasks) {
+			if (t.parent_id) {
+				const arr = map.get(t.parent_id);
+				if (arr) arr.push(t); else map.set(t.parent_id, [t]);
+			}
+		}
+		return map;
+	});
+
 	// Count ALL descendants (recursive) for auto-progress
 	function countDescendants(parentId: string): { total: number; done: number } {
-		const children = allTasks.filter((t) => t.parent_id === parentId);
+		const children = childrenByParent.get(parentId) ?? [];
 		let total = children.length;
 		let done = children.filter((c) => c.done).length;
 		for (const child of children) {
@@ -227,12 +230,6 @@
 						onclick={(e) => { e.stopPropagation(); onEmojiClick?.(task.id, e.clientX, e.clientY); }}
 						title="Symbol ändern"
 					>{task.emoji}</span>
-				{:else}
-					<button
-						class="emoji-add-btn w-5 h-5 flex items-center justify-center text-sm rounded flex-shrink-0"
-						title="Symbol vergeben"
-						onclick={(e) => { e.stopPropagation(); onEmojiClick?.(task.id, e.clientX, e.clientY); }}
-					>😊</button>
 				{/if}
 
 				{#if editing}
@@ -258,7 +255,7 @@
 				{/if}
 
 				{#if task.highlighted}
-					<span class="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-md whitespace-nowrap" style="color: var(--tf-text-muted); background: var(--tf-surface-hover);" title="Fixiert — nicht verschiebbar">
+					<span class="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap" style="color: #f97316; background: rgba(251,146,60,.15);" title="Fixiert — nicht verschiebbar">
 						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
 						Fixiert
 					</span>
@@ -271,11 +268,6 @@
 					{:else if task.priority !== 'normal'}
 						<span class="badge-clickable text-[10px] font-medium px-1.5 py-0.5 rounded-md whitespace-nowrap cursor-pointer {priorityBadgeBg[task.priority]}" onclick={openPriorityPicker}>
 							{priorityLabels[task.priority]}
-						</span>
-					{/if}
-					{#if task.timeframe}
-						<span class="text-[10px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap cursor-pointer {timeframeClasses[task.timeframe]}" onclick={openTimeframePicker}>
-							{timeframeLabels[task.timeframe]}
 						</span>
 					{/if}
 					{#if task.due_date}
@@ -308,27 +300,6 @@
 							onclick={(e) => { e.stopPropagation(); if (onNoteClick) onNoteClick(task.id, e.clientX, e.clientY); }}
 						>💬</button>
 					{/if}
-					<!-- Progress Bar -->
-					<button
-						type="button"
-						class="progress-bar-modern cursor-pointer p-0 border-0 bg-transparent"
-						title={autoProgress >= 0 ? `${descendantStats.done}/${descendantStats.total} erledigt (${displayPercent}%)` : `${displayPercent}%`}
-						onclick={(e) => { e.stopPropagation(); if (autoProgress < 0 && onChangeProgress) onChangeProgress(task.id, ((task.progress || 0) + 1) % 4); }}
-					>
-						<div class="progress-track">
-							<div
-								class="progress-fill progress-fill-{displayProgress}"
-								style="width: {displayPercent}%"
-							></div>
-						</div>
-					</button>
-					<span class="text-[9px] tf-text-muted tabular-nums">
-						{#if autoProgress >= 0}
-							{descendantStats.done}/{descendantStats.total}
-						{:else if displayPercent > 0}
-							{displayPercent}%
-						{/if}
-					</span>
 				</div>
 			</div>
 
@@ -341,6 +312,30 @@
 				<svg class="w-4 h-4 tf-text-muted" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
 			</button>
 		</div>
+
+		<!-- Progress Bar (dünne Linie unter der Aufgabe) -->
+		{#if displayPercent > 0 || descendantStats.total > 0}
+			<button
+				type="button"
+				class="w-full px-2 pb-1 pt-0.5 flex items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0"
+				title={autoProgress >= 0 ? `${descendantStats.done}/${descendantStats.total} erledigt (${displayPercent}%)` : `${displayPercent}%`}
+				onclick={(e) => { e.stopPropagation(); if (autoProgress < 0 && onChangeProgress) onChangeProgress(task.id, ((task.progress || 0) + 1) % 4); }}
+			>
+				<div class="flex-1 h-[3px] rounded-full overflow-hidden" style="background: var(--tf-border);">
+					<div
+						class="h-full rounded-full transition-all duration-300 progress-fill-{displayProgress}"
+						style="width: {displayPercent}%"
+					></div>
+				</div>
+				<span class="text-[9px] tf-text-muted tabular-nums flex-shrink-0">
+					{#if autoProgress >= 0}
+						{descendantStats.done}/{descendantStats.total}
+					{:else}
+						{displayPercent}%
+					{/if}
+				</span>
+			</button>
+		{/if}
 
 		<!-- Fixed Toast -->
 		{#if showFixedToast}
@@ -363,6 +358,13 @@
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
 					</svg>
 					Unteraufgaben <span class="text-[10px] tf-text-muted">{subtasksDone}/{subtaskCount}</span>
+				</button>
+				<button
+					onclick={() => { subtasksOpen = true; addingSubtask = true; }}
+					class="w-4 h-4 flex items-center justify-center rounded opacity-40 hover:opacity-100 transition-all tf-text-muted"
+					title="Unteraufgabe hinzufügen"
+				>
+					<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
 				</button>
 			</div>
 		{/if}
@@ -426,12 +428,3 @@
 	/>
 {/if}
 
-{#if timeframePicker.show}
-	<TimeframePicker
-		x={timeframePicker.x}
-		y={timeframePicker.y}
-		current={task.timeframe}
-		onSelect={(tf) => onChangeTimeframe?.(task.id, tf)}
-		onClose={() => (timeframePicker = { ...timeframePicker, show: false })}
-	/>
-{/if}

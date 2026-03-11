@@ -14,10 +14,10 @@
 	} = $props();
 
 	const priorities: { key: 'low' | 'normal' | 'high' | 'asap'; label: string; color: string }[] = [
-		{ key: 'low', label: 'Niedrig', color: '#d1d5db' },
-		{ key: 'normal', label: 'Normal', color: '#60a5fa' },
-		{ key: 'high', label: 'Hoch', color: '#fb923c' },
-		{ key: 'asap', label: 'ASAP!', color: '#f87171' }
+		{ key: 'low', label: 'Niedrig', color: '#22c55e' },
+		{ key: 'normal', label: 'Normal', color: '#eab308' },
+		{ key: 'high', label: 'Hoch', color: '#ef4444' },
+		{ key: 'asap', label: 'ASAP!', color: '#dc2626' }
 	];
 
 	let pickerEl: HTMLDivElement | undefined = $state();
@@ -41,8 +41,8 @@
 <!-- Picker -->
 <div
 	bind:this={pickerEl}
-	class="fixed z-[71] rounded-xl p-2 min-w-[140px]"
-	style="left: {x}px; top: {y}px; background: var(--tf-surface); border: 1px solid var(--tf-border); box-shadow: 0 12px 40px rgba(0,0,0,.15);"
+	class="fixed z-[71] rounded-xl p-2 min-w-[140px] tf-popover-bg"
+	style="left: {x}px; top: {y}px; border: 1px solid var(--tf-border); box-shadow: 0 12px 40px rgba(0,0,0,.15);"
 >
 	<div class="text-[10px] font-semibold uppercase tracking-wider tf-text-muted px-2 py-1">Priorität</div>
 	{#each priorities as p}

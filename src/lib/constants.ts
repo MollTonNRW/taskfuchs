@@ -12,16 +12,16 @@ export const priorityLabels: Record<string, string> = {
 };
 
 export const priorityColors: Record<string, string> = {
-	low: '#9ca3af',
-	normal: '#3b82f6',
-	high: '#f97316',
-	asap: '#ef4444'
+	low: '#22c55e',
+	normal: '#eab308',
+	high: '#ef4444',
+	asap: '#dc2626'
 };
 
 export const priorityBadgeBg: Record<string, string> = {
-	low: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
-	normal: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
-	high: 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400',
+	low: 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400',
+	normal: 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400',
+	high: 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400',
 	asap: 'bg-red-500 text-white'
 };
 
@@ -30,27 +30,6 @@ export const priorityWeight: Record<string, number> = {
 	high: 1,
 	normal: 2,
 	low: 3
-};
-
-export const timeframeLabels: Record<string, string> = {
-	akut: 'Akut',
-	zeitnah: 'Zeitnah',
-	mittelfristig: 'Mittelfristig',
-	langfristig: 'Langfristig'
-};
-
-export const timeframeColors: Record<string, string> = {
-	akut: '#dc2626',
-	zeitnah: '#ea580c',
-	mittelfristig: '#d97706',
-	langfristig: '#16a34a'
-};
-
-export const timeframeClasses: Record<string, string> = {
-	akut: 'badge-tf-akut',
-	zeitnah: 'badge-tf-zeitnah',
-	mittelfristig: 'badge-tf-mittelfristig',
-	langfristig: 'badge-tf-langfristig'
 };
 
 export const progressLabels = ['Unerledigt', 'Angefangen', 'Fast fertig', 'Fertig'];
@@ -64,5 +43,6 @@ export const sortLabels: Record<string, string> = {
 	priority: 'Priorität',
 	name: 'Name',
 	date: 'Fälligkeitsdatum',
-	created: 'Erstelldatum'
+	created: 'Erstelldatum',
+	progress: 'Fortschritt'
 };

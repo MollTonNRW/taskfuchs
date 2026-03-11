@@ -44,8 +44,8 @@
 <!-- Picker -->
 <div
 	bind:this={pickerEl}
-	class="fixed z-[71] rounded-xl p-3 min-w-[220px]"
-	style="left: {x}px; top: {y}px; background: var(--tf-surface); border: 1px solid var(--tf-border); box-shadow: 0 12px 40px rgba(0,0,0,.15);"
+	class="fixed z-[71] rounded-xl p-3 min-w-[220px] tf-popover-bg"
+	style="left: {x}px; top: {y}px; border: 1px solid var(--tf-border); box-shadow: 0 12px 40px rgba(0,0,0,.15);"
 >
 	<div class="text-[10px] font-semibold uppercase tracking-wider tf-text-muted mb-2">Fällig am</div>
 	<input

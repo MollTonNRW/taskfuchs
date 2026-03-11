@@ -6,10 +6,8 @@
 	import { hiddenListIds, toggleListVisibility } from '$lib/stores/visibility';
 	import {
 		priorityFilters,
-		timeframeFilters,
 		viewFilters,
 		togglePriorityFilter,
-		toggleTimeframeFilter,
 		toggleViewFilter,
 		hasActiveFilter,
 		resetFilters
@@ -17,6 +15,9 @@
 
 	let { data, children } = $props();
 	let sidebarOpen = $state(false);
+	let filterOpen = $state(true);
+	let prioFilterOpen = $state(false);
+	let viewFilterOpen = $state(false);
 
 	// Apply theme class to body
 	$effect(() => {
@@ -62,83 +63,92 @@
 			</button>
 		</div>
 
-		<!-- Filters: Priority -->
+		<!-- Filter (aufklappbar) -->
 		<div class="mb-4">
-			<div class="flex items-center justify-between mb-3">
+			<button
+				onclick={() => filterOpen = !filterOpen}
+				class="flex items-center justify-between w-full mb-2"
+			>
 				<h3 class="text-xs font-semibold uppercase tracking-wider tf-text-muted">Filter</h3>
-				{#if $hasActiveFilter}
+				<div class="flex items-center gap-2">
+					{#if $hasActiveFilter}
+						<span
+							onclick={(e) => { e.stopPropagation(); resetFilters(); }}
+							onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); resetFilters(); } }}
+							class="text-[10px] font-medium px-2 py-0.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+							style="color: var(--tf-accent);"
+							role="button"
+							tabindex="0"
+						>
+							Zurücksetzen
+						</span>
+					{/if}
+					<svg class="w-3.5 h-3.5 tf-text-muted transition-transform duration-200 {filterOpen ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+				</div>
+			</button>
+
+			{#if filterOpen}
+				<!-- Priorität -->
+				<div class="mb-2">
 					<button
-						onclick={resetFilters}
-						class="text-[10px] font-medium px-2 py-0.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-						style="color: var(--tf-accent);"
+						onclick={() => prioFilterOpen = !prioFilterOpen}
+						class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
 					>
-						Zurücksetzen
+						<svg class="w-3 h-3 tf-text-muted transition-transform duration-200 {prioFilterOpen ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+						<span class="text-xs font-medium tf-text-muted">Priorität</span>
 					</button>
-				{/if}
-			</div>
-			<div class="space-y-1">
-				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-					<input type="checkbox" checked={$priorityFilters.low} onchange={() => togglePriorityFilter('low')} class="accent-orange-500 w-3.5 h-3.5" />
-					<span class="w-2 h-2 rounded-full bg-gray-400"></span> Niedrig
-				</label>
-				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-					<input type="checkbox" checked={$priorityFilters.normal} onchange={() => togglePriorityFilter('normal')} class="accent-orange-500 w-3.5 h-3.5" />
-					<span class="w-2 h-2 rounded-full bg-blue-500"></span> Normal
-				</label>
-				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-					<input type="checkbox" checked={$priorityFilters.high} onchange={() => togglePriorityFilter('high')} class="accent-orange-500 w-3.5 h-3.5" />
-					<span class="w-2 h-2 rounded-full bg-orange-500"></span> Hoch
-				</label>
-				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-					<input type="checkbox" checked={$priorityFilters.asap} onchange={() => togglePriorityFilter('asap')} class="accent-orange-500 w-3.5 h-3.5" />
-					<span class="w-2 h-2 rounded-full bg-red-500"></span> ASAP!
-				</label>
-			</div>
-		</div>
+					{#if prioFilterOpen}
+						<div class="space-y-0.5 ml-2 mt-1">
+							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
+								<input type="checkbox" checked={$priorityFilters.low} onchange={() => togglePriorityFilter('low')} class="accent-orange-500 w-3.5 h-3.5" />
+								<span class="w-2 h-2 rounded-full bg-green-500"></span> Niedrig
+							</label>
+							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
+								<input type="checkbox" checked={$priorityFilters.normal} onchange={() => togglePriorityFilter('normal')} class="accent-orange-500 w-3.5 h-3.5" />
+								<span class="w-2 h-2 rounded-full bg-yellow-500"></span> Normal
+							</label>
+							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
+								<input type="checkbox" checked={$priorityFilters.high} onchange={() => togglePriorityFilter('high')} class="accent-orange-500 w-3.5 h-3.5" />
+								<span class="w-2 h-2 rounded-full bg-red-500"></span> Hoch
+							</label>
+							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
+								<input type="checkbox" checked={$priorityFilters.asap} onchange={() => togglePriorityFilter('asap')} class="accent-orange-500 w-3.5 h-3.5" />
+								<span class="w-2 h-2 rounded-full bg-red-500"></span> ASAP!
+							</label>
+						</div>
+					{/if}
+				</div>
 
-		<!-- Filters: Timeframe -->
-		<div class="mb-4">
-			<h3 class="text-xs font-semibold uppercase tracking-wider tf-text-muted mb-3">Zeitraum</h3>
-			<div class="space-y-1">
-				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-					<input type="checkbox" checked={$timeframeFilters.akut} onchange={() => toggleTimeframeFilter('akut')} class="accent-orange-500 w-3.5 h-3.5" />
-					<span class="text-red-500">●</span> Akut
-				</label>
-				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-					<input type="checkbox" checked={$timeframeFilters.zeitnah} onchange={() => toggleTimeframeFilter('zeitnah')} class="accent-orange-500 w-3.5 h-3.5" />
-					<span class="text-orange-500">●</span> Zeitnah
-				</label>
-				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-					<input type="checkbox" checked={$timeframeFilters.mittelfristig} onchange={() => toggleTimeframeFilter('mittelfristig')} class="accent-orange-500 w-3.5 h-3.5" />
-					<span class="text-amber-500">●</span> Mittelfristig
-				</label>
-				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-					<input type="checkbox" checked={$timeframeFilters.langfristig} onchange={() => toggleTimeframeFilter('langfristig')} class="accent-orange-500 w-3.5 h-3.5" />
-					<span class="text-green-500">●</span> Langfristig
-				</label>
-			</div>
-		</div>
-
-		<!-- Filters: View -->
-		<div class="mb-4">
-			<h3 class="text-xs font-semibold uppercase tracking-wider tf-text-muted mb-3">Ansicht</h3>
-			<div class="space-y-1">
-				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-					<input type="checkbox" checked={$viewFilters.highlighted} onchange={() => toggleViewFilter('highlighted')} class="accent-orange-500 w-3.5 h-3.5" />
-					<svg class="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
-					Nur Fixierte
-				</label>
-				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-					<input type="checkbox" checked={$viewFilters.withDate} onchange={() => toggleViewFilter('withDate')} class="accent-orange-500 w-3.5 h-3.5" />
-					<svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-					Mit Termin
-				</label>
-				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-					<input type="checkbox" checked={$viewFilters.shared} onchange={() => toggleViewFilter('shared')} class="accent-orange-500 w-3.5 h-3.5" />
-					<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-					Geteilte Listen
-				</label>
-			</div>
+				<!-- Ansicht -->
+				<div class="mb-2">
+					<button
+						onclick={() => viewFilterOpen = !viewFilterOpen}
+						class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+					>
+						<svg class="w-3 h-3 tf-text-muted transition-transform duration-200 {viewFilterOpen ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+						<span class="text-xs font-medium tf-text-muted">Ansicht</span>
+					</button>
+					{#if viewFilterOpen}
+						<div class="space-y-0.5 ml-2 mt-1">
+							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
+								<input type="checkbox" checked={$viewFilters.highlighted} onchange={() => toggleViewFilter('highlighted')} class="accent-orange-500 w-3.5 h-3.5" />
+								<svg class="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+								Nur Fixierte
+							</label>
+							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
+								<input type="checkbox" checked={$viewFilters.withDate} onchange={() => toggleViewFilter('withDate')} class="accent-orange-500 w-3.5 h-3.5" />
+								<svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+								Mit Termin
+							</label>
+							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
+								<input type="checkbox" checked={$viewFilters.shared} onchange={() => toggleViewFilter('shared')} class="accent-orange-500 w-3.5 h-3.5" />
+								<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+								Geteilte Listen
+							</label>
+						</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
 
 		<div class="h-px mb-4" style="background: var(--tf-border);"></div>

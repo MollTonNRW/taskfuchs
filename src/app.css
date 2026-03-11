@@ -98,17 +98,19 @@ body {
 .animate-in { animation: context-menu-in .2s cubic-bezier(.34,1.56,.64,1) forwards; }
 
 /* =============================================
-   HIGHLIGHT GLOW
+   FIXIERT (ehemals HIGHLIGHT) GLOW
    ============================================= */
 .highlighted { position: relative; }
 .highlighted > .task-item {
-	border-color: rgba(251,146,60,.5) !important;
-	box-shadow: 0 0 12px rgba(251,146,60,.15), inset 0 0 0 1px rgba(251,146,60,.1);
+	border-color: rgba(251,146,60,.6) !important;
+	border-width: 2px !important;
+	background: linear-gradient(135deg, rgba(251,146,60,.08), rgba(251,191,36,.05)) !important;
+	box-shadow: 0 0 16px rgba(251,146,60,.2), 0 0 4px rgba(251,146,60,.1), inset 0 0 0 1px rgba(251,146,60,.15);
 }
 .highlighted::before {
-	content: ''; position: absolute; inset: -3px; border-radius: 16px;
-	background: linear-gradient(135deg, rgba(251,146,60,.2), rgba(251,191,36,.15));
-	z-index: -1; animation: highlight-pulse 2s infinite;
+	content: ''; position: absolute; inset: -4px; border-radius: 16px;
+	background: linear-gradient(135deg, rgba(251,146,60,.25), rgba(251,191,36,.18));
+	z-index: -1; animation: highlight-pulse 3s ease-in-out infinite;
 }
 
 /* =============================================
@@ -205,11 +207,22 @@ body {
 /* =============================================
    CONTEXT MENU
    ============================================= */
+/* Solid popover background for all floating elements */
+.tf-popover-bg { background: #ffffff !important; border-color: var(--tf-border); }
+.dark .tf-popover-bg { background: #1f2937 !important; }
+.theme-neon .tf-popover-bg { background: rgba(15,15,40,.98) !important; border-color: rgba(100,100,255,.25) !important; }
+.theme-neon.dark .tf-popover-bg { background: rgba(15,15,40,.98) !important; }
+.theme-colorful .tf-popover-bg { background: #ffffff !important; border-color: rgba(0,0,0,.1) !important; }
+.theme-colorful.dark .tf-popover-bg { background: #1a0f1e !important; border-color: rgba(255,255,255,.12) !important; }
+.theme-aurora .tf-popover-bg { background: rgba(15,23,42,.98) !important; border-color: rgba(56,189,248,.15) !important; }
+.theme-aurora.dark .tf-popover-bg { background: rgba(15,23,42,.98) !important; }
+
 .context-menu {
 	min-width: 220px;
 	border-radius: 12px; padding: 6px;
 	animation: context-menu-in .2s cubic-bezier(.34,1.56,.64,1) forwards;
 	box-shadow: 0 20px 60px rgba(0,0,0,.15), 0 4px 16px rgba(0,0,0,.1);
+	background: #ffffff; border: 1px solid var(--tf-border);
 }
 .context-menu-item {
 	display: flex; align-items: center; gap: 10px;
@@ -223,6 +236,7 @@ body {
 	border-radius: 12px; padding: 6px;
 	animation: context-menu-in .15s ease forwards;
 	box-shadow: 0 12px 40px rgba(0,0,0,.12);
+	background: #ffffff; border: 1px solid var(--tf-border);
 }
 
 /* =============================================
@@ -533,7 +547,7 @@ body {
 .theme-colorful .tf-header .theme-btn.bg-white { color: #7c3aed !important; background: white !important; }
 .theme-colorful .tf-header .bg-gray-100 { background: rgba(255,255,255,.15) !important; }
 /* Colorful: context menu */
-.theme-colorful .context-menu { background: rgba(255,255,255,.98); border: 1px solid rgba(0,0,0,.08); }
+.theme-colorful .context-menu, .theme-colorful .context-submenu { background: #fff !important; border: 1px solid rgba(0,0,0,.1) !important; }
 .theme-colorful .pinboard-area { background: linear-gradient(135deg, rgba(249,115,22,.05), rgba(139,92,246,.05)); border-color: rgba(0,0,0,.06); }
 
 /* Colorful dark variant */
@@ -567,7 +581,7 @@ body {
 /* Colorful dark: quick-add */
 .theme-colorful.dark .quick-add-btn { background: linear-gradient(135deg, #6d28d9, #be185d); }
 /* Colorful dark: context menu */
-.theme-colorful.dark .context-menu { background: rgba(20,15,25,.98); border: 1px solid rgba(255,255,255,.1); }
+.theme-colorful.dark .context-menu, .theme-colorful.dark .context-submenu { background: #1a0f1e !important; border: 1px solid rgba(255,255,255,.12) !important; }
 /* Colorful dark: pinboard */
 .theme-colorful.dark .pinboard-area { background: rgba(15,10,20,.6); border-color: rgba(255,255,255,.06); }
 .theme-colorful.dark .pin-card { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.08); }
@@ -669,7 +683,7 @@ body {
 .tf-accent-gradient { background: var(--tf-accent-gradient); }
 
 /* Dark mode overrides for context menus, popovers, etc */
-.dark .context-menu { background: var(--tf-surface); border: 1px solid var(--tf-border); }
+.dark .context-menu, .dark .context-submenu { background: #1f2937; border: 1px solid var(--tf-border); }
 .dark .context-menu-item:hover { background: rgba(255,255,255,.08); }
 .dark .context-menu-divider { background: var(--tf-border); }
 .dark .context-submenu { background: var(--tf-surface); border: 1px solid var(--tf-border); }

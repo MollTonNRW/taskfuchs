@@ -2,7 +2,6 @@
 	import { slide } from 'svelte/transition';
 	import type { Database } from '$lib/types/database';
 	import TaskItem from './TaskItem.svelte';
-	import QuickAdd from './QuickAdd.svelte';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -29,14 +28,14 @@
 		onReorderList,
 		onShareClick,
 		onTaskClick,
-		onChangeTimeframe,
 		onEmojiClick,
 		onChangeProgress,
 		listIndex,
 		bulkMode = false,
 		selectedTaskIds = new Set<string>(),
 		onBulkToggle,
-		onSelectAll
+		onSelectAll,
+		onMinimize
 	}: {
 		list: List;
 		tasks: Task[];
@@ -59,7 +58,6 @@
 		onReorderList?: (listId: string, newPosition: number) => void;
 		onShareClick?: () => void;
 		onTaskClick?: (taskId: string) => void;
-		onChangeTimeframe?: (id: string, timeframe: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null) => void;
 		onEmojiClick?: (taskId: string, x: number, y: number) => void;
 		onChangeProgress?: (id: string, progress: number) => void;
 		listIndex?: number;
@@ -67,6 +65,7 @@
 		selectedTaskIds?: Set<string>;
 		onBulkToggle?: (taskId: string) => void;
 		onSelectAll?: (listId: string) => void;
+		onMinimize?: () => void;
 	} = $props();
 
 	let editingTitle = $state(false);
@@ -77,15 +76,13 @@
 	let listCollapsed = $state(false);
 	let dragOverIdx = $state<number | null>(null);
 	let listDragOver = $state(false);
+	let editingDividerId = $state<string | null>(null);
+	let dividerEditText = $state('');
 
 	let topLevelTasks = $derived(tasks.filter((t) => !t.parent_id));
+	// Reihenfolge kommt vom Parent (filteredTasksForList + sortTasks) — NICHT re-sortieren
 	let activeTasks = $derived(
 		topLevelTasks.filter((t) => (t.type === 'divider' || !t.done))
-			.sort((a, b) => {
-				if (a.highlighted && !b.highlighted) return -1;
-				if (!a.highlighted && b.highlighted) return 1;
-				return a.position - b.position;
-			})
 	);
 	let doneTasks = $derived(topLevelTasks.filter((t) => t.type !== 'divider' && t.done));
 
@@ -244,7 +241,7 @@
 					</button>
 					{#if iconPickerOpen}
 						<div class="fixed inset-0 z-40" onclick={() => (iconPickerOpen = false)} role="presentation"></div>
-						<div class="absolute left-0 top-8 z-50 rounded-xl p-2 grid grid-cols-6 gap-1 w-52 animate-in" style="background: var(--tf-surface); border: 1px solid var(--tf-border); box-shadow: 0 12px 40px rgba(0,0,0,.15);">
+						<div class="absolute left-0 top-8 z-50 rounded-xl p-2 grid grid-cols-6 gap-1 w-52 animate-in tf-popover-bg" style="border: 1px solid var(--tf-border); box-shadow: 0 12px 40px rgba(0,0,0,.15);">
 							{#each defaultIcons as icon}
 								<button
 									onclick={() => { onIconChange(list.id, icon); iconPickerOpen = false; }}
@@ -295,6 +292,17 @@
 				{/if}
 			</div>
 
+			<!-- Minimize List (Desktop) -->
+			{#if onMinimize}
+				<button
+					onclick={onMinimize}
+					class="hidden md:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors tf-text-muted"
+					title="Liste minimieren"
+				>
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/></svg>
+				</button>
+			{/if}
+
 			<!-- Collapse List -->
 			<button
 				onclick={() => (listCollapsed = !listCollapsed)}
@@ -320,7 +328,7 @@
 
 				{#if menuOpen}
 					<div class="fixed inset-0 z-40" onclick={() => (menuOpen = false)} role="presentation"></div>
-					<div class="absolute right-0 top-8 z-50 w-48 rounded-xl p-1.5 animate-in" style="background: var(--tf-surface); border: 1px solid var(--tf-border); box-shadow: 0 12px 40px rgba(0,0,0,.15);">
+					<div class="absolute right-0 top-8 z-50 w-48 rounded-xl p-1.5 animate-in tf-popover-bg" style="border: 1px solid var(--tf-border); box-shadow: 0 12px 40px rgba(0,0,0,.15);">
 						<button
 							onclick={() => { startRename(); menuOpen = false; }}
 							class="context-menu-item w-full"
@@ -356,7 +364,7 @@
 				{#if task.type === 'divider'}
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div
-						class="section-divider {dragOverIdx === idx ? 'drag-over' : ''}"
+						class="section-divider group {dragOverIdx === idx ? 'drag-over' : ''}"
 						draggable="true"
 						ondragstart={(e) => handleTaskDragStart(e, task)}
 						ondragend={handleTaskDragEnd}
@@ -364,8 +372,35 @@
 						ondrop={(e) => handleTaskDrop(e, idx)}
 					>
 						<div class="divider-line" style="background: var(--tf-border);"></div>
-						<span class="text-xs font-semibold uppercase tracking-wider tf-text-muted cursor-grab">{task.divider_label || task.text}</span>
+						{#if editingDividerId === task.id}
+							<!-- svelte-ignore a11y_autofocus -->
+							<input
+								type="text"
+								bind:value={dividerEditText}
+								onblur={() => { const t = dividerEditText.trim(); if (t) onUpdateTask(task.id, t); editingDividerId = null; }}
+								onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const t = dividerEditText.trim(); if (t) onUpdateTask(task.id, t); editingDividerId = null; } if (e.key === 'Escape') editingDividerId = null; }}
+								class="text-xs font-semibold uppercase tracking-wider tf-text-muted bg-transparent border-b-2 outline-none text-center min-w-[60px]"
+								style="border-color: var(--tf-accent);"
+								maxlength="100"
+								autofocus
+								onclick={(e) => e.stopPropagation()}
+							/>
+						{:else}
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
+							<span
+								class="text-xs font-semibold uppercase tracking-wider tf-text-muted cursor-pointer hover:opacity-70 transition-opacity"
+								onclick={(e) => { e.stopPropagation(); editingDividerId = task.id; dividerEditText = task.divider_label || task.text; }}
+								title="Klick zum Umbenennen"
+							>{task.divider_label || task.text}</span>
+						{/if}
 						<div class="divider-line" style="background: var(--tf-border);"></div>
+						<button
+							onclick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
+							class="w-4 h-4 flex items-center justify-center rounded opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-red-500 transition-all flex-shrink-0"
+							title="Trenner löschen"
+						>
+							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+						</button>
 					</div>
 				{:else}
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -398,7 +433,6 @@
 							{onUpdateSubtask}
 							{onDeleteSubtask}
 							{onChangePriority}
-							{onChangeTimeframe}
 							{onEmojiClick}
 							{onChangeProgress}
 							onContext={(e) => onTaskContext?.(e, task)}
@@ -443,6 +477,18 @@
 				></div>
 			{/if}
 
+			<!-- Zentraler + Button -->
+			<div class="flex justify-center py-2">
+				<button
+					onclick={() => onAddTask(list.id, 'Neue Aufgabe')}
+					class="w-8 h-8 flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
+					style="background: var(--tf-accent-gradient, var(--tf-accent)); color: white; box-shadow: 0 2px 8px rgba(0,0,0,.1);"
+					title="Neue Aufgabe erstellen"
+				>
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+				</button>
+			</div>
+
 			<!-- Done Section -->
 			{#if doneTasks.length > 0}
 				<button
@@ -473,7 +519,6 @@
 									{onUpdateSubtask}
 									{onDeleteSubtask}
 									{onChangePriority}
-									{onChangeTimeframe}
 									onContext={(e) => onTaskContext?.(e, task)}
 									{onNoteClick}
 									{onTaskClick}
@@ -494,10 +539,6 @@
 			{/if}
 		</div>
 
-		<!-- Quick Add -->
-		<div class="p-3" style="border-top: 1px solid var(--tf-border);">
-			<QuickAdd onAdd={(text) => onAddTask(list.id, text)} />
-		</div>
 	{/if}
 	</div>
 </div>

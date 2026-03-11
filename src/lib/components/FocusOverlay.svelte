@@ -12,7 +12,6 @@
 		onUpdate,
 		onDelete,
 		onChangePriority,
-		onChangeTimeframe,
 		onToggleHighlight,
 		onTogglePin,
 		onUpdateNote,
@@ -28,7 +27,6 @@
 		onUpdate: (id: string, text: string) => void;
 		onDelete: (id: string) => void;
 		onChangePriority: (id: string, priority: 'low' | 'normal' | 'high' | 'asap') => void;
-		onChangeTimeframe: (id: string, timeframe: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null) => void;
 		onToggleHighlight: (id: string) => void;
 		onTogglePin: (id: string) => void;
 		onUpdateNote: (id: string, note: string) => void;
@@ -47,11 +45,8 @@
 	let subtasks = $derived(allTasks.filter((t) => t.parent_id === task.id));
 
 	const priorityLabels: Record<string, string> = { low: 'Niedrig', normal: 'Normal', high: 'Hoch', asap: 'ASAP!' };
-	const priorityColors: Record<string, string> = { low: '#d1d5db', normal: '#60a5fa', high: '#fb923c', asap: '#f87171' };
+	const priorityColors: Record<string, string> = { low: '#22c55e', normal: '#eab308', high: '#ef4444', asap: '#dc2626' };
 	const priorityOrder: ('low' | 'normal' | 'high' | 'asap')[] = ['low', 'normal', 'high', 'asap'];
-	const timeframeLabels: Record<string, string> = { akut: 'Akut', zeitnah: 'Zeitnah', mittelfristig: 'Mittelfristig', langfristig: 'Langfristig' };
-	const timeframeColors: Record<string, string> = { akut: '#dc2626', zeitnah: '#ea580c', mittelfristig: '#d97706', langfristig: '#16a34a' };
-	const timeframes = ['akut', 'zeitnah', 'mittelfristig', 'langfristig'] as const;
 
 	function startEdit() {
 		editText = task.text;
@@ -158,21 +153,7 @@
 				{/each}
 			</div>
 
-			<div class="w-px h-4 mx-1" style="background: var(--tf-border);"></div>
-
-			<!-- Timeframe -->
-			<div class="flex gap-1">
-				{#each timeframes as tf}
-					<button
-						onclick={() => onChangeTimeframe(task.id, task.timeframe === tf ? null : tf)}
-						class="text-[10px] font-medium px-2 py-0.5 rounded-full border transition-all cursor-pointer"
-						style={task.timeframe === tf ? `border-color: ${timeframeColors[tf]}; color: ${timeframeColors[tf]}; background: ${timeframeColors[tf]}15;` : 'opacity: 0.4;'}
-					>
-						{timeframeLabels[tf]}
-					</button>
-				{/each}
 			</div>
-		</div>
 
 		<!-- Quick Actions -->
 		<div class="flex gap-2 mb-5">

@@ -13,10 +13,10 @@
 	import DatePicker from '$lib/components/DatePicker.svelte';
 	import { seedDemoData } from '$lib/seed-data';
 	import { listsStore } from '$lib/stores/lists';
-	import { priorityFilters, timeframeFilters, viewFilters } from '$lib/stores/filters';
+	import { priorityFilters, viewFilters } from '$lib/stores/filters';
 	import { hiddenListIds } from '$lib/stores/visibility';
 	import { profilesStore, profileMap } from '$lib/stores/profiles';
-	import { priorityLabels, priorityColors, timeframeLabels, timeframeColors, progressLabelsFull as progressLabels, progressColors, priorityWeight, sortLabels, type Priority, type Timeframe } from '$lib/constants';
+	import { priorityLabels, priorityColors, progressLabelsFull as progressLabels, progressColors, priorityWeight, sortLabels, type Priority } from '$lib/constants';
 	import { createTaskStore } from '$lib/stores/tasks.svelte';
 	import * as crud from '$lib/services/supabase-crud';
 
@@ -64,14 +64,21 @@
 	// ==========================================
 	// SORT
 	// ==========================================
-	type SortMode = 'position' | 'priority' | 'name' | 'date' | 'created';
+	type SortMode = 'position' | 'priority' | 'name' | 'date' | 'created' | 'progress';
 	let sortMode = $state<SortMode>('position');
 	let sortMenuOpen = $state(false);
 
 	// sortLabels, priorityWeight imported from $lib/constants
 
 	function sortTasks(taskList: Task[]): Task[] {
-		if (sortMode === 'position') return taskList;
+		if (sortMode === 'position') {
+			// Standard: Fixierte zuerst, dann nach Position
+			return [...taskList].sort((a, b) => {
+				if (a.highlighted && !b.highlighted) return -1;
+				if (!a.highlighted && b.highlighted) return 1;
+				return a.position - b.position;
+			});
+		}
 		return [...taskList].sort((a, b) => {
 			if (a.type === 'divider' || b.type === 'divider') return 0;
 			switch (sortMode) {
@@ -84,6 +91,7 @@
 					return a.due_date.localeCompare(b.due_date);
 				}
 				case 'created': return a.created_at.localeCompare(b.created_at);
+				case 'progress': return (b.progress ?? 0) - (a.progress ?? 0);
 				default: return 0;
 			}
 		});
@@ -151,7 +159,6 @@
 		const filtered = listTasks.filter((t) => {
 			if (t.type === 'divider') return true;
 			if (!$priorityFilters[t.priority]) return false;
-			if (t.timeframe && !$timeframeFilters[t.timeframe]) return false;
 			if ($viewFilters.highlighted && !t.highlighted) return false;
 			if ($viewFilters.withDate && !t.due_date) return false;
 			return true;
@@ -223,7 +230,7 @@
 	type ContextMenuState = { show: boolean; x: number; y: number; items: MenuItem[] };
 	let contextMenu = $state<ContextMenuState>({ show: false, x: 0, y: 0, items: [] });
 
-	// priorityLabels, priorityColors, timeframeLabels, timeframeColors, progressLabels, progressColors imported from $lib/constants
+	// priorityLabels, priorityColors, progressLabels, progressColors imported from $lib/constants
 
 	function handleListContext(e: MouseEvent, list: List) {
 		e.preventDefault();
@@ -235,11 +242,8 @@
 					label: 'Trenner erstellen',
 					icon: { svg: 'M4 12h16', color: 'text-gray-400' },
 					action: () => {
-						const label = prompt('Trenner-Bezeichnung:', '');
-						if (label?.trim()) {
-							const listTasks = store.tasks.filter((t) => t.list_id === list.id && !t.parent_id);
-							store.createDivider(list.id, listTasks.length, label.trim());
-						}
+						const listTasks = store.tasks.filter((t) => t.list_id === list.id && !t.parent_id);
+						store.createDivider(list.id, listTasks.length, 'Neuer Trenner');
 					}
 				},
 				{ divider: true, label: '' },
@@ -270,14 +274,6 @@
 				submenu: (['low', 'normal', 'high', 'asap'] as Priority[]).map((p) => ({
 					label: priorityLabels[p], color: priorityColors[p], active: task.priority === p,
 					action: () => store.changeTaskPriority(task.id, p)
-				}))
-			},
-			{
-				label: 'Zeitraum',
-				icon: { svg: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', color: 'text-amber-500' },
-				submenu: (['akut', 'zeitnah', 'mittelfristig', 'langfristig'] as Timeframe[]).map((tf) => ({
-					label: timeframeLabels[tf], color: timeframeColors[tf], active: task.timeframe === tf,
-					action: () => store.changeTaskTimeframe(task.id, task.timeframe === tf ? null : tf)
 				}))
 			},
 			{
@@ -331,8 +327,7 @@
 				label: 'Trenner erstellen',
 				icon: { svg: 'M4 12h16', color: 'text-gray-400' },
 				action: () => {
-					const label = prompt('Trenner-Bezeichnung:', '');
-					if (label?.trim()) store.createDivider(task.list_id, task.position + 0.5, label.trim());
+					store.createDivider(task.list_id, task.position + 0.5, 'Neuer Trenner');
 				}
 			},
 			{
@@ -457,6 +452,16 @@
 	}
 
 	// ==========================================
+	// MINIMIZED LISTS
+	// ==========================================
+	let minimizedListIds = $state<Set<string>>(new Set());
+	function toggleMinimizeList(listId: string) {
+		minimizedListIds = new Set(minimizedListIds);
+		if (minimizedListIds.has(listId)) minimizedListIds.delete(listId);
+		else minimizedListIds.add(listId);
+	}
+
+	// ==========================================
 	// RESIZABLE COLUMNS (Desktop)
 	// ==========================================
 	let columnWidths = $state<Record<string, number>>({});
@@ -512,12 +517,6 @@
 		}
 
 		if (isInput) return;
-
-		if (e.key === 'n' || e.key === 'Enter') {
-			e.preventDefault();
-			const quickAddInput = document.querySelector('input[placeholder="Neue Aufgabe..."]') as HTMLInputElement;
-			if (quickAddInput) quickAddInput.focus();
-		}
 
 		if (e.key === '/') { e.preventDefault(); searchOpen = true; }
 	}
@@ -576,7 +575,6 @@
 		onUpdate={store.updateTask}
 		onDelete={store.deleteTask}
 		onChangePriority={store.changeTaskPriority}
-		onChangeTimeframe={store.changeTaskTimeframe}
 		onToggleHighlight={store.toggleHighlight}
 		onTogglePin={store.togglePin}
 		onUpdateNote={store.updateTaskNote}
@@ -831,7 +829,7 @@
 							onUpdateSubtask={store.updateSubtask}
 							onDeleteSubtask={store.deleteSubtask}
 							onChangePriority={store.changeTaskPriority}
-							onChangeTimeframe={store.changeTaskTimeframe}
+	
 							onEmojiClick={openEmojiPicker}
 							onChangeProgress={store.changeTaskProgress}
 							onListContext={(e: MouseEvent) => handleListContext(e, store.lists[activeListIndex])}
@@ -853,45 +851,61 @@
 		<!-- Desktop: Side by Side -->
 		<div class="hidden md:flex gap-0 overflow-x-auto pb-4">
 			{#each visibleLists as list, listIdx (list.id)}
-				<div class="flex-shrink-0 flex flex-col" data-col={listIdx} style="width: {getColumnWidth(list.id)}px; min-width: 280px; max-width: 600px;">
-					<ListPanel
-						{list}
-						tasks={filteredTasksForList(list.id)}
-						onRename={store.renameList}
-						onDelete={store.deleteList}
-						onIconChange={store.changeListIcon}
-						onAddTask={store.addTask}
-						onToggleTask={store.toggleTask}
-						onUpdateTask={store.updateTask}
-						onDeleteTask={store.deleteTask}
-						onAddSubtask={store.addSubtask}
-						onToggleSubtask={store.toggleSubtask}
-						onUpdateSubtask={store.updateSubtask}
-						onDeleteSubtask={store.deleteSubtask}
-						onChangePriority={store.changeTaskPriority}
-						onChangeTimeframe={store.changeTaskTimeframe}
-						onEmojiClick={openEmojiPicker}
-						onChangeProgress={store.changeTaskProgress}
-						onListContext={(e: MouseEvent) => handleListContext(e, list)}
-						onTaskContext={handleTaskContext}
-						onNoteClick={openNotePopover}
-						onReorderTask={store.reorderTask}
-						onReorderList={(listId: string, newPos: number) => store.reorderList(listId, newPos)}
-						onShareClick={() => openShareDialog(list)}
-						onTaskClick={openFocusMode}
-						listIndex={listIdx}
-						{bulkMode}
-						{selectedTaskIds}
-						onBulkToggle={toggleBulkSelect}
-						onSelectAll={selectAllInList}
-					/>
-				</div>
-				<!-- Resize Handle -->
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<div
-					class="col-resize-handle"
-					onmousedown={(e) => handleResizeStart(e, list.id)}
-				></div>
+				{#if minimizedListIds.has(list.id)}
+					<!-- Minimierte Liste: schmale Spalte mit Icon -->
+					<div class="flex-shrink-0 flex flex-col items-center w-12 py-3 rounded-2xl border mx-0.5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors" style="border-color: var(--tf-border); background: var(--tf-surface);">
+						<button
+							onclick={() => toggleMinimizeList(list.id)}
+							class="flex flex-col items-center gap-2 w-full"
+							title="{list.icon} {list.title} — Klick zum Maximieren"
+						>
+							<span class="text-lg">{list.icon}</span>
+							<span class="text-[9px] font-medium tf-text-muted writing-mode-vertical" style="writing-mode: vertical-rl; text-orientation: mixed;">{list.title}</span>
+							<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style="background: var(--tf-accent); color: white;">{filteredTasksForList(list.id).filter(t => !t.parent_id && t.type !== 'divider' && !t.done).length}</span>
+						</button>
+					</div>
+				{:else}
+					<div class="flex-shrink-0 flex flex-col" data-col={listIdx} style="width: {getColumnWidth(list.id)}px; min-width: 280px; max-width: 600px;">
+						<ListPanel
+							{list}
+							tasks={filteredTasksForList(list.id)}
+							onRename={store.renameList}
+							onDelete={store.deleteList}
+							onIconChange={store.changeListIcon}
+							onAddTask={store.addTask}
+							onToggleTask={store.toggleTask}
+							onUpdateTask={store.updateTask}
+							onDeleteTask={store.deleteTask}
+							onAddSubtask={store.addSubtask}
+							onToggleSubtask={store.toggleSubtask}
+							onUpdateSubtask={store.updateSubtask}
+							onDeleteSubtask={store.deleteSubtask}
+							onChangePriority={store.changeTaskPriority}
+	
+							onEmojiClick={openEmojiPicker}
+							onChangeProgress={store.changeTaskProgress}
+							onListContext={(e: MouseEvent) => handleListContext(e, list)}
+							onTaskContext={handleTaskContext}
+							onNoteClick={openNotePopover}
+							onReorderTask={store.reorderTask}
+							onReorderList={(listId: string, newPos: number) => store.reorderList(listId, newPos)}
+							onShareClick={() => openShareDialog(list)}
+							onTaskClick={openFocusMode}
+							listIndex={listIdx}
+							{bulkMode}
+							{selectedTaskIds}
+							onBulkToggle={toggleBulkSelect}
+							onSelectAll={selectAllInList}
+							onMinimize={() => toggleMinimizeList(list.id)}
+						/>
+					</div>
+					<!-- Resize Handle -->
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div
+						class="col-resize-handle"
+						onmousedown={(e) => handleResizeStart(e, list.id)}
+					></div>
+				{/if}
 			{/each}
 
 			<!-- Add List Button (Desktop) -->

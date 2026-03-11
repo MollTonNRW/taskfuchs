@@ -34,8 +34,8 @@
 <!-- Picker -->
 <div
 	bind:this={pickerEl}
-	class="emoji-picker fixed z-[71]"
-	style="left: {x}px; top: {y}px; background: var(--tf-surface); border: 1px solid var(--tf-border);"
+	class="emoji-picker fixed z-[71] tf-popover-bg"
+	style="left: {x}px; top: {y}px; border: 1px solid var(--tf-border);"
 >
 	{#each emojis as emoji}
 		<button
