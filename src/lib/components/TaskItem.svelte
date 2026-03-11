@@ -59,12 +59,34 @@
 	let animClass = $state('');
 	let showFixedToast = $state(false);
 
-	// Double-tap für Focus Mode
-	function handleDoubleTap(e: MouseEvent) {
+	// Long-Press für Focus Mode (1,5s ohne Bewegung)
+	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+	let longPressStartPos = { x: 0, y: 0 };
+	const LONG_PRESS_MS = 700;
+	const MOVE_THRESHOLD = 10; // px
+
+	function startLongPress(e: PointerEvent) {
 		const target = e.target as HTMLElement;
-		if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.task-content') || target.closest('.priority-bar') || target.closest('.drag-handle') || target.closest('.more-menu-btn')) return;
-		e.preventDefault();
-		onTaskClick?.(task.id);
+		if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.task-content') || target.closest('.priority-bar') || target.closest('.more-menu-btn') || target.closest('.task-badges')) return;
+		longPressStartPos = { x: e.clientX, y: e.clientY };
+		cancelLongPress();
+		longPressTimer = setTimeout(() => {
+			longPressTimer = null;
+			onTaskClick?.(task.id);
+		}, LONG_PRESS_MS);
+	}
+
+	function moveLongPress(e: PointerEvent) {
+		if (!longPressTimer) return;
+		const dx = e.clientX - longPressStartPos.x;
+		const dy = e.clientY - longPressStartPos.y;
+		if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
+			cancelLongPress();
+		}
+	}
+
+	function cancelLongPress() {
+		if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
 	}
 
 	// Picker popovers
@@ -126,6 +148,8 @@
 	let displayProgress = $derived(
 		displayPercent === 100 ? 3 : displayPercent >= 50 ? 2 : displayPercent > 0 ? 1 : 0
 	);
+	// Alle Unteraufgaben erledigt, aber Hauptaufgabe noch offen → Checkbox-Animation
+	let allSubtasksDone = $derived(descendantStats.total > 0 && descendantStats.done === descendantStats.total && !task.done);
 
 	function startEdit() {
 		editText = task.text;
@@ -180,7 +204,7 @@
 </script>
 
 <div
-	class="task-enter {animClass} {task.priority === 'asap' ? 'asap-blink' : ''} {task.highlighted ? 'highlighted' : ''}"
+	class="task-enter group/task {animClass} {task.priority === 'asap' ? 'asap-blink' : ''} {task.highlighted ? 'highlighted' : ''}"
 	id="task-{task.id}"
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -194,8 +218,13 @@
 				if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.task-content') || target.closest('.more-menu-btn') || target.closest('.priority-bar') || target.closest('.task-badges')) return;
 				showFixedToast = true; setTimeout(() => showFixedToast = false, 1500);
 			}
+			startLongPress(e);
 		}}
+		onpointermove={moveLongPress}
+		onpointerup={cancelLongPress}
+		onpointercancel={cancelLongPress}
 		ondragstart={(e) => {
+			cancelLongPress();
 			if (task.highlighted) { e.preventDefault(); return; }
 			const target = e.target as HTMLElement;
 			if (target.closest('input') || target.closest('textarea')) { e.preventDefault(); return; }
@@ -203,7 +232,6 @@
 		}}
 		ondragend={(e) => onDragEnd?.(e)}
 		oncontextmenu={(e) => { if (onContext) { e.preventDefault(); e.stopPropagation(); onContext(e); } }}
-		ondblclick={handleDoubleTap}
 	>
 		<div class="task-row">
 			<!-- Priority Bar -->
@@ -217,7 +245,7 @@
 			></div>
 
 			<!-- Checkbox -->
-			<label class="custom-checkbox" onclick={(e) => e.stopPropagation()}>
+			<label class="custom-checkbox {allSubtasksDone ? 'subtasks-complete-pulse' : ''}" onclick={(e) => e.stopPropagation()}>
 				<input type="checkbox" checked={task.done} onchange={handleToggle} />
 				<span class="checkmark"></span>
 			</label>
@@ -313,13 +341,11 @@
 			</button>
 		</div>
 
-		<!-- Progress Bar (dünne Linie unter der Aufgabe) -->
+		<!-- Progress Bar (dünne Linie unter der Aufgabe, rein visuell) -->
 		{#if displayPercent > 0 || descendantStats.total > 0}
-			<button
-				type="button"
-				class="w-full px-2 pb-1 pt-0.5 flex items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0"
+			<div
+				class="w-full px-2 pb-1 pt-0.5 flex items-center gap-1.5"
 				title={autoProgress >= 0 ? `${descendantStats.done}/${descendantStats.total} erledigt (${displayPercent}%)` : `${displayPercent}%`}
-				onclick={(e) => { e.stopPropagation(); if (autoProgress < 0 && onChangeProgress) onChangeProgress(task.id, ((task.progress || 0) + 1) % 4); }}
 			>
 				<div class="flex-1 h-[3px] rounded-full overflow-hidden" style="background: var(--tf-border);">
 					<div
@@ -334,7 +360,7 @@
 						{displayPercent}%
 					{/if}
 				</span>
-			</button>
+			</div>
 		{/if}
 
 		<!-- Fixed Toast -->
@@ -347,9 +373,9 @@
 			</div>
 		{/if}
 
-			<!-- Subtasks Toggle -->
-		{#if subtaskCount > 0}
-			<div class="mt-1 ml-10">
+			<!-- Subtasks Toggle + ⊕ Button -->
+		<div class="mt-1 flex items-center gap-1 group/subtoggle">
+			{#if subtaskCount > 0}
 				<button
 					onclick={() => (subtasksOpen = !subtasksOpen)}
 					class="flex items-center gap-1 text-[11px] tf-text-muted hover:opacity-80 transition-colors"
@@ -359,19 +385,20 @@
 					</svg>
 					Unteraufgaben <span class="text-[10px] tf-text-muted">{subtasksDone}/{subtaskCount}</span>
 				</button>
-				<button
-					onclick={() => { subtasksOpen = true; addingSubtask = true; }}
-					class="w-4 h-4 flex items-center justify-center rounded opacity-40 hover:opacity-100 transition-all tf-text-muted"
-					title="Unteraufgabe hinzufügen"
-				>
-					<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-				</button>
-			</div>
-		{/if}
+			{/if}
+			<button
+				onclick={() => { subtasksOpen = true; addingSubtask = true; }}
+				class="w-5 h-5 flex items-center justify-center rounded-full border opacity-0 {subtaskCount > 0 ? 'group-hover/subtoggle:opacity-40' : 'group-hover/task:opacity-40'} hover:!opacity-100 transition-all tf-text-muted"
+				style="border-color: currentColor;"
+				title="Unteraufgabe hinzufügen"
+			>
+				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+			</button>
+		</div>
 
 		<!-- Subtasks List -->
 		{#if subtasksOpen && !forceCollapse && subtaskCount > 0}
-			<div transition:slide|global={{ duration: 200 }} class="mt-2 ml-10 pl-3 space-y-0.5" style="border-left: 2px solid var(--tf-border);">
+			<div transition:slide|global={{ duration: 200 }} class="mt-2 space-y-0.5">
 				{#each subtasks as sub (sub.id)}
 					<SubtaskItem
 						subtask={sub}
@@ -388,7 +415,7 @@
 
 		<!-- Add Subtask Input -->
 		{#if addingSubtask}
-			<div transition:slide|global={{ duration: 200 }} class="mt-2 ml-10 pl-3" style="border-left: 2px solid var(--tf-border);">
+			<div transition:slide|global={{ duration: 200 }} class="mt-2">
 				<div class="flex gap-1.5">
 					<!-- svelte-ignore a11y_autofocus -->
 					<input
@@ -398,7 +425,6 @@
 						class="tf-input flex-1 px-3 py-1.5 text-xs rounded-lg border"
 						maxlength="500"
 						onkeydown={handleSubtaskKeydown}
-						onblur={() => { if (!newSubtaskText.trim()) addingSubtask = false; }}
 						autofocus
 					/>
 					<button
@@ -409,6 +435,14 @@
 						aria-label="Unteraufgabe hinzufügen"
 					>
 						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+					</button>
+					<button
+						onclick={() => { addingSubtask = false; newSubtaskText = ''; }}
+						class="px-2.5 py-1.5 text-xs rounded-lg transition-all tf-text-muted hover:bg-black/5 dark:hover:bg-white/10"
+						style="border: 1px solid var(--tf-border);"
+						aria-label="Abbrechen"
+					>
+						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
 					</button>
 				</div>
 			</div>

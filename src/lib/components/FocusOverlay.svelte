@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Database } from '$lib/types/database';
 	import SubtaskItem from './SubtaskItem.svelte';
+	import EmojiPicker from './EmojiPicker.svelte';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 
@@ -15,6 +16,7 @@
 		onToggleHighlight,
 		onTogglePin,
 		onUpdateNote,
+		onUpdateEmoji,
 		onToggleSubtask,
 		onUpdateSubtask,
 		onDeleteSubtask,
@@ -30,6 +32,7 @@
 		onToggleHighlight: (id: string) => void;
 		onTogglePin: (id: string) => void;
 		onUpdateNote: (id: string, note: string) => void;
+		onUpdateEmoji: (id: string, emoji: string) => void;
 		onToggleSubtask: (id: string, done: boolean) => void;
 		onUpdateSubtask: (id: string, text: string) => void;
 		onDeleteSubtask: (id: string) => void;
@@ -70,8 +73,18 @@
 		newSubtaskText = '';
 	}
 
+	// Emoji Picker
+	let emojiPickerState = $state<{ show: boolean; x: number; y: number }>({ show: false, x: 0, y: 0 });
+
+	function openEmojiPicker(e: MouseEvent) {
+		emojiPickerState = { show: true, x: e.clientX, y: e.clientY };
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') onClose();
+		if (e.key === 'Escape') {
+			if (emojiPickerState.show) { emojiPickerState = { ...emojiPickerState, show: false }; return; }
+			onClose();
+		}
 	}
 </script>
 
@@ -94,7 +107,17 @@
 			<div class="flex items-center gap-3">
 				<div class="w-3 rounded-full" style="background: {priorityColors[task.priority]}; height: 32px;"></div>
 				{#if task.emoji}
-					<span class="text-2xl">{task.emoji}</span>
+					<button
+						onclick={openEmojiPicker}
+						class="text-2xl hover:scale-110 transition-transform cursor-pointer"
+						title="Symbol ändern"
+					>{task.emoji}</button>
+				{:else}
+					<button
+						onclick={openEmojiPicker}
+						class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors tf-text-muted"
+						title="Symbol hinzufügen"
+					>😊</button>
 				{/if}
 			</div>
 			<button
@@ -260,3 +283,12 @@
 		</div>
 	</div>
 </div>
+
+{#if emojiPickerState.show}
+	<EmojiPicker
+		x={emojiPickerState.x}
+		y={emojiPickerState.y}
+		onSelect={(emoji) => onUpdateEmoji(task.id, emoji)}
+		onClose={() => (emojiPickerState = { ...emojiPickerState, show: false })}
+	/>
+{/if}

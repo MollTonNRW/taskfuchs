@@ -370,6 +370,7 @@
 						ondragend={handleTaskDragEnd}
 						ondragover={(e) => handleTaskDragOver(e, idx)}
 						ondrop={(e) => handleTaskDrop(e, idx)}
+						oncontextmenu={(e) => { e.preventDefault(); e.stopPropagation(); onTaskContext?.(e, task); }}
 					>
 						<div class="divider-line" style="background: var(--tf-border);"></div>
 						{#if editingDividerId === task.id}
@@ -394,13 +395,6 @@
 							>{task.divider_label || task.text}</span>
 						{/if}
 						<div class="divider-line" style="background: var(--tf-border);"></div>
-						<button
-							onclick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
-							class="w-4 h-4 flex items-center justify-center rounded opacity-0 group-hover:opacity-40 hover:!opacity-100 hover:text-red-500 transition-all flex-shrink-0"
-							title="Trenner löschen"
-						>
-							<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-						</button>
 					</div>
 				{:else}
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -461,9 +455,9 @@
 						<span class="text-2xl mb-2">🎉</span>
 						<span class="text-sm tf-text-muted font-medium">Alles erledigt!</span>
 					{:else}
-						<span class="text-2xl mb-2">📝</span>
-						<span class="text-sm tf-text-muted font-medium">Keine Aufgaben</span>
-						<span class="text-xs tf-text-muted mt-1">Erstelle eine neue Aufgabe unten</span>
+						<span class="text-2xl mb-2">✅</span>
+						<span class="text-sm tf-text-muted font-medium">Top! Alles erledigt!</span>
+						<span class="text-xs tf-text-muted mt-1">Weiter so! 💪</span>
 					{/if}
 				</div>
 			{:else}
@@ -476,18 +470,6 @@
 					ondrop={(e) => handleTaskDrop(e, activeTasks.length)}
 				></div>
 			{/if}
-
-			<!-- Zentraler + Button -->
-			<div class="flex justify-center py-2">
-				<button
-					onclick={() => onAddTask(list.id, 'Neue Aufgabe')}
-					class="w-8 h-8 flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
-					style="background: var(--tf-accent-gradient, var(--tf-accent)); color: white; box-shadow: 0 2px 8px rgba(0,0,0,.1);"
-					title="Neue Aufgabe erstellen"
-				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-				</button>
-			</div>
 
 			<!-- Done Section -->
 			{#if doneTasks.length > 0}
@@ -537,6 +519,18 @@
 					</div>
 				{/if}
 			{/if}
+
+			<!-- + Button unter Erledigt -->
+			<div class="flex justify-center py-2">
+				<button
+					onclick={() => onAddTask(list.id, 'Neue Aufgabe')}
+					class="w-8 h-8 flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
+					style="background: var(--tf-accent-gradient, var(--tf-accent)); color: white; box-shadow: 0 2px 8px rgba(0,0,0,.1);"
+					title="Neue Aufgabe erstellen"
+				>
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+				</button>
+			</div>
 		</div>
 
 	{/if}

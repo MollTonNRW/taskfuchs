@@ -12,7 +12,8 @@
 		onUnpin,
 		onScrollToTask,
 		onClearAll,
-		onPin
+		onPin,
+		onTaskClick
 	}: {
 		tasks: Task[];
 		lists: List[];
@@ -20,6 +21,7 @@
 		onScrollToTask: (id: string) => void;
 		onClearAll?: () => void;
 		onPin?: (id: string) => void;
+		onTaskClick?: (id: string) => void;
 	} = $props();
 
 	let collapsed = $state(false);
@@ -29,6 +31,33 @@
 
 	function getListTitle(listId: string): string {
 		return lists.find((l) => l.id === listId)?.title ?? '';
+	}
+
+	// Long-Press für Focus Mode (700ms ohne Bewegung)
+	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+	let longPressStartPos = { x: 0, y: 0 };
+
+	function startLongPress(e: PointerEvent, taskId: string) {
+		if (!onTaskClick) return;
+		const target = e.target as HTMLElement;
+		if (target.closest('button')) return;
+		longPressStartPos = { x: e.clientX, y: e.clientY };
+		cancelLongPress();
+		longPressTimer = setTimeout(() => {
+			longPressTimer = null;
+			onTaskClick(taskId);
+		}, 700);
+	}
+
+	function moveLongPress(e: PointerEvent) {
+		if (!longPressTimer) return;
+		const dx = e.clientX - longPressStartPos.x;
+		const dy = e.clientY - longPressStartPos.y;
+		if (Math.abs(dx) > 10 || Math.abs(dy) > 10) cancelLongPress();
+	}
+
+	function cancelLongPress() {
+		if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
 	}
 
 	function handleDragOver(e: DragEvent) {
@@ -114,7 +143,11 @@
 							class="pin-card flex-shrink-0 w-56 rounded-xl border p-3.5 cursor-grab hover:shadow-md transition-all duration-200 active:cursor-grabbing"
 							style="background: var(--tf-surface); border-color: var(--tf-border);"
 							draggable="true"
-							ondragstart={(e) => { if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', JSON.stringify({ taskId: task.id, fromPinboard: true })); (e.currentTarget as HTMLElement).classList.add('pin-dragging'); }}}
+							onpointerdown={(e) => startLongPress(e, task.id)}
+							onpointermove={moveLongPress}
+							onpointerup={cancelLongPress}
+							onpointercancel={cancelLongPress}
+							ondragstart={(e) => { cancelLongPress(); if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', JSON.stringify({ taskId: task.id, fromPinboard: true })); (e.currentTarget as HTMLElement).classList.add('pin-dragging'); }}}
 							ondragend={(e) => { (e.currentTarget as HTMLElement).classList.remove('pin-dragging'); }}
 							onclick={() => onScrollToTask(task.id)}
 							role="button"

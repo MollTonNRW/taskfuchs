@@ -114,7 +114,8 @@
 	{#if canNest}
 		<button
 			onclick={() => { addingChild = true; childrenOpen = true; }}
-			class="w-4 h-4 flex items-center justify-center rounded opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-all tf-text-muted"
+			class="w-5 h-5 flex items-center justify-center rounded-full border opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-all tf-text-muted"
+			style="border-color: currentColor;"
 			title="Unter-Unteraufgabe"
 		>
 			<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -161,7 +162,6 @@
 				class="tf-input flex-1 px-2 py-1 text-[11px] rounded-lg border"
 				maxlength="500"
 				onkeydown={handleChildKeydown}
-				onblur={() => { if (!newChildText.trim()) addingChild = false; }}
 				autofocus
 			/>
 			<button
@@ -171,6 +171,14 @@
 				disabled={!newChildText.trim()}
 			>
 				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+			</button>
+			<button
+				onclick={() => { addingChild = false; newChildText = ''; }}
+				class="px-2 py-1 text-[10px] rounded-lg transition-all tf-text-muted hover:bg-black/5 dark:hover:bg-white/10"
+				style="border: 1px solid var(--tf-border);"
+				aria-label="Abbrechen"
+			>
+				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
 			</button>
 		</div>
 	</div>

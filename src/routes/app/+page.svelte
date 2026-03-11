@@ -255,6 +255,19 @@
 
 	function handleTaskContext(e: MouseEvent, task: Task) {
 		e.preventDefault();
+
+		// Divider: eigenes kompaktes Kontextmenü
+		if (task.type === 'divider') {
+			contextMenu = {
+				show: true, x: e.clientX, y: e.clientY,
+				items: [
+					{ label: 'Trenner umbenennen', icon: { svg: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z', color: 'text-blue-500' }, action: () => { const newName = prompt('Neuer Trenner-Name:', task.divider_label || task.text); if (newName?.trim()) store.updateTask(task.id, newName.trim()); } },
+					{ label: 'Trenner löschen', icon: { svg: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' }, action: () => store.deleteTaskDirect(task.id), danger: true }
+				]
+			};
+			return;
+		}
+
 		const otherLists = store.lists.filter((l) => l.id !== task.list_id);
 
 		const items: MenuItem[] = [
@@ -578,6 +591,7 @@
 		onToggleHighlight={store.toggleHighlight}
 		onTogglePin={store.togglePin}
 		onUpdateNote={store.updateTaskNote}
+		onUpdateEmoji={store.updateTaskEmoji}
 		onToggleSubtask={store.toggleSubtask}
 		onUpdateSubtask={store.updateSubtask}
 		onDeleteSubtask={store.deleteSubtask}
@@ -612,6 +626,7 @@
 	onScrollToTask={scrollToTask}
 	onClearAll={store.clearPinboard}
 	onPin={store.togglePin}
+	onTaskClick={openFocusMode}
 />
 
 <!-- Search Overlay -->

@@ -25,6 +25,19 @@ export function createTaskStore() {
 	function setLists(newLists: List[]) { lists = newLists; }
 	function setTasks(newTasks: Task[]) { tasks = newTasks; }
 
+	/** Alle Nachkommen eines Tasks rekursiv sammeln (Unteraufgaben + Unter-Unteraufgaben) */
+	function getDescendantIds(parentId: string): Set<string> {
+		const ids = new Set<string>();
+		const children = tasks.filter((t) => t.parent_id === parentId);
+		for (const child of children) {
+			ids.add(child.id);
+			for (const grandId of getDescendantIds(child.id)) {
+				ids.add(grandId);
+			}
+		}
+		return ids;
+	}
+
 	// ==========================================
 	// LIST CRUD
 	// ==========================================
@@ -137,16 +150,6 @@ export function createTaskStore() {
 		}
 		const { error } = await crud.updateTaskField(sb, id, { done });
 		if (error) { tasks = oldTasks; return; }
-		const task = tasks.find((t) => t.id === id);
-		if (task?.parent_id) {
-			const siblings = tasks.filter((t) => t.parent_id === task.parent_id);
-			const allDone = siblings.every((t) => t.done);
-			const parent = tasks.find((t) => t.id === task.parent_id);
-			if (parent && parent.done !== allDone) {
-				tasks = tasks.map((t) => (t.id === parent.id ? { ...t, done: allDone } : t));
-				await crud.updateTaskField(sb, parent.id, { done: allDone });
-			}
-		}
 	}
 
 	async function updateTask(id: string, text: string) {
@@ -244,9 +247,22 @@ export function createTaskStore() {
 		const oldTasks = tasks;
 		const targetListTasks = tasks.filter((t) => t.list_id === targetListId && !t.parent_id);
 		const position = targetListTasks.length;
-		tasks = tasks.map((t) => (t.id === taskId ? { ...t, list_id: targetListId, position } : t));
+		// Alle Nachkommen sammeln (rekursiv)
+		const descendantIds = getDescendantIds(taskId);
+		// Optimistisch: Haupt-Task + alle Nachkommen verschieben
+		tasks = tasks.map((t) => {
+			if (t.id === taskId) return { ...t, list_id: targetListId, position };
+			if (descendantIds.has(t.id)) return { ...t, list_id: targetListId };
+			return t;
+		});
+		// DB: Haupt-Task verschieben
 		const { error } = await crud.updateTaskField(sb, taskId, { list_id: targetListId, position });
-		if (error) tasks = oldTasks;
+		if (error) { tasks = oldTasks; return; }
+		// DB: Nachkommen verschieben
+		if (descendantIds.size > 0) {
+			const { error: subErr } = await crud.bulkUpdateField(sb, [...descendantIds], { list_id: targetListId });
+			if (subErr) tasks = oldTasks;
+		}
 	}
 
 	async function updateTaskEmoji(taskId: string, emoji: string) {
@@ -297,16 +313,6 @@ export function createTaskStore() {
 		tasks = tasks.map((t) => (t.id === id ? { ...t, done } : t));
 		const { error } = await crud.updateTaskField(sb, id, { done });
 		if (error) { tasks = oldTasks; return; }
-		const subtask = tasks.find((t) => t.id === id);
-		if (subtask?.parent_id) {
-			const siblings = tasks.filter((t) => t.parent_id === subtask.parent_id);
-			const allDone = siblings.every((t) => t.done);
-			const parent = tasks.find((t) => t.id === subtask.parent_id);
-			if (parent && parent.done !== allDone) {
-				tasks = tasks.map((t) => (t.id === parent.id ? { ...t, done: allDone } : t));
-				await crud.updateTaskField(sb, parent.id, { done: allDone });
-			}
-		}
 	}
 
 	async function updateSubtask(id: string, text: string) {
@@ -351,12 +357,27 @@ export function createTaskStore() {
 	async function bulkMoveToList(ids: string[], targetListId: string) {
 		const oldTasks = tasks;
 		const basePos = tasks.filter((t) => t.list_id === targetListId && !t.parent_id).length;
+		// Alle Nachkommen der ausgewaehlten Tasks sammeln
+		const allDescendantIds = new Set<string>();
+		for (const id of ids) {
+			for (const dId of getDescendantIds(id)) {
+				allDescendantIds.add(dId);
+			}
+		}
+		const idsSet = new Set(ids);
 		tasks = tasks.map((t) => {
-			const bulkIdx = ids.indexOf(t.id);
-			return bulkIdx >= 0 ? { ...t, list_id: targetListId, position: basePos + bulkIdx } : t;
+			if (idsSet.has(t.id)) return { ...t, list_id: targetListId, position: basePos + ids.indexOf(t.id) };
+			if (allDescendantIds.has(t.id)) return { ...t, list_id: targetListId };
+			return t;
 		});
+		// Haupt-Tasks verschieben
 		const { error } = await crud.bulkMoveToList(sb, ids, targetListId, basePos);
-		if (error) tasks = oldTasks;
+		if (error) { tasks = oldTasks; return; }
+		// Nachkommen verschieben
+		if (allDescendantIds.size > 0) {
+			const { error: descError } = await crud.bulkUpdateField(sb, [...allDescendantIds], { list_id: targetListId });
+			if (descError) tasks = oldTasks;
+		}
 	}
 
 	// ==========================================
@@ -423,7 +444,15 @@ export function createTaskStore() {
 			});
 		}
 
-		// 5. Optimistisch lokalen State aktualisieren
+		// 5. Bei Listwechsel: Nachkommen mitnehmen
+		const descendantIds = isMoving ? getDescendantIds(taskId) : new Set<string>();
+		if (isMoving && descendantIds.size > 0) {
+			for (const dId of descendantIds) {
+				updates.push({ id: dId, position: 0, list_id: targetListId });
+			}
+		}
+
+		// 6. Optimistisch lokalen State aktualisieren
 		const posMap = new Map(updates.map((u) => [u.id, u]));
 		tasks = tasks.map((t) => {
 			const u = posMap.get(t.id);
@@ -433,7 +462,7 @@ export function createTaskStore() {
 			return updated;
 		});
 
-		// 6. DB-Updates persistieren
+		// 7. DB-Updates persistieren
 		if (updates.length > 0) {
 			const { error } = await crud.reorderTasksDb(sb, updates);
 			if (error) tasks = oldTasks;
