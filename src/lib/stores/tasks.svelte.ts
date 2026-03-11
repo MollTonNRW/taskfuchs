@@ -374,14 +374,36 @@ export function createTaskStore() {
 		const sourceListId = task.list_id;
 		const isMoving = sourceListId !== targetListId;
 
-		// 1. ALLE Top-Level-Items (Tasks + Divider) in der Zielliste, OHNE den gezogenen Task
+		// Visuelle Sortierung (gleich wie activeTasks in ListPanel): highlighted zuerst, dann position
+		const visualSort = (a: Task, b: Task) => {
+			if (a.highlighted && !b.highlighted) return -1;
+			if (!a.highlighted && b.highlighted) return 1;
+			return a.position - b.position;
+		};
+
+		// 1. Off-by-one Fix: Bei Same-List-Moves den visuellen Ursprungsindex ermitteln
+		let adjustedPos = newPosition;
+		if (!isMoving) {
+			const allVisual = tasks
+				.filter((t) => t.list_id === targetListId && !t.parent_id)
+				.filter((t) => t.type === 'divider' || !t.done)
+				.sort(visualSort);
+			const origIdx = allVisual.findIndex((t) => t.id === taskId);
+			// UI-dropIdx basiert auf Liste MIT dem gedraggten Element.
+			// targetItems hat es schon entfernt → Indizes ab origIdx verschieben sich.
+			if (origIdx !== -1 && origIdx < newPosition) {
+				adjustedPos = newPosition - 1;
+			}
+		}
+
+		// 2. ALLE Top-Level-Items in der Zielliste, OHNE den gezogenen Task, visuell sortiert
 		const targetItems = tasks
 			.filter((t) => t.list_id === targetListId && !t.parent_id && t.id !== taskId)
 			.filter((t) => t.type === 'divider' || !t.done)
-			.sort((a, b) => a.position - b.position);
+			.sort(visualSort);
 
-		// 2. Task an neuer Position einfügen (unter allen Items inkl. Divider)
-		const clampedPos = Math.max(0, Math.min(newPosition, targetItems.length));
+		// 3. Task an neuer (korrigierter) Position einfügen
+		const clampedPos = Math.max(0, Math.min(adjustedPos, targetItems.length));
 		targetItems.splice(clampedPos, 0, { ...task, list_id: targetListId } as Task);
 
 		// 3. Neue Positionen zuweisen — ALLE Items (Tasks + Divider) sequentiell 0, 1, 2, ...
