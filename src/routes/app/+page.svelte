@@ -289,14 +289,6 @@
 					action: () => store.changeTaskPriority(task.id, p)
 				}))
 			},
-			{
-				label: 'Fortschritt',
-				icon: { svg: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', color: 'text-green-500' },
-				submenu: [0, 1, 2, 3].map((prog) => ({
-					label: progressLabels[prog], color: progressColors[prog], active: task.progress === prog,
-					action: () => store.changeTaskProgress(task.id, prog)
-				}))
-			},
 			{ divider: true, label: '' },
 			{
 				label: task.highlighted ? 'Fixierung aufheben' : 'Fixieren',
