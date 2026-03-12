@@ -13,16 +13,16 @@
   "backgroundColor": "#FFFFFF",
   "enableNotifications": false,
   "startUrl": "/app",
-  "iconUrl": "https://taskfuchs.pages.dev/icons/icon-512x512.png",
-  "maskableIconUrl": "https://taskfuchs.pages.dev/icons/icon-512x512.png",
+  "iconUrl": "https://taskfuchs.molltoncreative.de/icons/icon-512x512.png",
+  "maskableIconUrl": "https://taskfuchs.molltoncreative.de/icons/icon-512x512.png",
   "monochromeIconUrl": "",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
     "path": "taskfuchs-keystore.jks",
     "alias": "taskfuchs"
   },
-  "appVersionName": "1",
-  "appVersionCode": 3,
+  "appVersionName": "1.1",
+  "appVersionCode": 4,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://taskfuchs.molltoncreative.de/manifest.json",
@@ -37,9 +37,14 @@
   "fullScopeUrl": "https://taskfuchs.molltoncreative.de/",
   "minSdkVersion": 21,
   "orientation": "portrait",
-  "fingerprints": [],
+  "fingerprints": [
+    {
+      "type": "sha256_cert",
+      "value": "91:18:2F:4A:89:DA:C8:DB:7F:1D:6E:6D:A7:F1:A7:C9:5B:DE:67:10:ED:DB:DC:67:40:C0:87:50:86:2A:80:D8"
+    }
+  ],
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "displayOverride": [],
-  "appVersion": "1"
+  "appVersion": "1.1"
 }

@@ -31,3 +31,4 @@ twa/*.aab
 twa/.gradle/
 twa/build/
 twa/app/build/
+twa/local.properties

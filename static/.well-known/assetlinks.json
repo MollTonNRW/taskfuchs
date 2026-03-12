@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "de.molltoncreative.taskfuchs",
+      "sha256_cert_fingerprints": [
+        "91:18:2F:4A:89:DA:C8:DB:7F:1D:6E:6D:A7:F1:A7:C9:5B:DE:67:10:ED:DB:DC:67:40:C0:87:50:86:2A:80:D8"
+      ]
+    }
+  }
+]
