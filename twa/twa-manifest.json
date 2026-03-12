@@ -13,8 +13,8 @@
   "backgroundColor": "#ffffff",
   "enableNotifications": false,
   "startUrl": "/app",
-  "iconUrl": "https://taskfuchs.molltoncreative.de/icons/icon-512x512.png",
-  "maskableIconUrl": "https://taskfuchs.molltoncreative.de/icons/icon-512x512.png",
+  "iconUrl": "https://taskfuchs.pages.dev/icons/icon-512x512.png",
+  "maskableIconUrl": "https://taskfuchs.pages.dev/icons/icon-512x512.png",
   "monochromeIconUrl": "",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
