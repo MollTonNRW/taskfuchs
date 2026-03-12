@@ -1,0 +1,41 @@
+{
+  "packageId": "de.molltoncreative.taskfuchs",
+  "host": "taskfuchs.molltoncreative.de",
+  "name": "TaskFuchs",
+  "launcherName": "TaskFuchs",
+  "display": "standalone",
+  "themeColor": "#f97316",
+  "themeColorDark": "#ea580c",
+  "navigationColor": "#ffffff",
+  "navigationColorDark": "#1a1a1a",
+  "navigationDividerColor": "#ffffff",
+  "navigationDividerColorDark": "#1a1a1a",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": false,
+  "startUrl": "/app",
+  "iconUrl": "https://taskfuchs.molltoncreative.de/icons/icon-512x512.png",
+  "maskableIconUrl": "https://taskfuchs.molltoncreative.de/icons/icon-512x512.png",
+  "monochromeIconUrl": "",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "taskfuchs-keystore.jks",
+    "alias": "taskfuchs"
+  },
+  "appVersionCode": 1,
+  "appVersionName": "1.0.0",
+  "shortcuts": [],
+  "generatorApp": "nicolo-ribaudo/nicolo-ribaudo/bubblewrap-cli",
+  "webManifestUrl": "https://taskfuchs.molltoncreative.de/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://taskfuchs.molltoncreative.de/",
+  "minSdkVersion": 19,
+  "orientation": "portrait",
+  "fingerprints": []
+}

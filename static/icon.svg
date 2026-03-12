@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#f97316"/>
+  <g transform="translate(256,240)">
+    <!-- Fox ears -->
+    <polygon points="-90,-140 -130,-60 -50,-80" fill="#fff" opacity="0.9"/>
+    <polygon points="90,-140 130,-60 50,-80" fill="#fff" opacity="0.9"/>
+    <!-- Fox face -->
+    <ellipse cx="0" cy="-20" rx="100" ry="90" fill="#fff"/>
+    <!-- Eyes -->
+    <circle cx="-35" cy="-40" r="12" fill="#f97316"/>
+    <circle cx="35" cy="-40" r="12" fill="#f97316"/>
+    <!-- Nose -->
+    <polygon points="0,0 -10,15 10,15" fill="#ea580c"/>
+  </g>
+  <!-- Checkmark -->
+  <g transform="translate(256,370)">
+    <polyline points="-40,0 -10,30 40,-25" stroke="#fff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>
