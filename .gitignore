@@ -22,3 +22,12 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# TWA Build Artifacts
+twa/taskfuchs-keystore.jks
+twa/*.apk
+twa/*.apk.idsig
+twa/*.aab
+twa/.gradle/
+twa/build/
+twa/app/build/
