@@ -52,7 +52,7 @@
 
 	let editing = $state(false);
 	let editText = $state('');
-	let subtasksOpen = $state(false);
+	let subtasksOpen = $state(true);
 	let addingSubtask = $state(false);
 	let newSubtaskText = $state('');
 	let animating = $state(false);

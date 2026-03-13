@@ -24,7 +24,7 @@
 
 	let editing = $state(false);
 	let editText = $state('');
-	let childrenOpen = $state(false);
+	let childrenOpen = $state(true);
 	let addingChild = $state(false);
 	let newChildText = $state('');
 
