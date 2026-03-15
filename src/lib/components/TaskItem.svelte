@@ -170,10 +170,17 @@
 		if (e.key === 'Escape') { editing = false; }
 	}
 
+	let completingText = $state(false);
+
 	function handleToggle() {
+		const willBeDone = !task.done;
 		animClass = 'task-check';
 		animating = true;
-		onToggle(task.id, !task.done);
+		if (willBeDone) {
+			completingText = true;
+			setTimeout(() => { completingText = false; }, 400);
+		}
+		onToggle(task.id, willBeDone);
 		setTimeout(() => { animating = false; animClass = ''; }, 400);
 	}
 
@@ -291,7 +298,7 @@
 				{:else}
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<span
-						class="task-text text-sm font-medium cursor-pointer {task.done ? 'line-through opacity-40' : ''}"
+						class="task-text text-sm font-medium cursor-pointer {task.done ? 'line-through opacity-40' : ''} {completingText ? 'task-text-completing' : ''}"
 						style="color: var(--tf-text);"
 					>
 						{task.text}
@@ -375,7 +382,7 @@
 			>
 				<div class="flex-1 h-[8px] rounded-full overflow-hidden" style="background: var(--tf-border);">
 					<div
-						class="h-full rounded-full transition-all duration-500 ease-out progress-fill-{displayProgress}"
+						class="h-full rounded-full transition-all duration-500 ease-out progress-fill-{displayProgress} {displayPercent === 100 ? 'progress-complete' : ''}"
 						style="width: {displayPercent}%"
 					></div>
 				</div>

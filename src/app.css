@@ -30,13 +30,27 @@ body {
 /* =============================================
    TASK ANIMATIONS
    ============================================= */
+/* Animation 4: Slide-Down neue Task (aufgewertet) */
 @keyframes task-slide-in {
-	from { opacity: 0; }
-	to { opacity: 1; }
+	from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+	to { opacity: 1; transform: translateY(0) scale(1); }
 }
+/* Animation 2: Slide-Out beim Löschen (aufgewertet) */
 @keyframes task-slide-out {
-	from { opacity: 1; }
-	to { opacity: 0; }
+	from { opacity: 1; transform: translateX(0); max-height: 200px; }
+	to { opacity: 0; transform: translateX(60px); max-height: 0; }
+}
+/* Animation 1: Checkmark Pop (scale bounce) */
+@keyframes checkmark-pop {
+	0% { transform: scale(1); }
+	30% { transform: scale(1.35); }
+	60% { transform: scale(0.9); }
+	100% { transform: scale(1); }
+}
+/* Animation 1: Strikethrough Wipe (von links nach rechts) */
+@keyframes strikethrough-wipe {
+	from { text-decoration-color: transparent; opacity: 1; }
+	to { text-decoration-color: currentColor; opacity: 0.4; }
 }
 @keyframes task-check {
 	0% { opacity: 1; }
@@ -71,9 +85,11 @@ body {
 	from { opacity: 0; transform: scale(.92) translateY(-4px); }
 	to { opacity: 1; transform: none; }
 }
+/* Animation 5: Pin-Drop (aufgewertet mit Bounce) */
 @keyframes pin-card-in {
-	from { opacity: 0; transform: scale(.9) translateY(8px); }
-	to { opacity: 1; transform: scale(1) translateY(0); }
+	0% { opacity: 0; transform: scale(0.85) translateY(-16px) rotate(-2deg); }
+	60% { opacity: 1; transform: scale(1.03) translateY(2px) rotate(0.5deg); }
+	100% { opacity: 1; transform: scale(1) translateY(0) rotate(0deg); }
 }
 @keyframes note-pop-in {
 	from { opacity: 0; transform: translateY(4px) scale(.95); }
@@ -86,8 +102,10 @@ body {
 }
 
 .task-enter { animation: task-slide-in .35s cubic-bezier(.34,1.56,.64,1) forwards; }
-.task-exit { animation: task-slide-out .3s cubic-bezier(.55,.06,.68,.19) forwards; }
+.task-exit { animation: task-slide-out .3s cubic-bezier(.55,.06,.68,.19) forwards; overflow: hidden; }
 .task-check { animation: task-check .4s ease forwards; }
+.task-check .custom-checkbox .checkmark { animation: checkmark-pop .35s cubic-bezier(.34,1.56,.64,1); }
+.task-text-completing { animation: strikethrough-wipe .4s cubic-bezier(.25,.1,.25,1) forwards; text-decoration: line-through; }
 .task-uncheck { animation: task-uncheck .3s ease forwards; }
 .task-highlight-in { animation: highlight-pulse .5s cubic-bezier(.34,1.56,.64,1) forwards; }
 .task-move-up { animation: move-up .4s cubic-bezier(.34,1.56,.64,1) forwards; }
@@ -166,6 +184,19 @@ body {
 .progress-fill-3 { background: linear-gradient(90deg, #22c55e, #4ade80); box-shadow: 0 0 8px rgba(34,197,94,.4); }
 .progress-bar-modern:hover .progress-track { height: 8px; border-radius: 4px; }
 .progress-bar-modern:hover .progress-fill { border-radius: 4px; }
+
+/* Animation 3: Shimmer bei 100% Fortschritt */
+@keyframes progress-shimmer {
+	0% { left: -40%; }
+	100% { left: 140%; }
+}
+.progress-complete { position: relative; overflow: hidden; }
+.progress-complete::after {
+	content: ''; position: absolute; inset: 0;
+	background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.45) 50%, transparent 100%);
+	width: 40%; left: -40%;
+	animation: progress-shimmer 1.5s cubic-bezier(.4,0,.2,1) 1 forwards;
+}
 
 /* Progress glow on task card */
 .task-item:has(.progress-fill-3) { box-shadow: inset 0 0 0 1px rgba(34,197,94,.2), 0 0 8px rgba(34,197,94,.08); }
@@ -270,7 +301,7 @@ body {
    ============================================= */
 .pinboard { transition: max-height .4s cubic-bezier(.4,0,.2,1), opacity .3s, padding .3s; overflow: hidden; }
 .pinboard.collapsed { max-height: 0 !important; opacity: 0; padding-top: 0 !important; padding-bottom: 0 !important; }
-.pin-card { animation: pin-card-in .3s cubic-bezier(.34,1.56,.64,1) forwards; }
+.pin-card { animation: pin-card-in .4s cubic-bezier(.34,1.56,.64,1) forwards; }
 
 /* =============================================
    NOTE POPOVER
@@ -728,3 +759,14 @@ body {
 .dark .focus-overlay { background: rgba(0,0,0,.7); }
 .dark .focus-card { background: var(--tf-surface); border-color: var(--tf-border); }
 .dark .tf-surface-interactive:hover { box-shadow: 0 2px 12px rgba(0,0,0,.2); }
+
+/* =============================================
+   BARRIEREFREIHEIT: Reduzierte Bewegung
+   ============================================= */
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
