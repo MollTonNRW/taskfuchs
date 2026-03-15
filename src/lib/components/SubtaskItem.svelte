@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
 	import type { Database } from '$lib/types/database';
+	import { touchDragHandle, touchDropZone } from '$lib/actions/touchDrag';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 
@@ -113,6 +114,31 @@
 			}
 		} catch { /* ignore */ }
 	}
+
+	// Touch D&D: compute drop position from touch coordinates
+	function handleTouchSubtaskDrop(data: unknown, el: HTMLElement, _x: number, y: number) {
+		if (!onReorderSubtask) return;
+		const d = data as { subtaskId: string; sourceParentId: string };
+		if (!d.subtaskId || d.subtaskId === subtask.id || !subtask.parent_id) return;
+		const rect = el.getBoundingClientRect();
+		const pos = y > rect.top + rect.height / 2 ? 'below' : 'above';
+		const siblings = allTasks
+			.filter((t) => t.parent_id === subtask.parent_id)
+			.sort((a, b) => a.position - b.position);
+		const targetIdx = siblings.findIndex((s) => s.id === subtask.id);
+		const newPos = pos === 'below' ? targetIdx + 1 : targetIdx;
+		onReorderSubtask(d.subtaskId, subtask.parent_id, newPos);
+	}
+
+	function handleTouchSubtaskOver(_el: HTMLElement, _x: number, y: number) {
+		const rect = _el.getBoundingClientRect();
+		dragOverPosition = y > rect.top + rect.height / 2 ? 'below' : 'above';
+		dragOverThis = true;
+	}
+
+	function handleTouchSubtaskLeave() {
+		dragOverThis = false;
+	}
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -121,14 +147,16 @@
 	ondragover={handleSubtaskDragOver}
 	ondragleave={handleSubtaskDragLeave}
 	ondrop={handleSubtaskDrop}
+	use:touchDropZone={{ type: 'subtask', onDragOver: handleTouchSubtaskOver, onDragLeave: handleTouchSubtaskLeave, onDrop: handleTouchSubtaskDrop }}
 >
-	<!-- Drag Handle (desktop only) -->
+	<!-- Drag Handle -->
 	<div
-		class="subtask-drag-handle hidden md:flex items-center cursor-grab active:cursor-grabbing"
+		class="subtask-drag-handle flex items-center cursor-grab active:cursor-grabbing"
 		style="color: var(--tf-text-muted);"
 		draggable="true"
 		ondragstart={handleSubtaskDragStart}
 		ondragend={handleSubtaskDragEnd}
+		use:touchDragHandle={{ data: { subtaskId: subtask.id, sourceParentId: subtask.parent_id }, type: 'subtask' }}
 		role="button"
 		tabindex="-1"
 		aria-label="Unteraufgabe verschieben"

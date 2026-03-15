@@ -5,6 +5,7 @@
 	import PriorityPicker from './PriorityPicker.svelte';
 	import { profileMap, getInitials } from '$lib/stores/profiles';
 	import { priorityColors, priorityBadgeBg, priorityLabels, priorityOrder, progressLabels } from '$lib/constants';
+	import { touchDragHandle } from '$lib/actions/touchDrag';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 
@@ -24,6 +25,8 @@
 		onNoteClick,
 		onDragStart,
 		onDragEnd,
+		touchDragData,
+		touchDragType = 'task',
 		onTaskClick,
 		onEmojiClick,
 		onChangeProgress,
@@ -45,6 +48,8 @@
 		onNoteClick?: (taskId: string, x: number, y: number) => void;
 		onDragStart?: (e: DragEvent) => void;
 		onDragEnd?: (e: DragEvent) => void;
+		touchDragData?: unknown;
+		touchDragType?: string;
 		onTaskClick?: (taskId: string) => void;
 		onEmojiClick?: (taskId: string, x: number, y: number) => void;
 		onChangeProgress?: (id: string, progress: number) => void;
@@ -236,6 +241,20 @@
 		oncontextmenu={(e) => { if (onContext) { e.preventDefault(); e.stopPropagation(); onContext(e); } }}
 	>
 		<div class="task-row">
+			<!-- Touch Drag Handle (mobile) -->
+			{#if touchDragData && !task.highlighted}
+				<div
+					class="task-touch-drag-handle md:hidden flex items-center cursor-grab active:cursor-grabbing touch-action-none"
+					style="color: var(--tf-text-muted);"
+					use:touchDragHandle={{ data: touchDragData, type: touchDragType }}
+					role="button"
+					tabindex="-1"
+					aria-label="Aufgabe verschieben"
+				>
+					<svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+				</div>
+			{/if}
+
 			<!-- Priority Bar -->
 			<div
 				class="priority-bar badge-clickable"

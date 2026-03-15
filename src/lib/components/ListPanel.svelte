@@ -2,6 +2,7 @@
 	import { slide } from 'svelte/transition';
 	import type { Database } from '$lib/types/database';
 	import TaskItem from './TaskItem.svelte';
+	import { touchDragHandle, touchDropZone } from '$lib/actions/touchDrag';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -160,6 +161,62 @@
 		} catch { /* ignore */ }
 	}
 
+	// Touch D&D: task drop
+	function handleTouchTaskDrop(data: unknown, el: HTMLElement, _x: number, y: number) {
+		if (!onReorderTask) return;
+		const d = data as { taskId: string; sourceListId: string };
+		if (!d.taskId) return;
+		// Find which task index this drop target corresponds to
+		const rect = el.getBoundingClientRect();
+		const isBelow = y > rect.top + rect.height / 2;
+		const taskEls = el.closest('.task-list-scroll')?.querySelectorAll('[data-task-idx]');
+		let dropIdx = activeTasks.length;
+		if (taskEls) {
+			taskEls.forEach((te) => {
+				if (te === el || te.contains(el)) {
+					const idx = parseInt(te.getAttribute('data-task-idx') || '0');
+					dropIdx = isBelow ? idx + 1 : idx;
+				}
+			});
+		}
+		onReorderTask(d.taskId, list.id, dropIdx);
+	}
+
+	function handleTouchTaskOver(el: HTMLElement, _x: number, y: number) {
+		const rect = el.getBoundingClientRect();
+		const isBelow = y > rect.top + rect.height / 2;
+		const taskEls = el.closest('.task-list-scroll')?.querySelectorAll('[data-task-idx]');
+		if (taskEls) {
+			taskEls.forEach((te) => {
+				if (te === el || te.contains(el)) {
+					const idx = parseInt(te.getAttribute('data-task-idx') || '0');
+					dragOverIdx = isBelow ? idx + 1 : idx;
+				}
+			});
+		}
+	}
+
+	function handleTouchTaskLeave() {
+		dragOverIdx = null;
+	}
+
+	// Touch D&D: list drop
+	function handleTouchListDrop(data: unknown) {
+		if (!onReorderList || listIndex === undefined) return;
+		const d = data as { listId: string };
+		if (d.listId && d.listId !== list.id) {
+			onReorderList(d.listId, listIndex);
+		}
+	}
+
+	function handleTouchListOver(el: HTMLElement) {
+		el.closest('.list-panel')?.classList.add('list-drag-over');
+	}
+
+	function handleTouchListLeave(el: HTMLElement) {
+		el.closest('.list-panel')?.classList.remove('list-drag-over');
+	}
+
 	// List D&D (desktop)
 	function handleListDragStart(e: DragEvent) {
 		if (!e.dataTransfer) return;
@@ -205,6 +262,7 @@
 	ondragover={handleListPanelDragOver}
 	ondragleave={handleListPanelDragLeave}
 	ondrop={handleListPanelDrop}
+	use:touchDropZone={{ type: 'list', onDragOver: handleTouchListOver, onDragLeave: handleTouchListLeave, onDrop: handleTouchListDrop }}
 	role="list"
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -216,12 +274,13 @@
 		<!-- Header -->
 		<div class="px-5 pt-5 pb-3 flex items-center justify-between">
 			<div class="flex items-center gap-2.5 flex-1 min-w-0">
-				<!-- List Drag Handle (desktop only) -->
+				<!-- List Drag Handle -->
 				<div
-					class="list-drag-handle hidden md:flex items-center"
+					class="list-drag-handle flex items-center"
 					draggable="true"
 					ondragstart={handleListDragStart}
 					ondragend={handleListDragEnd}
+					use:touchDragHandle={{ data: { listId: list.id, listIndex }, type: 'list' }}
 					role="button"
 					tabindex="-1"
 					aria-label="Liste verschieben"
@@ -403,8 +462,10 @@
 					<div
 						transition:slide|global={{ duration: 250 }}
 						class="flex items-start gap-1 {dragOverIdx === idx ? 'drag-over' : ''}"
+						data-task-idx={idx}
 						ondragover={(e) => handleTaskDragOver(e, idx)}
 						ondrop={(e) => handleTaskDrop(e, idx)}
+						use:touchDropZone={{ type: 'task', onDragOver: handleTouchTaskOver, onDragLeave: handleTouchTaskLeave, onDrop: handleTouchTaskDrop }}
 					>
 						{#if bulkMode && onBulkToggle}
 							<label class="flex-shrink-0 mt-3 ml-1 cursor-pointer" onclick={(e) => e.stopPropagation()}>
@@ -436,6 +497,8 @@
 							{onNoteClick}
 							onDragStart={(e) => handleTaskDragStart(e, task)}
 							onDragEnd={handleTaskDragEnd}
+							touchDragData={{ taskId: task.id, sourceListId: list.id }}
+							touchDragType="task"
 							{onTaskClick}
 							forceCollapse={allCollapsed}
 						/>
