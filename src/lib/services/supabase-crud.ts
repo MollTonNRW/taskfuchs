@@ -94,6 +94,16 @@ export async function reorderTasksDb(sb: Sb, updates: { id: string; position: nu
 	return { error: null };
 }
 
+export async function reorderSubtasksDb(sb: Sb, updates: { id: string; position: number; parent_id?: string }[]) {
+	for (const u of updates) {
+		const updateData: Record<string, unknown> = { position: u.position };
+		if (u.parent_id) updateData.parent_id = u.parent_id;
+		const { error } = await sb.from('tasks').update(updateData).eq('id', u.id);
+		if (error) return { error };
+	}
+	return { error: null };
+}
+
 // ==========================================
 // DIVIDER
 // ==========================================

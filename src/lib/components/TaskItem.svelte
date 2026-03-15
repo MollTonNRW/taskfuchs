@@ -27,6 +27,7 @@
 		onTaskClick,
 		onEmojiClick,
 		onChangeProgress,
+		onReorderSubtask,
 		forceCollapse = false
 	}: {
 		task: Task;
@@ -47,6 +48,7 @@
 		onTaskClick?: (taskId: string) => void;
 		onEmojiClick?: (taskId: string, x: number, y: number) => void;
 		onChangeProgress?: (id: string, progress: number) => void;
+		onReorderSubtask?: (subtaskId: string, targetParentId: string, newPosition: number) => void;
 		forceCollapse?: boolean;
 	} = $props();
 
@@ -408,6 +410,7 @@
 						onUpdate={onUpdateSubtask}
 						onDelete={onDeleteSubtask}
 						onAddSubtask={onAddSubtask}
+						{onReorderSubtask}
 					/>
 				{/each}
 			</div>

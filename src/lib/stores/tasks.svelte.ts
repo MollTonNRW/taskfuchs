@@ -469,6 +469,71 @@ export function createTaskStore() {
 		}
 	}
 
+	async function reorderSubtask(subtaskId: string, targetParentId: string, newPosition: number) {
+		const subtask = tasks.find((t) => t.id === subtaskId);
+		if (!subtask || !subtask.parent_id) return;
+		const oldTasks = [...tasks];
+		const sourceParentId = subtask.parent_id;
+		const isMoving = sourceParentId !== targetParentId;
+
+		// Get siblings in target parent (excluding dragged subtask), sorted by position
+		const targetSiblings = tasks
+			.filter((t) => t.parent_id === targetParentId && t.id !== subtaskId)
+			.sort((a, b) => a.position - b.position);
+
+		// Off-by-one fix for same-parent moves
+		let adjustedPos = newPosition;
+		if (!isMoving) {
+			const allSiblings = tasks
+				.filter((t) => t.parent_id === targetParentId)
+				.sort((a, b) => a.position - b.position);
+			const origIdx = allSiblings.findIndex((t) => t.id === subtaskId);
+			if (origIdx !== -1 && origIdx < newPosition) {
+				adjustedPos = newPosition - 1;
+			}
+		}
+
+		const clampedPos = Math.max(0, Math.min(adjustedPos, targetSiblings.length));
+		targetSiblings.splice(clampedPos, 0, { ...subtask, parent_id: targetParentId });
+
+		// Build updates
+		const updates: { id: string; position: number; parent_id?: string }[] = [];
+		targetSiblings.forEach((t, i) => {
+			const needsParentUpdate = t.id === subtaskId && isMoving;
+			if (t.position !== i || needsParentUpdate) {
+				updates.push({ id: t.id, position: i, ...(needsParentUpdate ? { parent_id: targetParentId } : {}) });
+			}
+		});
+
+		// Renumber source parent siblings if cross-parent move
+		if (isMoving) {
+			const sourceSiblings = tasks
+				.filter((t) => t.parent_id === sourceParentId && t.id !== subtaskId)
+				.sort((a, b) => a.position - b.position);
+			sourceSiblings.forEach((t, i) => {
+				if (t.position !== i) {
+					updates.push({ id: t.id, position: i });
+				}
+			});
+		}
+
+		// Optimistic update
+		const posMap = new Map(updates.map((u) => [u.id, u]));
+		tasks = tasks.map((t) => {
+			const u = posMap.get(t.id);
+			if (!u) return t;
+			const updated = { ...t, position: u.position };
+			if (u.parent_id) updated.parent_id = u.parent_id;
+			return updated;
+		});
+
+		// Persist
+		if (updates.length > 0) {
+			const { error } = await crud.reorderSubtasksDb(sb, updates);
+			if (error) tasks = oldTasks;
+		}
+	}
+
 	// ==========================================
 	// DIVIDER
 	// ==========================================
@@ -541,7 +606,7 @@ export function createTaskStore() {
 		// Bulk operations
 		bulkToggleDone, bulkChangePriority, bulkDelete, bulkMoveToList,
 		// Reorder
-		reorderTask,
+		reorderTask, reorderSubtask,
 		// Divider
 		createDivider,
 		// Realtime

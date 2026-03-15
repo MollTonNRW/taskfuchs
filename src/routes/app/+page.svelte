@@ -843,6 +843,7 @@
 							onTaskContext={handleTaskContext}
 							onNoteClick={openNotePopover}
 							onReorderTask={store.reorderTask}
+							onReorderSubtask={store.reorderSubtask}
 							onShareClick={() => openShareDialog(store.lists[activeListIndex])}
 							onTaskClick={openFocusMode}
 							{bulkMode}
@@ -895,6 +896,7 @@
 							onTaskContext={handleTaskContext}
 							onNoteClick={openNotePopover}
 							onReorderTask={store.reorderTask}
+							onReorderSubtask={store.reorderSubtask}
 							onReorderList={(listId: string, newPos: number) => store.reorderList(listId, newPos)}
 							onShareClick={() => openShareDialog(list)}
 							onTaskClick={openFocusMode}

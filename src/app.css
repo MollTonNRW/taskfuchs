@@ -179,6 +179,9 @@ body {
 .drag-handle:hover { opacity: 1 !important; }
 .dragging { opacity: .5; transform: scale(.98); }
 .drag-over { border-top: 2px solid #3b82f6; }
+.subtask-drag-over-above { border-top: 2px solid #3b82f6; }
+.subtask-drag-over-below { border-bottom: 2px solid #3b82f6; }
+.subtask-drag-handle:hover { opacity: 1 !important; }
 
 /* =============================================
    TASK ROW LAYOUT

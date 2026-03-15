@@ -26,6 +26,7 @@
 		onNoteClick,
 		onReorderTask,
 		onReorderList,
+		onReorderSubtask,
 		onShareClick,
 		onTaskClick,
 		onEmojiClick,
@@ -56,6 +57,7 @@
 		onNoteClick?: (taskId: string, x: number, y: number) => void;
 		onReorderTask?: (taskId: string, targetListId: string, newPosition: number) => void;
 		onReorderList?: (listId: string, newPosition: number) => void;
+		onReorderSubtask?: (subtaskId: string, targetParentId: string, newPosition: number) => void;
 		onShareClick?: () => void;
 		onTaskClick?: (taskId: string) => void;
 		onEmojiClick?: (taskId: string, x: number, y: number) => void;
@@ -429,6 +431,7 @@
 							{onChangePriority}
 							{onEmojiClick}
 							{onChangeProgress}
+							{onReorderSubtask}
 							onContext={(e) => onTaskContext?.(e, task)}
 							{onNoteClick}
 							onDragStart={(e) => handleTaskDragStart(e, task)}
@@ -501,6 +504,7 @@
 									{onUpdateSubtask}
 									{onDeleteSubtask}
 									{onChangePriority}
+									{onReorderSubtask}
 									onContext={(e) => onTaskContext?.(e, task)}
 									{onNoteClick}
 									{onTaskClick}

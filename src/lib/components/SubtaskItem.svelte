@@ -11,7 +11,8 @@
 		onToggle,
 		onUpdate,
 		onDelete,
-		onAddSubtask
+		onAddSubtask,
+		onReorderSubtask
 	}: {
 		subtask: Task;
 		allTasks: Task[];
@@ -20,6 +21,7 @@
 		onUpdate: (id: string, text: string) => void;
 		onDelete: (id: string) => void;
 		onAddSubtask?: (parentId: string, text: string) => void;
+		onReorderSubtask?: (subtaskId: string, targetParentId: string, newPosition: number) => void;
 	} = $props();
 
 	let editing = $state(false);
@@ -27,6 +29,9 @@
 	let childrenOpen = $state(true);
 	let addingChild = $state(false);
 	let newChildText = $state('');
+
+	let dragOverThis = $state(false);
+	let dragOverPosition = $state<'above' | 'below'>('below');
 
 	let children = $derived(allTasks.filter((t) => t.parent_id === subtask.id));
 	let childrenDone = $derived(children.filter((c) => c.done).length);
@@ -62,11 +67,72 @@
 		if (e.key === 'Enter') { e.preventDefault(); handleAddChild(); }
 		if (e.key === 'Escape') { addingChild = false; newChildText = ''; }
 	}
+
+	// Subtask Drag & Drop
+	function handleSubtaskDragStart(e: DragEvent) {
+		if (!e.dataTransfer) return;
+		e.dataTransfer.effectAllowed = 'move';
+		e.dataTransfer.setData('application/x-subtask', JSON.stringify({
+			subtaskId: subtask.id,
+			sourceParentId: subtask.parent_id
+		}));
+		(e.target as HTMLElement).closest('.subtask-item')?.classList.add('dragging');
+	}
+
+	function handleSubtaskDragEnd(e: DragEvent) {
+		(e.target as HTMLElement).closest('.subtask-item')?.classList.remove('dragging');
+	}
+
+	function handleSubtaskDragOver(e: DragEvent) {
+		if (!e.dataTransfer?.types.includes('application/x-subtask')) return;
+		e.preventDefault();
+		e.dataTransfer.dropEffect = 'move';
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		dragOverPosition = e.clientY > rect.top + rect.height / 2 ? 'below' : 'above';
+		dragOverThis = true;
+	}
+
+	function handleSubtaskDragLeave() {
+		dragOverThis = false;
+	}
+
+	function handleSubtaskDrop(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		dragOverThis = false;
+		if (!e.dataTransfer || !onReorderSubtask) return;
+		try {
+			const data = JSON.parse(e.dataTransfer.getData('application/x-subtask'));
+			if (data.subtaskId && data.subtaskId !== subtask.id && subtask.parent_id) {
+				const siblings = allTasks
+					.filter((t) => t.parent_id === subtask.parent_id)
+					.sort((a, b) => a.position - b.position);
+				const targetIdx = siblings.findIndex((s) => s.id === subtask.id);
+				const newPos = dragOverPosition === 'below' ? targetIdx + 1 : targetIdx;
+				onReorderSubtask(data.subtaskId, subtask.parent_id, newPos);
+			}
+		} catch { /* ignore */ }
+	}
 </script>
 
-<div class="subtask-item flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 group transition-all duration-200">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	class="subtask-item flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 group transition-all duration-200 {dragOverThis ? (dragOverPosition === 'above' ? 'subtask-drag-over-above' : 'subtask-drag-over-below') : ''}"
+	ondragover={handleSubtaskDragOver}
+	ondragleave={handleSubtaskDragLeave}
+	ondrop={handleSubtaskDrop}
+>
 	<!-- Drag Handle (desktop only) -->
-	<div class="subtask-drag-handle hidden md:block" style="color: var(--tf-text-muted);">
+	<div
+		class="subtask-drag-handle hidden md:flex items-center cursor-grab active:cursor-grabbing"
+		style="color: var(--tf-text-muted);"
+		draggable="true"
+		ondragstart={handleSubtaskDragStart}
+		ondragend={handleSubtaskDragEnd}
+		role="button"
+		tabindex="-1"
+		aria-label="Unteraufgabe verschieben"
+	>
 		<svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="8" r="1.5"/><circle cx="15" cy="8" r="1.5"/><circle cx="9" cy="16" r="1.5"/><circle cx="15" cy="16" r="1.5"/></svg>
 	</div>
 
@@ -145,6 +211,7 @@
 				{onUpdate}
 				{onDelete}
 				{onAddSubtask}
+				{onReorderSubtask}
 			/>
 		{/each}
 	</div>
