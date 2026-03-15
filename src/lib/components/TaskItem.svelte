@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
+	import { tick } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import SubtaskItem from './SubtaskItem.svelte';
 	import PriorityPicker from './PriorityPicker.svelte';
@@ -65,35 +66,28 @@
 	let animating = $state(false);
 	let animClass = $state('');
 	let showFixedToast = $state(false);
+	let subtasksContainer: HTMLDivElement | undefined = $state();
 
-	// Long-Press für Focus Mode (1,5s ohne Bewegung)
-	let longPressTimer: ReturnType<typeof setTimeout> | null = null;
-	let longPressStartPos = { x: 0, y: 0 };
-	const LONG_PRESS_MS = 700;
-	const MOVE_THRESHOLD = 10; // px
+	// Click-Handler: Einfacher Klick → Focus, Doppelklick → Inline-Edit
+	let clickTimer: ReturnType<typeof setTimeout> | null = null;
 
-	function startLongPress(e: PointerEvent) {
+	function handleSingleClick(e: MouseEvent) {
 		const target = e.target as HTMLElement;
-		if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.task-content') || target.closest('.priority-bar') || target.closest('.more-menu-btn') || target.closest('.task-badges')) return;
-		longPressStartPos = { x: e.clientX, y: e.clientY };
-		cancelLongPress();
-		longPressTimer = setTimeout(() => {
-			longPressTimer = null;
-			onTaskClick?.(task.id);
-		}, LONG_PRESS_MS);
-	}
+		if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.priority-bar') || target.closest('.more-menu-btn') || target.closest('.task-badges') || target.closest('.add-subtask-inline')) return;
 
-	function moveLongPress(e: PointerEvent) {
-		if (!longPressTimer) return;
-		const dx = e.clientX - longPressStartPos.x;
-		const dy = e.clientY - longPressStartPos.y;
-		if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) {
-			cancelLongPress();
+		if (clickTimer) {
+			// Doppelklick erkannt → Inline-Edit
+			clearTimeout(clickTimer);
+			clickTimer = null;
+			startEdit();
+			return;
 		}
-	}
 
-	function cancelLongPress() {
-		if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+		// Timer starten: wenn kein zweiter Klick → Focus
+		clickTimer = setTimeout(() => {
+			clickTimer = null;
+			onTaskClick?.(task.id);
+		}, 300);
 	}
 
 	// Picker popovers
@@ -189,12 +183,17 @@
 		setTimeout(() => { onDelete(task.id); }, 300);
 	}
 
-	function handleAddSubtask() {
+	async function handleAddSubtask() {
 		const trimmed = newSubtaskText.trim();
 		if (!trimmed) return;
 		onAddSubtask(task.id, trimmed);
 		newSubtaskText = '';
 		addingSubtask = false;
+		await tick();
+		if (subtasksContainer) {
+			const lastChild = subtasksContainer.querySelector('.subtask-item:last-of-type');
+			lastChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		}
 	}
 
 	function handleSubtaskKeydown(e: KeyboardEvent) {
@@ -219,17 +218,14 @@
 		class="task-item rounded-xl px-3 py-2.5 tf-surface tf-surface-interactive border transition-all duration-200 group relative {task.highlighted ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}"
 		style="border-color: var(--tf-border);"
 		draggable={!task.highlighted}
-		onpointerdown={(e) => {
+		onclick={(e) => {
 			if (task.highlighted && !showFixedToast) {
 				const target = e.target as HTMLElement;
 				if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.task-content') || target.closest('.more-menu-btn') || target.closest('.priority-bar') || target.closest('.task-badges')) return;
 				showFixedToast = true; setTimeout(() => showFixedToast = false, 1500);
 			}
-			startLongPress(e);
+			handleSingleClick(e);
 		}}
-		onpointermove={moveLongPress}
-		onpointerup={cancelLongPress}
-		onpointercancel={cancelLongPress}
 		ondragstart={(e) => {
 			cancelLongPress();
 			if (task.highlighted) { e.preventDefault(); return; }
@@ -272,7 +268,7 @@
 			</label>
 
 			<!-- Content -->
-			<div class="task-content" onclick={(e) => e.stopPropagation()}>
+			<div class="task-content">
 				{#if task.emoji}
 					<span
 						class="text-sm cursor-pointer hover:scale-110 transition-transform flex-shrink-0"
@@ -295,9 +291,8 @@
 				{:else}
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<span
-						class="task-text text-sm font-medium cursor-text {task.done ? 'line-through opacity-40' : ''}"
+						class="task-text text-sm font-medium cursor-pointer {task.done ? 'line-through opacity-40' : ''}"
 						style="color: var(--tf-text);"
-						onclick={startEdit}
 					>
 						{task.text}
 					</span>
@@ -352,6 +347,16 @@
 				</div>
 			</div>
 
+			<!-- Add Subtask Button (inline) -->
+			<button
+				onclick={(e) => { e.stopPropagation(); subtasksOpen = true; addingSubtask = true; }}
+				class="add-subtask-inline w-6 h-6 flex items-center justify-center rounded-full border opacity-0 group-hover/task:opacity-40 hover:!opacity-100 transition-all tf-text-muted flex-shrink-0"
+				style="border-color: currentColor;"
+				title="Unteraufgabe hinzufügen"
+			>
+				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+			</button>
+
 			<!-- More Menu -->
 			<button
 				class="more-menu-btn w-7 h-7 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-all flex-shrink-0"
@@ -368,9 +373,9 @@
 				class="w-full px-2 pb-1 pt-0.5 flex items-center gap-1.5"
 				title={autoProgress >= 0 ? `${descendantStats.done}/${descendantStats.total} erledigt (${displayPercent}%)` : `${displayPercent}%`}
 			>
-				<div class="flex-1 h-[3px] rounded-full overflow-hidden" style="background: var(--tf-border);">
+				<div class="flex-1 h-[8px] rounded-full overflow-hidden" style="background: var(--tf-border);">
 					<div
-						class="h-full rounded-full transition-all duration-300 progress-fill-{displayProgress}"
+						class="h-full rounded-full transition-all duration-500 ease-out progress-fill-{displayProgress}"
 						style="width: {displayPercent}%"
 					></div>
 				</div>
@@ -394,32 +399,24 @@
 			</div>
 		{/if}
 
-			<!-- Subtasks Toggle + ⊕ Button -->
-		<div class="mt-1 flex items-center gap-1 group/subtoggle">
-			{#if subtaskCount > 0}
-				<button
-					onclick={() => (subtasksOpen = !subtasksOpen)}
-					class="flex items-center gap-1 text-[11px] tf-text-muted hover:opacity-80 transition-colors"
-				>
-					<svg class="w-3 h-3 transition-transform duration-300 {subtasksOpen ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-					</svg>
-					Unteraufgaben <span class="text-[10px] tf-text-muted">{subtasksDone}/{subtaskCount}</span>
-				</button>
-			{/if}
+		<!-- Subtasks Toggle -->
+		{#if subtaskCount > 0}
+		<div class="mt-1 flex items-center gap-1">
 			<button
-				onclick={() => { subtasksOpen = true; addingSubtask = true; }}
-				class="w-5 h-5 flex items-center justify-center rounded-full border opacity-0 {subtaskCount > 0 ? 'group-hover/subtoggle:opacity-40' : 'group-hover/task:opacity-40'} hover:!opacity-100 transition-all tf-text-muted"
-				style="border-color: currentColor;"
-				title="Unteraufgabe hinzufügen"
+				onclick={() => (subtasksOpen = !subtasksOpen)}
+				class="flex items-center gap-1 text-[11px] tf-text-muted hover:opacity-80 transition-colors"
 			>
-				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+				<svg class="w-3 h-3 transition-transform duration-300 {subtasksOpen ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+				</svg>
+				Unteraufgaben <span class="text-[10px] tf-text-muted">{subtasksDone}/{subtaskCount}</span>
 			</button>
 		</div>
+		{/if}
 
 		<!-- Subtasks List -->
 		{#if subtasksOpen && !forceCollapse && subtaskCount > 0}
-			<div transition:slide|global={{ duration: 200 }} class="mt-2 space-y-0.5">
+			<div bind:this={subtasksContainer} transition:slide|global={{ duration: 200 }} class="mt-2 space-y-0.5">
 				{#each subtasks as sub (sub.id)}
 					<SubtaskItem
 						subtask={sub}

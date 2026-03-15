@@ -535,6 +535,79 @@ export function createTaskStore() {
 	}
 
 	// ==========================================
+	// LIST-LEVEL OPERATIONS
+	// ==========================================
+	async function deleteAllSubtasksInList(listId: string) {
+		const subtaskIds = tasks.filter(t => t.list_id === listId && t.parent_id !== null).map(t => t.id);
+		if (subtaskIds.length === 0) return;
+		const oldTasks = tasks;
+		tasks = tasks.filter(t => !(t.list_id === listId && t.parent_id !== null));
+		const { error } = await crud.bulkDeleteTasks(sb, subtaskIds);
+		if (error) tasks = oldTasks;
+	}
+
+	async function deleteDoneInList(listId: string) {
+		const doneIds = tasks.filter(t => t.list_id === listId && t.done).map(t => t.id);
+		if (doneIds.length === 0) return;
+		const oldTasks = tasks;
+		tasks = tasks.filter(t => !(t.list_id === listId && t.done));
+		const { error } = await crud.bulkDeleteTasks(sb, doneIds);
+		if (error) tasks = oldTasks;
+	}
+
+	async function checkAllInList(listId: string) {
+		const uncheckedIds = tasks.filter(t => t.list_id === listId && !t.done && t.type !== 'divider').map(t => t.id);
+		if (uncheckedIds.length === 0) return;
+		const oldTasks = tasks;
+		tasks = tasks.map(t => (t.list_id === listId && !t.done && t.type !== 'divider') ? { ...t, done: true } : t);
+		const { error } = await crud.bulkUpdateField(sb, uncheckedIds, { done: true });
+		if (error) tasks = oldTasks;
+	}
+
+	async function duplicateList(listId: string): Promise<number> {
+		const sourceList = lists.find(l => l.id === listId);
+		if (!sourceList) return -1;
+		const position = lists.length;
+
+		// Quelldaten VOR Mutation sammeln
+		const sourceTasks = tasks.filter(t => t.list_id === listId && !t.parent_id).sort((a, b) => a.position - b.position);
+		const sourceSubtasks = tasks.filter(t => t.list_id === listId && t.parent_id !== null).sort((a, b) => a.position - b.position);
+
+		// Neue Liste erstellen
+		const { data: newList, error: listErr } = await sb.from('lists').insert({
+			user_id: userId, title: sourceList.title + ' (Kopie)', icon: sourceList.icon, position
+		}).select().single();
+		if (listErr || !newList) return -1;
+		lists = [...lists, newList as List];
+
+		// Top-Level Tasks kopieren
+		const idMap = new Map<string, string>();
+		for (const task of sourceTasks) {
+			const { data: newTask } = await crud.insertTask(sb, {
+				list_id: newList.id, user_id: userId, text: task.text, position: task.position
+			});
+			if (newTask) {
+				idMap.set(task.id, newTask.id);
+				tasks = [...tasks, newTask as Task];
+			}
+		}
+
+		// Subtasks kopieren
+		for (const sub of sourceSubtasks) {
+			const newParentId = idMap.get(sub.parent_id!);
+			if (!newParentId) continue;
+			const { data: newSub } = await crud.insertTask(sb, {
+				list_id: newList.id, user_id: userId, text: sub.text, position: sub.position, parent_id: newParentId
+			});
+			if (newSub) {
+				tasks = [...tasks, newSub as Task];
+			}
+		}
+
+		return lists.findIndex(l => l.id === newList.id);
+	}
+
+	// ==========================================
 	// DIVIDER
 	// ==========================================
 	async function createDivider(listId: string, position: number, label: string) {
@@ -603,6 +676,8 @@ export function createTaskStore() {
 		updateTaskEmoji, updateTaskDate,
 		// Subtask operations
 		addSubtask, toggleSubtask, updateSubtask, deleteSubtask,
+		// List-level operations
+		deleteAllSubtasksInList, deleteDoneInList, checkAllInList, duplicateList,
 		// Bulk operations
 		bulkToggleDone, bulkChangePriority, bulkDelete, bulkMoveToList,
 		// Reorder

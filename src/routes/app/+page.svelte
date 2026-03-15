@@ -65,7 +65,14 @@
 	// SORT
 	// ==========================================
 	type SortMode = 'position' | 'priority' | 'name' | 'date' | 'created' | 'progress';
-	let sortMode = $state<SortMode>('position');
+	const validSortModes: SortMode[] = ['position', 'priority', 'name', 'date', 'created', 'progress'];
+	function loadSortMode(): SortMode {
+		if (typeof localStorage === 'undefined') return 'priority';
+		const saved = localStorage.getItem('taskfuchs-sort-mode');
+		return saved && validSortModes.includes(saved as SortMode) ? (saved as SortMode) : 'priority';
+	}
+	let sortMode = $state<SortMode>(loadSortMode());
+	$effect(() => { if (typeof localStorage !== 'undefined') localStorage.setItem('taskfuchs-sort-mode', sortMode); });
 	let sortMenuOpen = $state(false);
 
 	// sortLabels, priorityWeight imported from $lib/constants
@@ -247,6 +254,11 @@
 					}
 				},
 				{ divider: true, label: '' },
+				{ label: 'Alle Aufgaben abhaken', icon: { svg: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'text-green-500' }, action: () => store.checkAllInList(list.id) },
+				{ label: 'Erledigte Einträge löschen', icon: { svg: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', color: 'text-yellow-500' }, action: () => store.deleteDoneInList(list.id) },
+				{ label: 'Alle Unteraufgaben löschen', icon: { svg: 'M13 5l7 7-7 7M5 5l7 7-7 7', color: 'text-orange-500' }, action: () => store.deleteAllSubtasksInList(list.id) },
+				{ divider: true, label: '' },
+				{ label: 'Liste duplizieren', icon: { svg: 'M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z', color: 'text-purple-500' }, action: async () => { const idx = await store.duplicateList(list.id); if (idx >= 0) activeListIndex = idx; } },
 				{ label: 'Liste umbenennen', icon: { svg: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z', color: 'text-blue-500' }, action: () => { const newName = prompt('Neuer Listenname:', list.title); if (newName?.trim()) store.renameList(list.id, newName.trim()); } },
 				{ label: 'Liste löschen', icon: { svg: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' }, action: () => store.deleteList(list.id), danger: true }
 			]

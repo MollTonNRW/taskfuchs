@@ -27,7 +27,7 @@
 	let collapsed = $state(false);
 	let dragOver = $state(false);
 
-	let pinnedTasks = $derived(tasks.filter((t) => t.pinned && t.type !== 'divider'));
+	let pinnedTasks = $derived(tasks.filter((t) => t.pinned && !t.done && t.type !== 'divider'));
 
 	function getListTitle(listId: string): string {
 		return lists.find((l) => l.id === listId)?.title ?? '';

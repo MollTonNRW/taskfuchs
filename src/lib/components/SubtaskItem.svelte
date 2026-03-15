@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { slide } from 'svelte/transition';
+	import { tick } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import { touchDragHandle, touchDropZone } from '$lib/actions/touchDrag';
 
@@ -30,6 +31,7 @@
 	let childrenOpen = $state(true);
 	let addingChild = $state(false);
 	let newChildText = $state('');
+	let childrenContainer: HTMLDivElement | undefined = $state();
 
 	let dragOverThis = $state(false);
 	let dragOverPosition = $state<'above' | 'below'>('below');
@@ -56,12 +58,17 @@
 		if (e.key === 'Escape') { editing = false; }
 	}
 
-	function handleAddChild() {
+	async function handleAddChild() {
 		const trimmed = newChildText.trim();
 		if (!trimmed || !onAddSubtask) return;
 		onAddSubtask(subtask.id, trimmed);
 		newChildText = '';
 		addingChild = false;
+		await tick();
+		if (childrenContainer) {
+			const lastChild = childrenContainer.querySelector('.subtask-item:last-of-type');
+			lastChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		}
 	}
 
 	function handleChildKeydown(e: KeyboardEvent) {
@@ -229,7 +236,7 @@
 
 <!-- Nested children (level 2) -->
 {#if childrenOpen && children.length > 0}
-	<div transition:slide|global={{ duration: 200 }} class="ml-6 pl-3 space-y-0.5" style="border-left: 1.5px solid var(--tf-border);">
+	<div bind:this={childrenContainer} transition:slide|global={{ duration: 200 }} class="ml-6 pl-3 space-y-0.5" style="border-left: 1.5px solid var(--tf-border);">
 		{#each children as child (child.id)}
 			<svelte:self
 				subtask={child}
