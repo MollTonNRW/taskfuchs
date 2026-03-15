@@ -3,6 +3,7 @@
 	import { tick } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import { touchDragHandle, touchDropZone } from '$lib/actions/touchDrag';
+	import SubtaskItem from './SubtaskItem.svelte';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 
@@ -238,7 +239,7 @@
 {#if childrenOpen && children.length > 0}
 	<div bind:this={childrenContainer} transition:slide|global={{ duration: 200 }} class="ml-6 pl-3 space-y-0.5" style="border-left: 1.5px solid var(--tf-border);">
 		{#each children as child (child.id)}
-			<svelte:self
+			<SubtaskItem
 				subtask={child}
 				{allTasks}
 				depth={depth + 1}
