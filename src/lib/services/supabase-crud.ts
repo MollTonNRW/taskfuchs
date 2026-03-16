@@ -1,10 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database';
-import type { Priority, Timeframe } from '$lib/constants';
-
 type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
-type ListShare = Database['public']['Tables']['list_shares']['Row'];
+type TaskUpdate = Database['public']['Tables']['tasks']['Update'];
 type Sb = SupabaseClient<Database>;
 
 // ==========================================
@@ -28,11 +26,11 @@ export async function changeListIcon(sb: Sb, id: string, icon: string) {
 }
 
 export async function reorderListDb(sb: Sb, updates: { id: string; position: number }[]) {
-	for (const u of updates) {
-		const { error } = await sb.from('lists').update({ position: u.position }).eq('id', u.id);
-		if (error) return { error };
-	}
-	return { error: null };
+	const results = await Promise.all(
+		updates.map((u) => sb.from('lists').update({ position: u.position }).eq('id', u.id))
+	);
+	const failed = results.find((r) => r.error);
+	return { error: failed?.error ?? null };
 }
 
 // ==========================================
@@ -43,7 +41,7 @@ export async function insertTask(sb: Sb, data: { list_id: string; user_id: strin
 	return sb.from('tasks').insert(data).select().single();
 }
 
-export async function updateTaskField(sb: Sb, id: string, fields: Record<string, unknown>) {
+export async function updateTaskField(sb: Sb, id: string, fields: TaskUpdate) {
 	return sb.from('tasks').update(fields).eq('id', id);
 }
 
@@ -63,7 +61,7 @@ export async function deleteTaskWithSubtasks(sb: Sb, id: string, subtaskIds: str
 // BULK OPERATIONS (Batch mit .in())
 // ==========================================
 
-export async function bulkUpdateField(sb: Sb, ids: string[], fields: Record<string, unknown>) {
+export async function bulkUpdateField(sb: Sb, ids: string[], fields: TaskUpdate) {
 	return sb.from('tasks').update(fields).in('id', ids);
 }
 
@@ -72,12 +70,11 @@ export async function bulkDeleteTasks(sb: Sb, ids: string[]) {
 }
 
 export async function bulkMoveToList(sb: Sb, ids: string[], targetListId: string, basePos: number) {
-	// Move requires individual updates since each task gets a different position
-	for (let i = 0; i < ids.length; i++) {
-		const { error } = await sb.from('tasks').update({ list_id: targetListId, position: basePos + i }).eq('id', ids[i]);
-		if (error) return { error };
-	}
-	return { error: null };
+	const results = await Promise.all(
+		ids.map((id, i) => sb.from('tasks').update({ list_id: targetListId, position: basePos + i }).eq('id', id))
+	);
+	const failed = results.find((r) => r.error);
+	return { error: failed?.error ?? null };
 }
 
 // ==========================================
@@ -85,23 +82,27 @@ export async function bulkMoveToList(sb: Sb, ids: string[], targetListId: string
 // ==========================================
 
 export async function reorderTasksDb(sb: Sb, updates: { id: string; position: number; list_id?: string }[]) {
-	for (const u of updates) {
-		const updateData: Record<string, unknown> = { position: u.position };
-		if (u.list_id) updateData.list_id = u.list_id;
-		const { error } = await sb.from('tasks').update(updateData).eq('id', u.id);
-		if (error) return { error };
-	}
-	return { error: null };
+	const results = await Promise.all(
+		updates.map((u) => {
+			const updateData: Record<string, unknown> = { position: u.position };
+			if (u.list_id) updateData.list_id = u.list_id;
+			return sb.from('tasks').update(updateData).eq('id', u.id);
+		})
+	);
+	const failed = results.find((r) => r.error);
+	return { error: failed?.error ?? null };
 }
 
 export async function reorderSubtasksDb(sb: Sb, updates: { id: string; position: number; parent_id?: string }[]) {
-	for (const u of updates) {
-		const updateData: Record<string, unknown> = { position: u.position };
-		if (u.parent_id) updateData.parent_id = u.parent_id;
-		const { error } = await sb.from('tasks').update(updateData).eq('id', u.id);
-		if (error) return { error };
-	}
-	return { error: null };
+	const results = await Promise.all(
+		updates.map((u) => {
+			const updateData: Record<string, unknown> = { position: u.position };
+			if (u.parent_id) updateData.parent_id = u.parent_id;
+			return sb.from('tasks').update(updateData).eq('id', u.id);
+		})
+	);
+	const failed = results.find((r) => r.error);
+	return { error: failed?.error ?? null };
 }
 
 // ==========================================

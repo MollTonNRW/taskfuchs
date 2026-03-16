@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database';
 import type { Priority } from '$lib/constants';
 import * as crud from '$lib/services/supabase-crud';
+import { toasts, confirmAction } from '$lib/stores/toast';
 
 type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
@@ -48,7 +49,7 @@ export function createTaskStore() {
 		pendingListIds.delete('creating');
 		if (error) {
 			console.error('Liste erstellen fehlgeschlagen:', error);
-			alert('Fehler beim Erstellen der Liste: ' + error.message);
+			toasts.error('Fehler beim Erstellen der Liste.');
 			return -1;
 		}
 		if (newList && !lists.some((l) => l.id === newList.id)) {
@@ -65,7 +66,7 @@ export function createTaskStore() {
 	}
 
 	async function deleteList(id: string): Promise<boolean> {
-		if (!confirm('Liste wirklich löschen? Alle Aufgaben werden gelöscht.')) return false;
+		if (!confirmAction('Liste wirklich löschen? Alle Aufgaben werden gelöscht.')) return false;
 		const oldLists = lists;
 		const oldTasks = tasks;
 		lists = lists.filter((l) => l.id !== id);
@@ -121,17 +122,29 @@ export function createTaskStore() {
 	async function addTaskAfter(afterTaskId: string, text: string) {
 		const afterTask = tasks.find((t) => t.id === afterTaskId);
 		if (!afterTask) return;
-		const position = afterTask.position + 0.5;
+		const listId = afterTask.list_id;
+		const newPosition = afterTask.position + 1;
+		// Nachfolgende Tasks um 1 nach hinten verschieben
+		const toShift = tasks
+			.filter((t) => t.list_id === listId && !t.parent_id && t.position >= newPosition)
+			.map((t) => ({ id: t.id, position: t.position + 1 }));
 		const optimisticTask: Task = {
-			id: crypto.randomUUID(), list_id: afterTask.list_id, user_id: userId, parent_id: null,
+			id: crypto.randomUUID(), list_id: listId, user_id: userId, parent_id: null,
 			text, type: 'task', divider_label: null, done: false, priority: 'normal',
 			timeframe: null, highlighted: false, pinned: false, emoji: null, note: null,
-			due_date: null, progress: 0, assigned_to: null, position,
+			due_date: null, progress: 0, assigned_to: null, position: newPosition,
 			created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1
 		};
+		tasks = tasks.map((t) => {
+			const shift = toShift.find((s) => s.id === t.id);
+			return shift ? { ...t, position: shift.position } : t;
+		});
 		tasks = [...tasks, optimisticTask];
 		pendingTaskIds.add(optimisticTask.id);
-		const { data: newTask, error } = await crud.insertTask(sb, { list_id: afterTask.list_id, user_id: userId, text, position });
+		if (toShift.length > 0) {
+			await crud.reorderTasksDb(sb, toShift);
+		}
+		const { data: newTask, error } = await crud.insertTask(sb, { list_id: listId, user_id: userId, text, position: newPosition });
 		pendingTaskIds.delete(optimisticTask.id);
 		if (error) { tasks = tasks.filter((t) => t.id !== optimisticTask.id); return; }
 		if (newTask) tasks = tasks.map((t) => (t.id === optimisticTask.id ? (newTask as Task) : t));
@@ -163,7 +176,7 @@ export function createTaskStore() {
 	}
 
 	async function deleteTask(id: string) {
-		if (!confirm('Aufgabe wirklich löschen?')) return;
+		if (!confirmAction('Aufgabe wirklich löschen?')) return;
 		const oldTasks = tasks;
 		const subtaskIds = tasks.filter((t) => t.parent_id === id).map((t) => t.id);
 		tasks = tasks.filter((t) => t.id !== id && t.parent_id !== id);
@@ -190,7 +203,7 @@ export function createTaskStore() {
 		if (autoDone) {
 			tasks = tasks.map((t) => (t.parent_id === id ? { ...t, done: true } : t));
 		}
-		const update: Record<string, unknown> = { progress };
+		const update: { progress: number; done?: boolean } = { progress };
 		if (autoDone) update.done = true;
 		const { error } = await crud.updateTaskField(sb, id, update);
 		if (error) { tasks = oldTasks; return; }
@@ -334,22 +347,25 @@ export function createTaskStore() {
 	// ==========================================
 	async function bulkToggleDone(ids: string[], done: boolean) {
 		const oldTasks = tasks;
-		tasks = tasks.map((t) => (ids.includes(t.id) ? { ...t, done } : t));
+		const idSet = new Set(ids);
+		tasks = tasks.map((t) => (idSet.has(t.id) ? { ...t, done } : t));
 		const { error } = await crud.bulkUpdateField(sb, ids, { done });
 		if (error) tasks = oldTasks;
 	}
 
 	async function bulkChangePriority(ids: string[], priority: Priority) {
 		const oldTasks = tasks;
-		tasks = tasks.map((t) => (ids.includes(t.id) ? { ...t, priority } : t));
+		const idSet = new Set(ids);
+		tasks = tasks.map((t) => (idSet.has(t.id) ? { ...t, priority } : t));
 		const { error } = await crud.bulkUpdateField(sb, ids, { priority });
 		if (error) tasks = oldTasks;
 	}
 
 	async function bulkDelete(ids: string[]) {
-		if (!confirm(`${ids.length} Aufgaben wirklich löschen?`)) return;
+		if (!confirmAction(`${ids.length} Aufgaben wirklich löschen?`)) return;
 		const oldTasks = tasks;
-		tasks = tasks.filter((t) => !ids.includes(t.id) && !ids.includes(t.parent_id ?? ''));
+		const idSet = new Set(ids);
+		tasks = tasks.filter((t) => !idSet.has(t.id) && !idSet.has(t.parent_id ?? ''));
 		const { error } = await crud.bulkDeleteTasks(sb, ids);
 		if (error) tasks = oldTasks;
 	}
@@ -636,13 +652,12 @@ export function createTaskStore() {
 	function handleRealtimeTask(eventType: string, payload: any) {
 		if (eventType === 'INSERT') {
 			const newTask = payload as Task;
-			if (tasks.some((t) => t.id === newTask.id) || pendingTaskIds.size > 0) {
-				if (pendingTaskIds.size > 0) {
-					pendingTaskIds.delete(newTask.id);
-					tasks = tasks.map((t) => (t.id === newTask.id ? newTask : t));
-				}
+			if (pendingTaskIds.has(newTask.id)) {
+				pendingTaskIds.delete(newTask.id);
+				tasks = tasks.map((t) => (t.id === newTask.id ? newTask : t));
 				return;
 			}
+			if (tasks.some((t) => t.id === newTask.id)) return;
 			tasks = [...tasks, newTask];
 		} else if (eventType === 'UPDATE') {
 			const updated = payload as Task;
@@ -654,10 +669,12 @@ export function createTaskStore() {
 	}
 
 	// Delete task without confirmation (for context menu inline delete)
-	function deleteTaskDirect(id: string) {
+	async function deleteTaskDirect(id: string) {
+		const oldTasks = tasks;
 		const subtaskIds = tasks.filter((t) => t.parent_id === id).map((t) => t.id);
 		tasks = tasks.filter((t) => t.id !== id && t.parent_id !== id);
-		crud.deleteTaskWithSubtasks(sb, id, subtaskIds);
+		const { error } = await crud.deleteTaskWithSubtasks(sb, id, subtaskIds);
+		if (error) tasks = oldTasks;
 	}
 
 	return {

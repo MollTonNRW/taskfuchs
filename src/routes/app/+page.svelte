@@ -19,6 +19,8 @@
 	import { priorityLabels, priorityColors, progressLabelsFull as progressLabels, progressColors, priorityWeight, sortLabels, type Priority } from '$lib/constants';
 	import { createTaskStore } from '$lib/stores/tasks.svelte';
 	import * as crud from '$lib/services/supabase-crud';
+	import { toasts } from '$lib/stores/toast';
+	import ToastContainer from '$lib/components/ToastContainer.svelte';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -87,7 +89,8 @@
 			});
 		}
 		return [...taskList].sort((a, b) => {
-			if (a.type === 'divider' || b.type === 'divider') return 0;
+			// Divider behalten ihre relative Position bei
+			if (a.type === 'divider' || b.type === 'divider') return a.position - b.position;
 			switch (sortMode) {
 				case 'priority': return (priorityWeight[a.priority] ?? 2) - (priorityWeight[b.priority] ?? 2);
 				case 'name': return a.text.localeCompare(b.text, 'de');
@@ -161,6 +164,14 @@
 	// ==========================================
 	let visibleLists = $derived(store.lists.filter((l) => !$hiddenListIds.has(l.id)));
 
+	// Clamp activeListIndex wenn Listen gelöscht/ausgeblendet werden
+	$effect(() => {
+		const maxIdx = visibleLists.length - 1;
+		if (maxIdx >= 0 && activeListIndex > maxIdx) {
+			activeListIndex = maxIdx;
+		}
+	});
+
 	function filteredTasksForList(listId: string): Task[] {
 		const listTasks = store.tasks.filter((t) => t.list_id === listId);
 		const filtered = listTasks.filter((t) => {
@@ -181,14 +192,14 @@
 
 		const listsChannel = sb
 			.channel('lists-realtime')
-			.on('postgres_changes' as any, { event: '*', schema: 'public', table: 'lists' }, (payload: any) => {
+			.on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, (payload) => {
 				store.handleRealtimeList(payload.eventType, payload.eventType === 'DELETE' ? payload.old : payload.new);
 			})
 			.subscribe();
 
 		const tasksChannel = sb
 			.channel('tasks-realtime')
-			.on('postgres_changes' as any, { event: '*', schema: 'public', table: 'tasks' }, (payload: any) => {
+			.on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
 				store.handleRealtimeTask(payload.eventType, payload.eventType === 'DELETE' ? payload.old : payload.new);
 			})
 			.subscribe();
@@ -433,12 +444,12 @@
 		// Email → User-ID Lookup via RPC
 		const { data: userId, error: lookupErr } = await sb.rpc('lookup_user_by_email', { lookup_email: email });
 		if (lookupErr || !userId) {
-			alert('Kein Benutzer mit dieser Email gefunden.');
+			toasts.error('Kein Benutzer mit dieser Email gefunden.');
 			return;
 		}
 
 		const { data: newShare, error } = await crud.createListShare(sb, shareDialog.list.id, userId, role);
-		if (error) { console.error('Teilen fehlgeschlagen:', error); alert('Fehler beim Teilen: ' + error.message); return; }
+		if (error) { console.error('Teilen fehlgeschlagen:', error); toasts.error('Fehler beim Teilen der Liste.'); return; }
 		if (newShare) shareDialog = { ...shareDialog, shares: [...shareDialog.shares, newShare as ListShare] };
 	}
 
@@ -552,6 +563,8 @@
 <svelte:head>
 	<title>TaskFuchs</title>
 </svelte:head>
+
+<ToastContainer />
 
 {#if contextMenu.show}
 	<ContextMenu
