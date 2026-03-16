@@ -89,8 +89,21 @@
 	);
 	let doneTasks = $derived(topLevelTasks.filter((t) => t.type !== 'divider' && t.done));
 
+	// Vorberechnete Map: parent_id → Subtasks (statt O(n) filter pro Task)
+	let subtasksByParent = $derived.by(() => {
+		const map = new Map<string, Task[]>();
+		for (const t of tasks) {
+			if (t.parent_id) {
+				const arr = map.get(t.parent_id);
+				if (arr) arr.push(t);
+				else map.set(t.parent_id, [t]);
+			}
+		}
+		return map;
+	});
+
 	function getSubtasks(parentId: string): Task[] {
-		return tasks.filter((t) => t.parent_id === parentId);
+		return subtasksByParent.get(parentId) ?? [];
 	}
 
 	function startRename() {

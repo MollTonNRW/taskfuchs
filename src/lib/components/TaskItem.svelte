@@ -71,6 +71,10 @@
 	// Click-Handler: Einfacher Klick → Focus, Doppelklick → Inline-Edit
 	let clickTimer: ReturnType<typeof setTimeout> | null = null;
 
+	function cancelLongPress() {
+		if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+	}
+
 	function handleSingleClick(e: MouseEvent) {
 		const target = e.target as HTMLElement;
 		if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.priority-bar') || target.closest('.more-menu-btn') || target.closest('.task-badges') || target.closest('.add-subtask-inline')) return;
