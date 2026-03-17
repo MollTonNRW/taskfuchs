@@ -21,8 +21,8 @@
     "path": "taskfuchs-keystore.jks",
     "alias": "taskfuchs"
   },
-  "appVersionName": "1.1",
-  "appVersionCode": 4,
+  "appVersionName": "1.2",
+  "appVersionCode": 5,
   "shortcuts": [],
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://taskfuchs.molltoncreative.de/manifest.json",
@@ -46,5 +46,5 @@
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "displayOverride": [],
-  "appVersion": "1.1"
+  "appVersion": "1.2"
 }

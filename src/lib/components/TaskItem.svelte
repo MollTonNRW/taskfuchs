@@ -62,10 +62,12 @@
 	let editing = $state(false);
 	let editText = $state('');
 	let subtasksOpen = $state(!$subtasksCollapsedByDefault);
-	// Wenn forceCollapse aufgehoben wird → Subtasks öffnen
+	// forceCollapse steuert subtasksOpen, blockiert aber nicht dauerhaft
 	let lastForceCollapse = forceCollapse;
 	$effect(() => {
-		if (lastForceCollapse && !forceCollapse) {
+		if (forceCollapse && !lastForceCollapse) {
+			subtasksOpen = false;
+		} else if (!forceCollapse && lastForceCollapse) {
 			subtasksOpen = true;
 		}
 		lastForceCollapse = forceCollapse;
@@ -518,7 +520,7 @@
 		{/if}
 
 		<!-- Subtasks List -->
-		{#if subtasksOpen && !forceCollapse && subtaskCount > 0}
+		{#if subtasksOpen && subtaskCount > 0}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
 				data-subtask-area

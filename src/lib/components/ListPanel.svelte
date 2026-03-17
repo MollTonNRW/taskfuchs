@@ -128,6 +128,23 @@
 	const defaultIcons = ['📝', '🏠', '💼', '🛒', '💡', '🎯', '📚', '🔧', '🎨', '🏃', '🎵', '🌱'];
 	let iconPickerOpen = $state(false);
 
+	// D&D Auto-Scroll für Desktop
+	let scrollRAF: number | null = null;
+	function autoScrollOnDrag(e: DragEvent) {
+		const scrollEl = (e.currentTarget as HTMLElement)?.closest('.task-list-scroll') as HTMLElement;
+		if (!scrollEl) return;
+		const rect = scrollEl.getBoundingClientRect();
+		const edgeZone = 60;
+		const speed = 10;
+		const topDist = e.clientY - rect.top;
+		const bottomDist = rect.bottom - e.clientY;
+		if (topDist < edgeZone) {
+			scrollEl.scrollTop -= speed * (1 - topDist / edgeZone);
+		} else if (bottomDist < edgeZone) {
+			scrollEl.scrollTop += speed * (1 - bottomDist / edgeZone);
+		}
+	}
+
 	// Task D&D
 	function handleTaskDragStart(e: DragEvent, task: Task) {
 		if (!e.dataTransfer) return;
@@ -148,6 +165,8 @@
 		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
 		const isBelow = e.clientY > rect.top + rect.height / 2;
 		dragOverIdx = isBelow ? idx + 1 : idx;
+		// Auto-Scroll wenn nahe am Rand
+		autoScrollOnDrag(e);
 	}
 
 	function handleTaskDrop(e: DragEvent, idx: number) {

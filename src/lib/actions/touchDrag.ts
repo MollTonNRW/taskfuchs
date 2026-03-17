@@ -30,8 +30,8 @@ const initialState: DragState = {
 export const dragState = writable<DragState>({ ...initialState });
 
 const DRAG_THRESHOLD = 8; // px before drag activates
-const SCROLL_EDGE = 60; // px from edge to auto-scroll
-const SCROLL_SPEED = 8; // px per frame
+const SCROLL_EDGE = 80; // px from edge to auto-scroll
+const SCROLL_SPEED = 12; // px per frame
 
 let startX = 0;
 let startY = 0;
@@ -64,11 +64,14 @@ function autoScroll(clientY: number) {
 let lastTouchX = 0; // Track touch X for scroll container lookup
 
 function findScrollContainer(clientY: number): HTMLElement | null {
-	// Find the nearest scrollable task list using actual touch position
+	// Find the nearest scrollable container using actual touch position
 	const els = document.elementsFromPoint(lastTouchX || window.innerWidth / 2, clientY);
 	for (const el of els) {
-		if (el instanceof HTMLElement && el.classList.contains('task-list-scroll')) {
-			return el;
+		if (el instanceof HTMLElement) {
+			// Direkt die Task-Liste oder den main-content Container finden
+			if (el.classList.contains('task-list-scroll') || el.classList.contains('main-content')) {
+				return el;
+			}
 		}
 	}
 	return null;

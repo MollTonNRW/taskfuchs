@@ -37,10 +37,17 @@
 	$effect(() => {
 		if (menuEl) {
 			const rect = menuEl.getBoundingClientRect();
+			const maxH = window.innerHeight - 16;
+			// Horizontal: nicht über den rechten Rand
 			if (rect.right > window.innerWidth) {
 				menuEl.style.left = `${window.innerWidth - rect.width - 8}px`;
 			}
-			if (rect.bottom > window.innerHeight) {
+			// Vertikal: max-height begrenzen und scrollen wenn nötig
+			if (rect.height > maxH) {
+				menuEl.style.maxHeight = `${maxH}px`;
+				menuEl.style.overflowY = 'auto';
+				menuEl.style.top = '8px';
+			} else if (rect.bottom > window.innerHeight) {
 				menuEl.style.top = `${window.innerHeight - rect.height - 8}px`;
 			}
 		}

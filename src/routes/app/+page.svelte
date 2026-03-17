@@ -458,7 +458,7 @@
 					</button>
 					{#if sortFilter.sortMenuOpen}
 						<div class="fixed inset-0 z-20" onclick={() => (sortFilter.sortMenuOpen = false)} role="presentation"></div>
-						<div class="absolute left-0 top-full mt-1 z-30 w-48 rounded-xl p-1.5 shadow-lg tf-surface border" style="border-color: var(--tf-border);">
+						<div class="absolute left-0 top-full mt-1 z-30 w-48 rounded-xl p-1.5 shadow-lg tf-popover-bg border" style="border-color: var(--tf-border);">
 							{#each Object.entries(sortLabels) as [key, label]}
 								<button
 									onclick={() => { sortFilter.sortMode = key as SortMode; sortFilter.sortMenuOpen = false; }}

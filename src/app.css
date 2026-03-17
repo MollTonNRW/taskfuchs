@@ -975,10 +975,16 @@ body {
 /* Colorful dark: quick-add */
 .theme-colorful.dark .quick-add-btn { background: linear-gradient(135deg, #6d28d9, #be185d); }
 /* Colorful dark: context menu */
-.theme-colorful.dark .context-menu, .theme-colorful.dark .context-submenu { background: #1a0f1e !important; border: 1px solid rgba(255,255,255,.12) !important; }
+.theme-colorful.dark .context-menu, .theme-colorful.dark .context-submenu, .theme-colorful.dark .tf-popover-bg { background: #1a0f1e !important; border: 1px solid rgba(255,255,255,.12) !important; }
 /* Colorful dark: pinboard */
 .theme-colorful.dark .pinboard-area { background: rgba(15,10,20,.6); border-color: rgba(255,255,255,.06); }
 .theme-colorful.dark .pin-card { background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.08); }
+/* Colorful dark: Toolbar + Tab-Leiste brauchen soliden Hintergrund */
+.theme-colorful.dark .sort-filter-bar,
+.theme-colorful.dark [class*="sticky"][class*="top-"] {
+	background: #0d0b0f !important;
+	backdrop-filter: none !important;
+}
 
 /* =============================================
    THEME: AURORA (always dark)
