@@ -70,6 +70,17 @@
 		dragOver = false;
 	}
 
+	function handleUnpin(taskId: string, e: MouseEvent) {
+		e.stopPropagation();
+		const card = (e.currentTarget as HTMLElement).closest('.pin-card') as HTMLElement;
+		if (card) {
+			card.classList.add('pin-card-exit');
+			card.addEventListener('animationend', () => onUnpin(taskId), { once: true });
+		} else {
+			onUnpin(taskId);
+		}
+	}
+
 	function handleDrop(e: DragEvent) {
 		e.preventDefault();
 		dragOver = false;
@@ -162,7 +173,7 @@
 									{pLabel}
 								</span>
 								<button
-									onclick={(e) => { e.stopPropagation(); onUnpin(task.id); }}
+									onclick={(e) => handleUnpin(task.id, e)}
 									class="w-5 h-5 flex items-center justify-center rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
 									title="Von Pinnwand lösen"
 								>

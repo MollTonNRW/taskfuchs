@@ -100,6 +100,10 @@
 
 	function openPriorityPicker(e: MouseEvent) {
 		e.stopPropagation();
+		// Priority bar pulse animation
+		const bar = (e.currentTarget as HTMLElement);
+		bar.classList.add('priority-bar-pulse');
+		bar.addEventListener('animationend', () => bar.classList.remove('priority-bar-pulse'), { once: true });
 		priorityPicker = { show: true, x: e.clientX, y: e.clientY };
 	}
 
@@ -178,13 +182,13 @@
 		animClass = 'task-check';
 		animating = true;
 		onToggle(task.id, !task.done);
-		setTimeout(() => { animating = false; animClass = ''; }, 400);
+		setTimeout(() => { animating = false; animClass = ''; }, 500);
 	}
 
 	function handleDelete() {
 		animClass = 'task-exit';
 		animating = true;
-		setTimeout(() => { onDelete(task.id); }, 300);
+		setTimeout(() => { onDelete(task.id); }, 400);
 	}
 
 	async function handleAddSubtask() {
@@ -265,17 +269,21 @@
 				title="Priorität ändern"
 			></div>
 
-			<!-- Checkbox -->
+			<!-- Checkbox (SVG animated) -->
 			<label class="custom-checkbox {allSubtasksDone ? 'subtasks-complete-pulse' : ''}" onclick={(e) => e.stopPropagation()}>
 				<input type="checkbox" checked={task.done} onchange={handleToggle} />
-				<span class="checkmark"></span>
+				<span class="checkmark">
+					<svg class="check-svg" viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M3.5 8.5L6.5 11.5L12.5 4.5" />
+					</svg>
+				</span>
 			</label>
 
 			<!-- Content -->
 			<div class="task-content">
 				{#if task.emoji}
 					<span
-						class="text-sm cursor-pointer hover:scale-110 transition-transform flex-shrink-0"
+						class="text-sm cursor-pointer emoji-hover-wobble flex-shrink-0"
 						onclick={(e) => { e.stopPropagation(); onEmojiClick?.(task.id, e.clientX, e.clientY); }}
 						title="Symbol ändern"
 					>{task.emoji}</span>
@@ -379,7 +387,7 @@
 			>
 				<div class="flex-1 h-[8px] rounded-full overflow-hidden" style="background: var(--tf-border);">
 					<div
-						class="h-full rounded-full transition-all duration-500 ease-out progress-fill-{displayProgress}"
+						class="h-full rounded-full transition-all duration-500 ease-out progress-fill-{displayProgress} {displayPercent === 100 ? 'progress-complete' : ''}"
 						style="width: {displayPercent}%"
 					></div>
 				</div>

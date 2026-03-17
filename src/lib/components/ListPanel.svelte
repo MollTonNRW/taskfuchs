@@ -531,12 +531,12 @@
 					{#if listDragOver}
 						<span class="text-sm tf-text-muted font-medium">Hier ablegen</span>
 					{:else if doneTasks.length > 0}
-						<span class="text-2xl mb-2">🎉</span>
-						<span class="text-sm tf-text-muted font-medium">Alles erledigt!</span>
+						<span class="text-2xl mb-2 empty-list-icon">🎉</span>
+						<span class="text-sm tf-text-muted font-medium empty-list-text">Alles erledigt!</span>
 					{:else}
-						<span class="text-2xl mb-2">✅</span>
-						<span class="text-sm tf-text-muted font-medium">Top! Alles erledigt!</span>
-						<span class="text-xs tf-text-muted mt-1">Weiter so! 💪</span>
+						<span class="text-2xl mb-2 empty-list-icon">✅</span>
+						<span class="text-sm tf-text-muted font-medium empty-list-text">Top! Alles erledigt!</span>
+						<span class="text-xs tf-text-muted mt-1 empty-list-text" style="animation-delay: .5s;">Weiter so! 💪</span>
 					{/if}
 				</div>
 			{:else}
@@ -604,7 +604,7 @@
 			<div class="flex justify-center py-2">
 				<button
 					onclick={() => onAddTask(list.id, 'Neue Aufgabe')}
-					class="w-8 h-8 flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
+					class="quick-add-btn w-8 h-8 flex items-center justify-center rounded-full transition-all hover:scale-110"
 					style="background: var(--tf-accent-gradient, var(--tf-accent)); color: white; box-shadow: 0 2px 8px rgba(0,0,0,.1);"
 					title="Neue Aufgabe erstellen"
 				>
