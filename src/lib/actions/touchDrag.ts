@@ -63,18 +63,12 @@ function autoScroll(clientY: number) {
 
 let lastTouchX = 0; // Track touch X for scroll container lookup
 
-function findScrollContainer(clientY: number): HTMLElement | null {
-	// Find the nearest scrollable container using actual touch position
-	const els = document.elementsFromPoint(lastTouchX || window.innerWidth / 2, clientY);
-	for (const el of els) {
-		if (el instanceof HTMLElement) {
-			// Direkt die Task-Liste oder den main-content Container finden
-			if (el.classList.contains('task-list-scroll') || el.classList.contains('main-content')) {
-				return el;
-			}
-		}
-	}
-	return null;
+function findScrollContainer(_clientY: number): HTMLElement | null {
+	// Auf Mobile: .main-content scrollt, auf Desktop: .task-list-scroll
+	// Direkt per querySelector statt elementsFromPoint (zuverlaessiger mit Ghost-Overlay)
+	return document.querySelector('.task-list-scroll') as HTMLElement
+		?? document.querySelector('.main-content') as HTMLElement
+		?? null;
 }
 
 // ── Ghost element ──────────────────────────────────────────────────

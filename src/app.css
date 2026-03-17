@@ -612,6 +612,11 @@ body {
 
 .context-menu {
 	min-width: 220px;
+	max-height: calc(100vh - 16px);
+	max-height: calc(100dvh - 16px);
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior: contain;
 	border-radius: 12px; padding: 6px;
 	animation: context-menu-in .2s cubic-bezier(.34,1.56,.64,1) forwards;
 	box-shadow: 0 20px 60px rgba(0,0,0,.15), 0 4px 16px rgba(0,0,0,.1);
