@@ -200,6 +200,18 @@ export interface Database {
 				Args: { lookup_email: string };
 				Returns: string | null;
 			};
+			batch_reorder_lists: {
+				Args: { items: string };
+				Returns: undefined;
+			};
+			batch_reorder_tasks: {
+				Args: { items: string };
+				Returns: undefined;
+			};
+			batch_reorder_subtasks: {
+				Args: { items: string };
+				Returns: undefined;
+			};
 		};
 		Enums: {};
 		CompositeTypes: {};

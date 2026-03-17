@@ -182,6 +182,11 @@ export function createTaskStore() {
 		}
 		const { error } = await crud.updateTaskField(sb, id, { done });
 		if (error) { tasks = oldTasks; return; }
+		if (done) {
+			toasts.undo('Aufgabe erledigt', () => {
+				toggleTask(id, false);
+			});
+		}
 	}
 
 	async function updateTask(id: string, text: string) {
@@ -196,11 +201,23 @@ export function createTaskStore() {
 
 	async function deleteTask(id: string) {
 		if (!await confirmAction('Aufgabe wirklich löschen?')) return;
-		const oldTasks = tasks;
-		const subtaskIds = tasks.filter((t) => t.parent_id === id).map((t) => t.id);
+		const deletedTask = tasks.find((t) => t.id === id);
+		const deletedSubtasks = tasks.filter((t) => t.parent_id === id);
+		const subtaskIds = deletedSubtasks.map((t) => t.id);
 		tasks = tasks.filter((t) => t.id !== id && t.parent_id !== id);
 		const { error } = await crud.deleteTaskWithSubtasks(sb, id, subtaskIds);
-		if (error) tasks = oldTasks;
+		if (error) {
+			if (deletedTask) tasks = [...tasks, deletedTask, ...deletedSubtasks];
+			return;
+		}
+		if (deletedTask) {
+			toasts.undo('Aufgabe gelöscht', async () => {
+				const { error: reErr } = await crud.reinsertTask(sb, deletedTask);
+				if (reErr) { toasts.error('Wiederherstellen fehlgeschlagen.'); return; }
+				if (deletedSubtasks.length > 0) await crud.reinsertTasks(sb, deletedSubtasks);
+				tasks = [...tasks, deletedTask, ...deletedSubtasks];
+			});
+		}
 	}
 
 	async function changeTaskPriority(id: string, priority: Priority) {
@@ -575,6 +592,18 @@ export function createTaskStore() {
 	}
 
 	// ==========================================
+	// TASK-LEVEL OPERATIONS
+	// ==========================================
+	async function deleteAllSubtasksOfTask(taskId: string) {
+		const subtaskIds = tasks.filter(t => t.parent_id === taskId).map(t => t.id);
+		if (subtaskIds.length === 0) return;
+		const oldTasks = tasks;
+		tasks = tasks.filter(t => t.parent_id !== taskId);
+		const { error } = await crud.bulkDeleteTasks(sb, subtaskIds);
+		if (error) tasks = oldTasks;
+	}
+
+	// ==========================================
 	// LIST-LEVEL OPERATIONS
 	// ==========================================
 	async function deleteAllSubtasksInList(listId: string) {
@@ -647,6 +676,47 @@ export function createTaskStore() {
 		return lists.findIndex(l => l.id === newList.id);
 	}
 
+	async function convertTaskToList(taskId: string): Promise<number> {
+		const task = tasks.find(t => t.id === taskId);
+		if (!task) return -1;
+		const subtasks = tasks.filter(t => t.parent_id === taskId).sort((a, b) => a.position - b.position);
+
+		// Neue Liste erstellen
+		const position = lists.length;
+		const { data: newList, error: listErr } = await sb.from('lists').insert({
+			user_id: userId, title: task.text, icon: task.emoji || '📝', position
+		}).select().single();
+		if (listErr || !newList) {
+			toasts.error('Fehler beim Erstellen der Liste.');
+			return -1;
+		}
+		lists = [...lists, newList as List];
+
+		// Subtasks als Top-Level-Tasks in die neue Liste einfuegen
+		for (let i = 0; i < subtasks.length; i++) {
+			const sub = subtasks[i];
+			const { data: newTask } = await crud.insertTask(sb, {
+				list_id: newList.id, user_id: userId, text: sub.text, position: i
+			});
+			if (newTask) {
+				tasks = [...tasks, newTask as Task];
+			}
+		}
+
+		// Original-Task + Subtasks loeschen
+		const subtaskIds = subtasks.map(s => s.id);
+		const oldTasks = tasks;
+		tasks = tasks.filter(t => t.id !== taskId && t.parent_id !== taskId);
+		const { error: delErr } = await crud.deleteTaskWithSubtasks(sb, taskId, subtaskIds);
+		if (delErr) {
+			tasks = oldTasks;
+			toasts.error('Fehler beim Löschen der Original-Aufgabe.');
+		}
+
+		toasts.success(`„${task.text}" in Liste umgewandelt.`);
+		return lists.findIndex(l => l.id === newList.id);
+	}
+
 	// ==========================================
 	// DIVIDER
 	// ==========================================
@@ -707,11 +777,23 @@ export function createTaskStore() {
 
 	// Delete task without confirmation (for context menu inline delete)
 	async function deleteTaskDirect(id: string) {
-		const oldTasks = tasks;
-		const subtaskIds = tasks.filter((t) => t.parent_id === id).map((t) => t.id);
+		const deletedTask = tasks.find((t) => t.id === id);
+		const deletedSubtasks = tasks.filter((t) => t.parent_id === id);
+		const subtaskIds = deletedSubtasks.map((t) => t.id);
 		tasks = tasks.filter((t) => t.id !== id && t.parent_id !== id);
 		const { error } = await crud.deleteTaskWithSubtasks(sb, id, subtaskIds);
-		if (error) tasks = oldTasks;
+		if (error) {
+			if (deletedTask) tasks = [...tasks, deletedTask, ...deletedSubtasks];
+			return;
+		}
+		if (deletedTask) {
+			toasts.undo('Aufgabe gelöscht', async () => {
+				const { error: reErr } = await crud.reinsertTask(sb, deletedTask);
+				if (reErr) { toasts.error('Wiederherstellen fehlgeschlagen.'); return; }
+				if (deletedSubtasks.length > 0) await crud.reinsertTasks(sb, deletedSubtasks);
+				tasks = [...tasks, deletedTask, ...deletedSubtasks];
+			});
+		}
 	}
 
 	return {
@@ -729,9 +811,9 @@ export function createTaskStore() {
 		updateTaskNote, assignTask, moveTaskToList,
 		updateTaskEmoji, updateTaskDate,
 		// Subtask operations
-		addSubtask, toggleSubtask, updateSubtask, deleteSubtask,
+		addSubtask, toggleSubtask, updateSubtask, deleteSubtask, deleteAllSubtasksOfTask,
 		// List-level operations
-		deleteAllSubtasksInList, deleteDoneInList, checkAllInList, duplicateList,
+		deleteAllSubtasksInList, deleteDoneInList, checkAllInList, duplicateList, convertTaskToList,
 		// Bulk operations
 		bulkToggleDone, bulkChangePriority, bulkDelete, bulkMoveToList,
 		// Reorder

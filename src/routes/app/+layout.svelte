@@ -10,7 +10,9 @@
 		togglePriorityFilter,
 		toggleViewFilter,
 		hasActiveFilter,
-		resetFilters
+		resetFilters,
+		subtasksCollapsedByDefault,
+		toggleSubtasksDefault
 	} from '$lib/stores/filters';
 
 	let { data, children } = $props();
@@ -55,7 +57,7 @@
 	<div class="p-5">
 		<div class="flex items-center justify-between mb-6">
 			<div class="flex items-center gap-2">
-				<span class="text-xl">🦊</span>
+				<img src="/icons/icon-48x48.png" alt="TaskFuchs" class="w-7 h-7 rounded" />
 				<span class="text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">TaskFuchs</span>
 			</div>
 			<button onclick={closeSidebar} class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors" aria-label="Sidebar schließen">
@@ -149,6 +151,15 @@
 					{/if}
 				</div>
 			{/if}
+
+			<!-- Unteraufgaben -->
+			<div class="mb-2">
+				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
+					<input type="checkbox" checked={$subtasksCollapsedByDefault} onchange={toggleSubtasksDefault} class="accent-orange-500 w-3.5 h-3.5" />
+					<svg class="w-4 h-4 tf-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+					Unteraufgaben eingeklappt
+				</label>
+			</div>
 		</div>
 
 		<div class="h-px mb-4" style="background: var(--tf-border);"></div>
@@ -231,7 +242,7 @@
 				</svg>
 			</button>
 			<div class="flex items-center gap-2.5">
-				<span class="text-2xl">🦊</span>
+				<img src="/icons/icon-48x48.png" alt="TaskFuchs" class="w-8 h-8 rounded" />
 				<h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent tf-header-text" style={$themePreset === 'colorful' ? 'color: white; background: none; -webkit-text-fill-color: white;' : ''}>TaskFuchs</h1>
 			</div>
 			{#if $hasActiveFilter}

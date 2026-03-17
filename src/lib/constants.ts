@@ -39,7 +39,7 @@ export const progressColors = ['#9ca3af', '#3b82f6', '#f59e0b', '#22c55e'];
 export const priorityOrder: Priority[] = ['low', 'normal', 'high', 'asap'];
 
 export const sortLabels: Record<string, string> = {
-	position: 'Standard',
+	position: 'Frei',
 	priority: 'Priorität',
 	name: 'Name',
 	date: 'Fälligkeitsdatum',

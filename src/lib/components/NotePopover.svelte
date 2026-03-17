@@ -52,12 +52,16 @@
 	class="note-popover fixed z-[71] tf-popover-bg"
 	style="left: {x}px; top: {y}px; border: 1px solid var(--tf-border);"
 	onkeydown={handleKeydown}
+	role="dialog"
+	aria-label="Notiz bearbeiten"
+	tabindex="-1"
 >
 	<div class="flex items-center justify-between mb-2">
 		<span class="text-xs font-semibold uppercase tracking-wider tf-text-muted">Notiz</span>
 		<button
 			onclick={handleSave}
 			class="w-5 h-5 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 tf-text-muted"
+			aria-label="Notiz speichern und schliessen"
 		>
 			<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

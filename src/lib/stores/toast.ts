@@ -1,11 +1,12 @@
 import { writable, get } from 'svelte/store';
 
-export type ToastType = 'error' | 'success' | 'info';
+export type ToastType = 'error' | 'success' | 'info' | 'undo';
 
 export interface Toast {
 	id: string;
 	message: string;
 	type: ToastType;
+	onUndo?: () => void;
 }
 
 const { subscribe, update } = writable<Toast[]>([]);
@@ -26,6 +27,13 @@ export const toasts = {
 	},
 	success(message: string) {
 		this.show(message, 'success', 3000);
+	},
+	undo(message: string, undoFn: () => void, duration = 3000) {
+		const id = `toast-${++counter}`;
+		update((all) => [...all, { id, message, type: 'undo' as ToastType, onUndo: undoFn }]);
+		setTimeout(() => {
+			update((all) => all.filter((t) => t.id !== id));
+		}, duration);
 	},
 	dismiss(id: string) {
 		update((all) => all.filter((t) => t.id !== id));

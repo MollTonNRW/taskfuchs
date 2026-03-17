@@ -93,16 +93,22 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <!-- Overlay -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="focus-overlay"
 	onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+	onkeydown={(e) => { if (e.key === 'Escape') onClose(); }}
+	role="dialog"
+	aria-label="Aufgaben-Detail"
+	tabindex="-1"
 >
 	<!-- Card -->
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
 		class="focus-card rounded-2xl p-6 tf-surface border"
 		style="border-color: var(--tf-border); box-shadow: 0 25px 80px rgba(0,0,0,.2);"
 		onclick={(e) => e.stopPropagation()}
+		onkeydown={(e) => e.stopPropagation()}
+		role="document"
 	>
 		<!-- Header -->
 		<div class="flex items-center justify-between mb-4">
@@ -146,8 +152,7 @@
 				autofocus
 			/>
 		{:else}
-			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-			<h2
+			<div
 				class="focus-overlay-title text-xl font-semibold tf-text mb-4 {task.done ? 'line-through opacity-40' : ''}"
 				onclick={startEdit}
 				onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(); } }}
@@ -157,7 +162,7 @@
 			>
 				<span>{task.text}</span>
 				<svg class="focus-overlay-title-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-			</h2>
+			</div>
 		{/if}
 
 		<!-- Meta Row -->
@@ -291,6 +296,7 @@
 						class="px-2.5 py-1.5 text-white text-xs rounded-lg"
 						style="background: var(--tf-accent);"
 						disabled={!newSubtaskText.trim()}
+						aria-label="Unteraufgabe hinzufügen"
 					>
 						<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
 					</button>

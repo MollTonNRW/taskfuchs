@@ -26,11 +26,15 @@ export async function changeListIcon(sb: Sb, id: string, icon: string) {
 }
 
 export async function reorderListDb(sb: Sb, updates: { id: string; position: number }[]) {
+	if (updates.length === 0) return { error: null };
+	if (updates.length === 1) {
+		return sb.from('lists').update({ position: updates[0].position }).eq('id', updates[0].id);
+	}
+	// TODO: Nach Migration 007 auf sb.rpc('batch_reorder_lists', ...) umstellen
 	const results = await Promise.all(
-		updates.map((u) => sb.from('lists').update({ position: u.position }).eq('id', u.id))
+		updates.map(u => sb.from('lists').update({ position: u.position }).eq('id', u.id))
 	);
-	const failed = results.find((r) => r.error);
-	return { error: failed?.error ?? null };
+	return { error: results.find(r => r.error)?.error ?? null };
 }
 
 // ==========================================
@@ -47,6 +51,20 @@ export async function updateTaskField(sb: Sb, id: string, fields: TaskUpdate) {
 
 export async function deleteTaskDb(sb: Sb, id: string) {
 	return sb.from('tasks').delete().eq('id', id);
+}
+
+export async function reinsertTask(sb: Sb, task: Task) {
+	const { id, created_at, updated_at, version, ...rest } = task;
+	return sb.from('tasks').insert({ id, ...rest }).select().single();
+}
+
+export async function reinsertTasks(sb: Sb, tasksList: Task[]) {
+	if (tasksList.length === 0) return { error: null };
+	const rows = tasksList.map(t => {
+		const { created_at, updated_at, version, ...rest } = t;
+		return rest;
+	});
+	return sb.from('tasks').insert(rows);
 }
 
 export async function deleteTaskWithSubtasks(sb: Sb, id: string, subtaskIds: string[]) {
@@ -82,27 +100,41 @@ export async function bulkMoveToList(sb: Sb, ids: string[], targetListId: string
 // ==========================================
 
 export async function reorderTasksDb(sb: Sb, updates: { id: string; position: number; list_id?: string }[]) {
+	if (updates.length === 0) return { error: null };
+	if (updates.length === 1) {
+		const u = updates[0];
+		const updateData: Record<string, unknown> = { position: u.position };
+		if (u.list_id) updateData.list_id = u.list_id;
+		return sb.from('tasks').update(updateData).eq('id', u.id);
+	}
+	// TODO: Nach Migration 007 auf sb.rpc('batch_reorder_tasks', ...) umstellen
 	const results = await Promise.all(
-		updates.map((u) => {
-			const updateData: Record<string, unknown> = { position: u.position };
-			if (u.list_id) updateData.list_id = u.list_id;
-			return sb.from('tasks').update(updateData).eq('id', u.id);
+		updates.map(u => {
+			const data: Record<string, unknown> = { position: u.position };
+			if (u.list_id) data.list_id = u.list_id;
+			return sb.from('tasks').update(data).eq('id', u.id);
 		})
 	);
-	const failed = results.find((r) => r.error);
-	return { error: failed?.error ?? null };
+	return { error: results.find(r => r.error)?.error ?? null };
 }
 
 export async function reorderSubtasksDb(sb: Sb, updates: { id: string; position: number; parent_id?: string }[]) {
+	if (updates.length === 0) return { error: null };
+	if (updates.length === 1) {
+		const u = updates[0];
+		const updateData: Record<string, unknown> = { position: u.position };
+		if (u.parent_id) updateData.parent_id = u.parent_id;
+		return sb.from('tasks').update(updateData).eq('id', u.id);
+	}
+	// TODO: Nach Migration 007 auf sb.rpc('batch_reorder_subtasks', ...) umstellen
 	const results = await Promise.all(
-		updates.map((u) => {
-			const updateData: Record<string, unknown> = { position: u.position };
-			if (u.parent_id) updateData.parent_id = u.parent_id;
-			return sb.from('tasks').update(updateData).eq('id', u.id);
+		updates.map(u => {
+			const data: Record<string, unknown> = { position: u.position };
+			if (u.parent_id) data.parent_id = u.parent_id;
+			return sb.from('tasks').update(data).eq('id', u.id);
 		})
 	);
-	const failed = results.find((r) => r.error);
-	return { error: failed?.error ?? null };
+	return { error: results.find(r => r.error)?.error ?? null };
 }
 
 // ==========================================

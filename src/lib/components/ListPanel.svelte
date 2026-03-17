@@ -37,7 +37,8 @@
 		selectedTaskIds = new Set<string>(),
 		onBulkToggle,
 		onSelectAll,
-		onMinimize
+		onMinimize,
+		subtasksForceCollapsed = false
 	}: {
 		list: List;
 		tasks: Task[];
@@ -69,13 +70,13 @@
 		onBulkToggle?: (taskId: string) => void;
 		onSelectAll?: (listId: string) => void;
 		onMinimize?: () => void;
+		subtasksForceCollapsed?: boolean;
 	} = $props();
 
 	let editingTitle = $state(false);
 	let titleText = $state('');
-	let menuOpen = $state(false);
 	let showDone = $state(false);
-	let allCollapsed = $state(false);
+	// subtasksForceCollapsed wird direkt als forceCollapse an TaskItem weitergegeben
 	let listCollapsed = $state(false);
 	let dragOverIdx = $state<number | null>(null);
 	let listDragOver = $state(false);
@@ -388,47 +389,16 @@
 				</svg>
 			</button>
 
-			<!-- List Menu -->
-			<div class="relative">
-				<button
-					onclick={() => (menuOpen = !menuOpen)}
-					class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors tf-text-muted"
-					aria-label="Listen-Optionen"
-				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01" />
-					</svg>
-				</button>
-
-				{#if menuOpen}
-					<div class="fixed inset-0 z-40" onclick={() => (menuOpen = false)} role="presentation"></div>
-					<div class="absolute right-0 top-8 z-50 w-48 rounded-xl p-1.5 animate-in tf-popover-bg" style="border: 1px solid var(--tf-border); box-shadow: 0 12px 40px rgba(0,0,0,.15);">
-						<button
-							onclick={() => { startRename(); menuOpen = false; }}
-							class="context-menu-item w-full"
-						>
-							<svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-							<span class="tf-text">Umbenennen</span>
-						</button>
-						{#if onShareClick}
-						<button
-							onclick={() => { onShareClick(); menuOpen = false; }}
-							class="context-menu-item w-full"
-						>
-							<svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-							<span class="tf-text">Teilen</span>
-						</button>
-						{/if}
-						<button
-							onclick={() => { onDelete(list.id); menuOpen = false; }}
-							class="context-menu-item w-full text-red-500 hover:!bg-red-50 dark:hover:!bg-red-900/20"
-						>
-							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-							<span>Liste löschen</span>
-						</button>
-					</div>
-				{/if}
-			</div>
+			<!-- List Menu (triggert das vollständige Kontextmenü) -->
+			<button
+				onclick={(e) => onListContext?.(e)}
+				class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors tf-text-muted"
+				aria-label="Listen-Optionen"
+			>
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01" />
+				</svg>
+			</button>
 		</div>
 
 		{#if !listCollapsed}
@@ -461,10 +431,12 @@
 								onclick={(e) => e.stopPropagation()}
 							/>
 						{:else}
-							<!-- svelte-ignore a11y_no_static_element_interactions -->
 							<span
 								class="text-xs font-semibold uppercase tracking-wider tf-text-muted cursor-pointer hover:opacity-70 transition-opacity"
 								onclick={(e) => { e.stopPropagation(); editingDividerId = task.id; dividerEditText = task.divider_label || task.text; }}
+								onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); editingDividerId = task.id; dividerEditText = task.divider_label || task.text; } }}
+								role="button"
+								tabindex="0"
 								title="Klick zum Umbenennen"
 							>{task.divider_label || task.text}</span>
 						{/if}
@@ -481,7 +453,6 @@
 				{:else}
 					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<div
-						transition:slide|global={{ duration: 250 }}
 						class="flex items-start gap-1 {dragOverIdx === idx ? 'drag-over' : ''}"
 						data-task-idx={idx}
 						ondragover={(e) => handleTaskDragOver(e, idx)}
@@ -489,6 +460,8 @@
 						use:touchDropZone={{ type: 'task', onDragOver: handleTouchTaskOver, onDragLeave: handleTouchTaskLeave, onDrop: handleTouchTaskDrop }}
 					>
 						{#if bulkMode && onBulkToggle}
+							<!-- svelte-ignore a11y_click_events_have_key_events -->
+							<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 							<label class="flex-shrink-0 mt-3 ml-1 cursor-pointer" onclick={(e) => e.stopPropagation()}>
 								<input
 									type="checkbox"
@@ -521,7 +494,7 @@
 							touchDragData={{ taskId: task.id, sourceListId: list.id }}
 							touchDragType="task"
 							{onTaskClick}
-							forceCollapse={allCollapsed}
+							forceCollapse={subtasksForceCollapsed}
 						/>
 						</div>
 					</div>
@@ -592,7 +565,7 @@
 									onContext={(e) => onTaskContext?.(e, task)}
 									{onNoteClick}
 									{onTaskClick}
-									forceCollapse={allCollapsed}
+									forceCollapse={subtasksForceCollapsed}
 								/>
 								<button
 									onclick={() => onToggleTask(task.id, false)}
@@ -608,17 +581,18 @@
 				{/if}
 			{/if}
 
-			<!-- + Button unter Erledigt -->
-			<div class="flex justify-center py-2">
-				<button
-					onclick={() => onAddTask(list.id, 'Neue Aufgabe')}
-					class="quick-add-btn w-8 h-8 flex items-center justify-center rounded-full transition-all hover:scale-110"
-					style="background: var(--tf-accent-gradient, var(--tf-accent)); color: white; box-shadow: 0 2px 8px rgba(0,0,0,.1);"
-					title="Neue Aufgabe erstellen"
-				>
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-				</button>
-			</div>
+		</div>
+
+		<!-- FAB: Always visible add button pinned to bottom of list panel -->
+		<div class="flex justify-center py-2.5 flex-shrink-0" style="border-top: 1px solid var(--tf-border);">
+			<button
+				onclick={() => onAddTask(list.id, 'Neue Aufgabe')}
+				class="quick-add-btn w-9 h-9 flex items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
+				style="background: var(--tf-accent-gradient, var(--tf-accent)); color: white; box-shadow: 0 2px 12px rgba(0,0,0,.15);"
+				title="Neue Aufgabe erstellen"
+			>
+				<svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+			</button>
 		</div>
 
 	{/if}

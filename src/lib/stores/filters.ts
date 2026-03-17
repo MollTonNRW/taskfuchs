@@ -1,4 +1,5 @@
 import { writable, derived } from 'svelte/store';
+import { browser } from '$app/environment';
 
 export type PriorityFilter = 'low' | 'normal' | 'high' | 'asap';
 export type TimeframeFilter = 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig';
@@ -54,4 +55,18 @@ export function resetFilters() {
 	priorityFilters.set({ low: true, normal: true, high: true, asap: true });
 	timeframeFilters.set({ akut: true, zeitnah: true, mittelfristig: true, langfristig: true });
 	viewFilters.set({ highlighted: false, withDate: false, shared: false });
+}
+
+// ==========================================
+// SUBTASK VISIBILITY SETTING
+// ==========================================
+const savedSubtaskDefault = browser ? localStorage.getItem('tf-subtasks-collapsed') === 'true' : false;
+export const subtasksCollapsedByDefault = writable<boolean>(savedSubtaskDefault);
+
+subtasksCollapsedByDefault.subscribe((val) => {
+	if (browser) localStorage.setItem('tf-subtasks-collapsed', String(val));
+});
+
+export function toggleSubtasksDefault() {
+	subtasksCollapsedByDefault.update((v) => !v);
 }

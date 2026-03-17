@@ -68,6 +68,7 @@
 	onkeydown={handleKeydown}
 	role="dialog"
 	aria-label="Liste teilen"
+	tabindex="-1"
 >
 	<!-- Header -->
 	<div class="flex items-center justify-between mb-5">
@@ -96,12 +97,13 @@
 
 	<!-- Invite form -->
 	<div class="mb-5">
-		<label class="text-xs font-semibold uppercase tracking-wider tf-text-muted mb-2 block">
+		<label for="share-email-input" class="text-xs font-semibold uppercase tracking-wider tf-text-muted mb-2 block">
 			Person einladen
 		</label>
 		<div class="flex gap-2">
 			<!-- svelte-ignore a11y_autofocus -->
 			<input
+				id="share-email-input"
 				type="email"
 				bind:value={email}
 				placeholder="email@beispiel.de"
@@ -133,9 +135,9 @@
 	<!-- Current shares -->
 	{#if shares.length > 0}
 		<div>
-			<label class="text-xs font-semibold uppercase tracking-wider tf-text-muted mb-2 block">
+			<span class="text-xs font-semibold uppercase tracking-wider tf-text-muted mb-2 block">
 				Geteilte Zugriffe
-			</label>
+			</span>
 			<div class="space-y-2">
 				{#each shares as share (share.id)}
 					<div class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors">

@@ -7,6 +7,7 @@
 	import { profileMap, getInitials } from '$lib/stores/profiles';
 	import { priorityColors, priorityBadgeBg, priorityLabels, priorityOrder, progressLabels } from '$lib/constants';
 	import { touchDragHandle, touchDropZone } from '$lib/actions/touchDrag';
+	import { subtasksCollapsedByDefault } from '$lib/stores/filters';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 
@@ -60,7 +61,15 @@
 
 	let editing = $state(false);
 	let editText = $state('');
-	let subtasksOpen = $state(true);
+	let subtasksOpen = $state(!$subtasksCollapsedByDefault);
+	// Wenn forceCollapse aufgehoben wird → Subtasks öffnen
+	let lastForceCollapse = forceCollapse;
+	$effect(() => {
+		if (lastForceCollapse && !forceCollapse) {
+			subtasksOpen = true;
+		}
+		lastForceCollapse = forceCollapse;
+	});
 	let addingSubtask = $state(false);
 	let newSubtaskText = $state('');
 	let animating = $state(false);
@@ -78,7 +87,8 @@
 
 	function handleSingleClick(e: MouseEvent) {
 		const target = e.target as HTMLElement;
-		if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.priority-bar') || target.closest('.more-menu-btn') || target.closest('.task-badges') || target.closest('.add-subtask-inline')) return;
+		// Klicks auf interaktive Elemente, Subtasks, Drag-Handles ignorieren
+		if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.priority-bar') || target.closest('.more-menu-btn') || target.closest('.task-badges') || target.closest('.add-subtask-inline') || target.closest('.subtask-item') || target.closest('.task-drag-handle') || target.closest('[data-subtask-area]')) return;
 
 		if (clickTimer) {
 			// Doppelklick erkannt → Inline-Edit
@@ -292,10 +302,11 @@
 </script>
 
 <div
-	class="task-enter group/task {animClass} {task.priority === 'asap' ? 'asap-blink' : ''} {task.highlighted ? 'highlighted' : ''}"
+	class="group/task {animClass} {task.priority === 'asap' ? 'asap-blink' : ''} {task.highlighted ? 'highlighted' : ''}"
 	id="task-{task.id}"
 >
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
 		class="task-item rounded-xl px-3 py-2.5 tf-surface tf-surface-interactive border transition-all duration-200 group relative cursor-default"
 		style="border-color: var(--tf-border);"
@@ -307,7 +318,10 @@
 			}
 			handleSingleClick(e);
 		}}
+		onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTaskClick?.(task.id); } }}
 		oncontextmenu={(e) => { if (onContext) { e.preventDefault(); e.stopPropagation(); onContext(e); } }}
+		role="article"
+		tabindex="0"
 	>
 		<div class="task-row">
 			<!-- Drag Handle (all devices) -->
@@ -336,12 +350,15 @@
 				class="priority-bar badge-clickable"
 				style="background: {priorityColors[task.priority]}; align-self: stretch;"
 				onclick={openPriorityPicker}
+				onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); cyclePriority(); } }}
 				role="button"
 				tabindex="-1"
 				title="Priorität ändern"
 			></div>
 
 			<!-- Checkbox (SVG animated) -->
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 			<label class="custom-checkbox {allSubtasksDone ? 'subtasks-complete-pulse' : ''}" onclick={(e) => e.stopPropagation()}>
 				<input type="checkbox" checked={task.done} onchange={handleToggle} />
 				<span class="checkmark">
@@ -354,11 +371,12 @@
 			<!-- Content -->
 			<div class="task-content">
 				{#if task.emoji}
-					<span
-						class="text-sm cursor-pointer emoji-hover-wobble flex-shrink-0"
+					<button
+						type="button"
+						class="text-sm cursor-pointer emoji-hover-wobble flex-shrink-0 bg-transparent border-none p-0"
 						onclick={(e) => { e.stopPropagation(); onEmojiClick?.(task.id, e.clientX, e.clientY); }}
 						title="Symbol ändern"
-					>{task.emoji}</span>
+					>{task.emoji}</button>
 				{/if}
 
 				{#if editing}
@@ -373,7 +391,6 @@
 						autofocus
 					/>
 				{:else}
-					<!-- svelte-ignore a11y_no_static_element_interactions -->
 					<span
 						class="task-text text-sm font-medium cursor-pointer {task.done ? 'line-through opacity-40' : ''}"
 						style="color: var(--tf-text);"
@@ -390,13 +407,15 @@
 				{/if}
 
 				<!-- Badges -->
+				<!-- svelte-ignore a11y_click_events_have_key_events -->
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div class="task-badges" onclick={(e) => e.stopPropagation()}>
 					{#if task.priority === 'asap'}
-						<span class="badge-clickable text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-red-500 text-white animate-pulse whitespace-nowrap cursor-pointer" onclick={openPriorityPicker}>ASAP!</span>
+						<button type="button" class="badge-clickable text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-red-500 text-white animate-pulse whitespace-nowrap cursor-pointer border-none" onclick={openPriorityPicker} aria-label="Priorität ändern: ASAP">ASAP!</button>
 					{:else if task.priority !== 'normal'}
-						<span class="badge-clickable text-[10px] font-medium px-1.5 py-0.5 rounded-md whitespace-nowrap cursor-pointer {priorityBadgeBg[task.priority]}" onclick={openPriorityPicker}>
+						<button type="button" class="badge-clickable text-[10px] font-medium px-1.5 py-0.5 rounded-md whitespace-nowrap cursor-pointer border-none {priorityBadgeBg[task.priority]}" onclick={openPriorityPicker} aria-label="Priorität ändern: {priorityLabels[task.priority]}">
 							{priorityLabels[task.priority]}
-						</span>
+						</button>
 					{/if}
 					{#if task.due_date}
 						<span class="text-[10px] flex items-center gap-1 whitespace-nowrap tf-text-muted">
@@ -502,6 +521,7 @@
 		{#if subtasksOpen && !forceCollapse && subtaskCount > 0}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
+				data-subtask-area
 				bind:this={subtasksContainer}
 				transition:slide|global={{ duration: 200 }}
 				class="mt-2 space-y-0.5 {subtaskContainerDragOver ? 'ring-1 ring-dashed ring-orange-400/50 rounded-lg' : ''}"
@@ -527,7 +547,7 @@
 
 		<!-- Add Subtask Input -->
 		{#if addingSubtask}
-			<div bind:this={subtaskInputContainer} transition:slide|global={{ duration: 200 }} class="mt-2">
+			<div data-subtask-area bind:this={subtaskInputContainer} transition:slide|global={{ duration: 200 }} class="mt-2">
 				<div class="flex gap-1.5">
 					<!-- svelte-ignore a11y_autofocus -->
 					<input

@@ -191,11 +191,13 @@
 			autofocus
 		/>
 	{:else}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<span
 			class="text-xs flex-1 cursor-text tf-text {subtask.done ? 'line-through opacity-40' : ''} transition-all duration-300"
 			style="word-break: break-word;"
 			onclick={startEdit}
+			onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(); } }}
+			role="button"
+			tabindex="0"
 			title="Klick zum Bearbeiten"
 		>
 			{subtask.text}
@@ -273,6 +275,7 @@
 				class="px-2 py-1 text-white text-[10px] rounded-lg"
 				style="background: var(--tf-accent);"
 				disabled={!newChildText.trim()}
+				aria-label="Unter-Unteraufgabe hinzufügen"
 			>
 				<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
 			</button>

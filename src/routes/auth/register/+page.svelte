@@ -56,7 +56,7 @@
 	<div class="card w-full max-w-sm bg-base-100 shadow-xl">
 		<div class="card-body">
 			<div class="text-center mb-4">
-				<span class="text-4xl">🦊</span>
+				<img src="/icons/icon-96x96.png" alt="TaskFuchs" class="w-16 h-16 mx-auto rounded-xl" />
 				<h1 class="text-2xl font-bold mt-2 bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
 					TaskFuchs
 				</h1>

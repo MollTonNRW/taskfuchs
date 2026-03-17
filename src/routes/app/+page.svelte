@@ -34,6 +34,41 @@
 
 	let activeListIndex = $state(0);
 
+	// Swipe detection for mobile list navigation
+	let swipeStartX = 0;
+	let swipeStartY = 0;
+	let swipeTracked = false;
+
+	function handleSwipeStart(e: TouchEvent) {
+		const target = e.target as HTMLElement;
+		// Don't track swipes on interactive elements or drag handles
+		if (target.closest('input, textarea, button, select, [data-drag-handle], .drag-handle')) return;
+		swipeStartX = e.touches[0].clientX;
+		swipeStartY = e.touches[0].clientY;
+		swipeTracked = true;
+	}
+
+	function handleSwipeEnd(e: TouchEvent) {
+		if (!swipeTracked) return;
+		swipeTracked = false;
+
+		const endX = e.changedTouches[0].clientX;
+		const endY = e.changedTouches[0].clientY;
+		const deltaX = endX - swipeStartX;
+		const deltaY = endY - swipeStartY;
+
+		// Only trigger if horizontal swipe > 50px and vertical < 30px
+		if (Math.abs(deltaX) < 50 || Math.abs(deltaY) > 30) return;
+
+		if (deltaX < 0) {
+			// Swipe left → next list
+			activeListIndex = Math.min(activeListIndex + 1, visibleLists.length - 1);
+		} else {
+			// Swipe right → previous list
+			activeListIndex = Math.max(activeListIndex - 1, 0);
+		}
+	}
+
 	// Sync page data → store
 	$effect(() => {
 		store.init(
@@ -70,13 +105,22 @@
 	type SortMode = 'position' | 'priority' | 'name' | 'date' | 'created' | 'progress';
 	const validSortModes: SortMode[] = ['position', 'priority', 'name', 'date', 'created', 'progress'];
 	function loadSortMode(): SortMode {
-		if (typeof localStorage === 'undefined') return 'priority';
+		if (typeof localStorage === 'undefined') return 'position';
 		const saved = localStorage.getItem('taskfuchs-sort-mode');
-		return saved && validSortModes.includes(saved as SortMode) ? (saved as SortMode) : 'priority';
+		return saved && validSortModes.includes(saved as SortMode) ? (saved as SortMode) : 'position';
 	}
 	let sortMode = $state<SortMode>(loadSortMode());
 	$effect(() => { if (typeof localStorage !== 'undefined') localStorage.setItem('taskfuchs-sort-mode', sortMode); });
 	let sortMenuOpen = $state(false);
+
+	/** Bei D&D automatisch auf freie Sortierung wechseln */
+	function handleReorderTask(taskId: string, targetListId: string, newPosition: number) {
+		if (sortMode !== 'position') {
+			sortMode = 'position';
+			toasts.show('Sortierung auf „Frei" gewechselt', 'info', 2000);
+		}
+		store.reorderTask(taskId, targetListId, newPosition);
+	}
 
 	// sortLabels, priorityWeight imported from $lib/constants
 
@@ -271,6 +315,11 @@
 				{ label: 'Alle Aufgaben abhaken', icon: { svg: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z', color: 'text-green-500' }, action: () => store.checkAllInList(list.id) },
 				{ label: 'Erledigte Einträge löschen', icon: { svg: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', color: 'text-yellow-500' }, action: () => store.deleteDoneInList(list.id) },
 				{ label: 'Alle Unteraufgaben löschen', icon: { svg: 'M13 5l7 7-7 7M5 5l7 7-7 7', color: 'text-orange-500' }, action: () => store.deleteAllSubtasksInList(list.id) },
+				{
+					label: collapsedSubtasksListIds.has(list.id) ? 'Unteraufgaben aufklappen' : 'Unteraufgaben einklappen',
+					icon: { svg: collapsedSubtasksListIds.has(list.id) ? 'M19 9l-7 7-7-7' : 'M9 5l7 7-7 7', color: 'text-blue-500' },
+					action: () => toggleCollapseSubtasks(list.id)
+				},
 				{ divider: true, label: '' },
 				{ label: 'Liste duplizieren', icon: { svg: 'M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z', color: 'text-purple-500' }, action: async () => { const idx = await store.duplicateList(list.id); if (idx >= 0) activeListIndex = idx; } },
 				{ label: 'Liste umbenennen', icon: { svg: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z', color: 'text-blue-500' }, action: () => { const newName = prompt('Neuer Listenname:', list.title); if (newName?.trim()) store.renameList(list.id, newName.trim()); } },
@@ -296,9 +345,16 @@
 
 		const otherLists = store.lists.filter((l) => l.id !== task.list_id);
 
+		const taskSubtaskCount = store.tasks.filter(t => t.parent_id === task.id).length;
+
 		const items: MenuItem[] = [
 			{ label: 'Neue Aufgabe darunter', icon: { svg: 'M12 4v16m8-8H4', color: 'text-green-500' }, action: () => store.addTaskAfter(task.id, 'Neue Aufgabe') },
 			{ label: 'Unteraufgabe erstellen', icon: { svg: 'M13 5l7 7-7 7M5 5l7 7-7 7', color: 'text-blue-500' }, action: () => store.addSubtask(task.id, 'Neue Unteraufgabe') },
+			...(taskSubtaskCount > 0 ? [{
+				label: `Unteraufgaben löschen (${taskSubtaskCount})`,
+				icon: { svg: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16', color: 'text-red-400' },
+				action: () => store.deleteAllSubtasksOfTask(task.id)
+			} as MenuItem] : []),
 			{
 				label: task.done ? 'Nicht erledigt' : 'Erledigt',
 				icon: task.done
@@ -367,6 +423,19 @@
 				action: () => openEmojiPicker(task.id, contextMenu.x, contextMenu.y)
 			}
 		];
+
+		// "In Liste umwandeln" nur anzeigen wenn Task Unteraufgaben hat
+		const subtaskCount = store.tasks.filter(t => t.parent_id === task.id).length;
+		if (subtaskCount > 0) {
+			items.push({
+				label: 'In Liste umwandeln',
+				icon: { svg: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', color: 'text-indigo-500' },
+				action: async () => {
+					const idx = await store.convertTaskToList(task.id);
+					if (idx >= 0) activeListIndex = idx;
+				}
+			});
+		}
 
 		if (otherLists.length > 0) {
 			items.push({ divider: true, label: '' });
@@ -480,6 +549,18 @@
 			el.classList.add('task-highlight-in');
 			setTimeout(() => el.classList.remove('task-highlight-in'), 1000);
 		}
+	}
+
+	// ==========================================
+	// COLLAPSE ALL SUBTASKS PER LIST
+	// ==========================================
+	let collapsedSubtasksListIds = $state<Set<string>>(new Set());
+	function toggleCollapseSubtasks(listId: string) {
+		const next = new Set(collapsedSubtasksListIds);
+		if (next.has(listId)) next.delete(listId);
+		else next.add(listId);
+		collapsedSubtasksListIds = next;
+		console.log('[DEBUG] toggleCollapseSubtasks', listId, 'collapsed:', next.has(listId), 'set:', [...next]);
 	}
 
 	// ==========================================
@@ -803,7 +884,7 @@
 	{#if store.lists.length === 0}
 		<!-- Empty State -->
 		<div class="flex flex-col items-center justify-center py-20">
-			<span class="text-6xl mb-4">🦊</span>
+			<img src="/icons/icon-96x96.png" alt="TaskFuchs" class="w-16 h-16 mb-4 rounded-xl" />
 			<h2 class="text-xl font-semibold mb-2 tf-text">Willkommen bei TaskFuchs!</h2>
 			<p class="tf-text-secondary mb-6 text-center max-w-sm">
 				Erstelle deine erste Liste, um loszulegen.
@@ -847,7 +928,8 @@
 		</div>
 
 		<!-- Mobile: Single List View -->
-		<div class="md:hidden">
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="md:hidden" ontouchstart={handleSwipeStart} ontouchend={handleSwipeEnd}>
 			{#if visibleLists[activeListIndex]}
 				{#key activeListIndex}
 					<div in:fade={{ duration: 150, delay: 50 }} out:fade={{ duration: 100 }}>
@@ -872,7 +954,7 @@
 							onListContext={(e: MouseEvent) => handleListContext(e, visibleLists[activeListIndex])}
 							onTaskContext={handleTaskContext}
 							onNoteClick={openNotePopover}
-							onReorderTask={store.reorderTask}
+							onReorderTask={handleReorderTask}
 							onReorderSubtask={store.reorderSubtask}
 							onShareClick={() => openShareDialog(visibleLists[activeListIndex])}
 							onTaskClick={openFocusMode}
@@ -880,6 +962,7 @@
 							{selectedTaskIds}
 							onBulkToggle={toggleBulkSelect}
 							onSelectAll={selectAllInList}
+							subtasksForceCollapsed={collapsedSubtasksListIds.has(visibleLists[activeListIndex].id)}
 						/>
 					</div>
 				{/key}
@@ -925,7 +1008,7 @@
 							onListContext={(e: MouseEvent) => handleListContext(e, list)}
 							onTaskContext={handleTaskContext}
 							onNoteClick={openNotePopover}
-							onReorderTask={store.reorderTask}
+							onReorderTask={handleReorderTask}
 							onReorderSubtask={store.reorderSubtask}
 							onReorderList={(listId: string, newPos: number) => store.reorderList(listId, newPos)}
 							onShareClick={() => openShareDialog(list)}
@@ -936,6 +1019,7 @@
 							onBulkToggle={toggleBulkSelect}
 							onSelectAll={selectAllInList}
 							onMinimize={() => toggleMinimizeList(list.id)}
+							subtasksForceCollapsed={collapsedSubtasksListIds.has(list.id)}
 						/>
 					</div>
 					<!-- Resize Handle -->
