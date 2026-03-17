@@ -15,6 +15,11 @@ export function createTaskStore() {
 	let userId: string;
 	let pendingTaskIds = new Set<string>();
 	let pendingListIds = new Set<string>();
+	/** Fingerprint für Duplikat-Erkennung: text|list_id|parent_id (verhindert Duplikate wenn Realtime vor HTTP-Response kommt) */
+	let pendingFingerprints = new Set<string>();
+	function taskFingerprint(t: { text: string; list_id: string; parent_id?: string | null }): string {
+		return `${t.text}|${t.list_id}|${t.parent_id ?? ''}`;
+	}
 
 	function init(supabase: Sb, uid: string, initialLists: List[], initialTasks: Task[]) {
 		sb = supabase;
@@ -66,7 +71,7 @@ export function createTaskStore() {
 	}
 
 	async function deleteList(id: string): Promise<boolean> {
-		if (!confirmAction('Liste wirklich löschen? Alle Aufgaben werden gelöscht.')) return false;
+		if (!await confirmAction('Liste wirklich löschen? Alle Aufgaben werden gelöscht.')) return false;
 		const oldLists = lists;
 		const oldTasks = tasks;
 		lists = lists.filter((l) => l.id !== id);
@@ -113,10 +118,17 @@ export function createTaskStore() {
 		};
 		tasks = [...tasks, optimisticTask];
 		pendingTaskIds.add(optimisticTask.id);
+		const fp = taskFingerprint(optimisticTask);
+		pendingFingerprints.add(fp);
 		const { data: newTask, error } = await crud.insertTask(sb, { list_id: listId, user_id: userId, text, position });
 		pendingTaskIds.delete(optimisticTask.id);
+		pendingFingerprints.delete(fp);
 		if (error) { tasks = tasks.filter((t) => t.id !== optimisticTask.id); return; }
-		if (newTask) tasks = tasks.map((t) => (t.id === optimisticTask.id ? (newTask as Task) : t));
+		if (newTask) {
+			const serverId = (newTask as Task).id;
+			tasks = tasks.filter((t) => t.id === optimisticTask.id || t.id !== serverId);
+			tasks = tasks.map((t) => (t.id === optimisticTask.id ? (newTask as Task) : t));
+		}
 	}
 
 	async function addTaskAfter(afterTaskId: string, text: string) {
@@ -141,13 +153,20 @@ export function createTaskStore() {
 		});
 		tasks = [...tasks, optimisticTask];
 		pendingTaskIds.add(optimisticTask.id);
+		const fp = taskFingerprint(optimisticTask);
+		pendingFingerprints.add(fp);
 		if (toShift.length > 0) {
 			await crud.reorderTasksDb(sb, toShift);
 		}
 		const { data: newTask, error } = await crud.insertTask(sb, { list_id: listId, user_id: userId, text, position: newPosition });
 		pendingTaskIds.delete(optimisticTask.id);
+		pendingFingerprints.delete(fp);
 		if (error) { tasks = tasks.filter((t) => t.id !== optimisticTask.id); return; }
-		if (newTask) tasks = tasks.map((t) => (t.id === optimisticTask.id ? (newTask as Task) : t));
+		if (newTask) {
+			const serverId = (newTask as Task).id;
+			tasks = tasks.filter((t) => t.id === optimisticTask.id || t.id !== serverId);
+			tasks = tasks.map((t) => (t.id === optimisticTask.id ? (newTask as Task) : t));
+		}
 	}
 
 	async function toggleTask(id: string, done: boolean) {
@@ -176,7 +195,7 @@ export function createTaskStore() {
 	}
 
 	async function deleteTask(id: string) {
-		if (!confirmAction('Aufgabe wirklich löschen?')) return;
+		if (!await confirmAction('Aufgabe wirklich löschen?')) return;
 		const oldTasks = tasks;
 		const subtaskIds = tasks.filter((t) => t.parent_id === id).map((t) => t.id);
 		tasks = tasks.filter((t) => t.id !== id && t.parent_id !== id);
@@ -310,11 +329,16 @@ export function createTaskStore() {
 		};
 		tasks = [...tasks, optimisticSub];
 		pendingTaskIds.add(optimisticSub.id);
+		const fp = taskFingerprint(optimisticSub);
+		pendingFingerprints.add(fp);
 		const { data: newSub, error } = await crud.insertTask(sb, {
 			list_id: parentTask.list_id, user_id: userId, parent_id: parentId, text, position
 		});
 		pendingTaskIds.delete(optimisticSub.id);
+		pendingFingerprints.delete(fp);
 		if (newSub && !error) {
+			const serverId = (newSub as Task).id;
+			tasks = tasks.filter((t) => t.id === optimisticSub.id || t.id !== serverId);
 			tasks = tasks.map((t) => (t.id === optimisticSub.id ? (newSub as Task) : t));
 		} else if (error) {
 			tasks = tasks.filter((t) => t.id !== optimisticSub.id);
@@ -362,7 +386,7 @@ export function createTaskStore() {
 	}
 
 	async function bulkDelete(ids: string[]) {
-		if (!confirmAction(`${ids.length} Aufgaben wirklich löschen?`)) return;
+		if (!await confirmAction(`${ids.length} Aufgaben wirklich löschen?`)) return;
 		const oldTasks = tasks;
 		const idSet = new Set(ids);
 		tasks = tasks.filter((t) => !idSet.has(t.id) && !idSet.has(t.parent_id ?? ''));
@@ -652,12 +676,25 @@ export function createTaskStore() {
 	function handleRealtimeTask(eventType: string, payload: any) {
 		if (eventType === 'INSERT') {
 			const newTask = payload as Task;
+			// Exakte ID-Match (Server-ID bereits bekannt)
 			if (pendingTaskIds.has(newTask.id)) {
 				pendingTaskIds.delete(newTask.id);
 				tasks = tasks.map((t) => (t.id === newTask.id ? newTask : t));
 				return;
 			}
+			// Duplikat-Check: ID bereits im State
 			if (tasks.some((t) => t.id === newTask.id)) return;
+			// Fingerprint-Check: Realtime-Event kam vor HTTP-Response → optimistische Task existiert bereits
+			const fp = taskFingerprint(newTask);
+			if (pendingFingerprints.has(fp)) {
+				const optimistic = tasks.find((t) => pendingTaskIds.has(t.id) && taskFingerprint(t) === fp);
+				if (optimistic) {
+					pendingTaskIds.delete(optimistic.id);
+					pendingFingerprints.delete(fp);
+					tasks = tasks.map((t) => (t.id === optimistic.id ? newTask : t));
+					return;
+				}
+			}
 			tasks = [...tasks, newTask];
 		} else if (eventType === 'UPDATE') {
 			const updated = payload as Task;

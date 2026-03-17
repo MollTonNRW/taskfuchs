@@ -61,9 +61,11 @@ function autoScroll(clientY: number) {
 	});
 }
 
+let lastTouchX = 0; // Track touch X for scroll container lookup
+
 function findScrollContainer(clientY: number): HTMLElement | null {
-	// Find the nearest scrollable task list
-	const els = document.elementsFromPoint(window.innerWidth / 2, clientY);
+	// Find the nearest scrollable task list using actual touch position
+	const els = document.elementsFromPoint(lastTouchX || window.innerWidth / 2, clientY);
 	for (const el of els) {
 		if (el instanceof HTMLElement && el.classList.contains('task-list-scroll')) {
 			return el;
@@ -189,6 +191,7 @@ export function touchDragHandle(
 		const state = get(dragState);
 		if (!state.active || !state.ghost) return;
 
+		lastTouchX = touch.clientX;
 		moveGhost(state.ghost, touch.clientX, touch.clientY);
 		autoScroll(touch.clientY);
 

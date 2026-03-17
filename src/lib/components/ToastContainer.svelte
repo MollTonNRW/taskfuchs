@@ -16,10 +16,11 @@
 </script>
 
 {#if $toasts.length > 0}
-	<div class="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 items-center pointer-events-none">
+	<div class="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 items-center pointer-events-none" role="status" aria-live="polite">
 		{#each $toasts as toast (toast.id)}
 			<div
 				class="pointer-events-auto flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium max-w-sm {typeStyles[toast.type]}"
+				role={toast.type === 'error' ? 'alert' : 'status'}
 				transition:fly={{ y: 20, duration: 200 }}
 			>
 				<svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

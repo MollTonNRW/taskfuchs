@@ -33,6 +33,7 @@
 	let addingChild = $state(false);
 	let newChildText = $state('');
 	let childrenContainer: HTMLDivElement | undefined = $state();
+	let childInputContainer: HTMLDivElement | undefined = $state();
 
 	let dragOverThis = $state(false);
 	let dragOverPosition = $state<'above' | 'below'>('below');
@@ -215,7 +216,7 @@
 	<!-- Add child button (only if nesting allowed) -->
 	{#if canNest}
 		<button
-			onclick={() => { addingChild = true; childrenOpen = true; }}
+			onclick={async () => { addingChild = true; childrenOpen = true; await tick(); childInputContainer?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }}
 			class="w-5 h-5 flex items-center justify-center rounded-full border opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-all tf-text-muted"
 			style="border-color: currentColor;"
 			title="Unter-Unteraufgabe"
@@ -255,7 +256,7 @@
 
 <!-- Add child input -->
 {#if addingChild && canNest}
-	<div transition:slide|global={{ duration: 200 }} class="ml-6 pl-3" style="border-left: 1.5px solid var(--tf-border);">
+	<div bind:this={childInputContainer} transition:slide|global={{ duration: 200 }} class="ml-6 pl-3" style="border-left: 1.5px solid var(--tf-border);">
 		<div class="flex gap-1.5 py-1">
 			<!-- svelte-ignore a11y_autofocus -->
 			<input

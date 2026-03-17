@@ -469,6 +469,14 @@
 							>{task.divider_label || task.text}</span>
 						{/if}
 						<div class="divider-line" style="background: var(--tf-border);"></div>
+						<!-- Mobile: Three-dot menu button for context menu -->
+						<button
+							class="divider-menu-btn w-6 h-6 flex items-center justify-center rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-all flex-shrink-0 opacity-0 group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 max-md:opacity-60"
+							onclick={(e) => { e.stopPropagation(); onTaskContext?.(e as unknown as MouseEvent, task); }}
+							aria-label="Trenner-Optionen"
+						>
+							<svg class="w-3.5 h-3.5 tf-text-muted" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+						</button>
 					</div>
 				{:else}
 					<!-- svelte-ignore a11y_no_static_element_interactions -->

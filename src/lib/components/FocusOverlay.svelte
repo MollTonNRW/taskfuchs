@@ -20,7 +20,8 @@
 		onToggleSubtask,
 		onUpdateSubtask,
 		onDeleteSubtask,
-		onAddSubtask
+		onAddSubtask,
+		onTaskContext
 	}: {
 		task: Task;
 		allTasks: Task[];
@@ -37,6 +38,7 @@
 		onUpdateSubtask: (id: string, text: string) => void;
 		onDeleteSubtask: (id: string) => void;
 		onAddSubtask: (parentId: string, text: string) => void;
+		onTaskContext?: (e: MouseEvent, task: Task) => void;
 	} = $props();
 
 	let editing = $state(false);
@@ -110,35 +112,51 @@
 					<span class="text-2xl">{task.emoji}</span>
 				{/if}
 			</div>
-			<button
-				onclick={onClose}
-				class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors tf-text-muted"
-				aria-label="Schliessen"
-			>
-				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-			</button>
+			<div class="flex items-center gap-1">
+				{#if onTaskContext}
+					<button
+						onclick={(e) => onTaskContext(e, task)}
+						class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors tf-text-muted"
+						aria-label="Kontextmenü öffnen"
+					>
+						<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+					</button>
+				{/if}
+				<button
+					onclick={onClose}
+					class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors tf-text-muted"
+					aria-label="Schliessen"
+				>
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+				</button>
+			</div>
 		</div>
 
-		<!-- Title -->
+		<!-- Title (Single-Click to edit) -->
 		{#if editing}
 			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				type="text"
 				bind:value={editText}
 				onblur={saveEdit}
-				onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveEdit(); } }}
+				onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') { editing = false; } }}
 				class="inline-edit-title text-xl font-semibold w-full mb-4"
+				style="border-bottom: 2px solid var(--tf-accent, #f97316); padding-bottom: 4px;"
 				maxlength="500"
 				autofocus
 			/>
 		{:else}
-			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 			<h2
-				class="text-xl font-semibold tf-text mb-4 cursor-pointer {task.done ? 'line-through opacity-40' : ''}"
-				ondblclick={startEdit}
-				title="Doppelklick zum Bearbeiten"
+				class="focus-overlay-title text-xl font-semibold tf-text mb-4 {task.done ? 'line-through opacity-40' : ''}"
+				onclick={startEdit}
+				onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(); } }}
+				role="button"
+				tabindex="0"
+				title="Klicken zum Bearbeiten"
 			>
-				{task.text}
+				<span>{task.text}</span>
+				<svg class="focus-overlay-title-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
 			</h2>
 		{/if}
 

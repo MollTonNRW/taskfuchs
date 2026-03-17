@@ -21,6 +21,7 @@
 	import * as crud from '$lib/services/supabase-crud';
 	import { toasts } from '$lib/stores/toast';
 	import ToastContainer from '$lib/components/ToastContainer.svelte';
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -167,7 +168,9 @@
 	// Clamp activeListIndex wenn Listen gelöscht/ausgeblendet werden
 	$effect(() => {
 		const maxIdx = visibleLists.length - 1;
-		if (maxIdx >= 0 && activeListIndex > maxIdx) {
+		if (visibleLists.length === 0) {
+			activeListIndex = 0;
+		} else if (activeListIndex > maxIdx) {
 			activeListIndex = maxIdx;
 		}
 	});
@@ -355,7 +358,7 @@
 				label: 'Trenner erstellen',
 				icon: { svg: 'M4 12h16', color: 'text-gray-400' },
 				action: () => {
-					store.createDivider(task.list_id, task.position + 0.5, 'Neuer Trenner');
+					store.createDivider(task.list_id, task.position + 1, 'Neuer Trenner');
 				}
 			},
 			{
@@ -565,6 +568,7 @@
 </svelte:head>
 
 <ToastContainer />
+<ConfirmDialog />
 
 {#if contextMenu.show}
 	<ContextMenu
@@ -613,6 +617,7 @@
 		onUpdateSubtask={store.updateSubtask}
 		onDeleteSubtask={store.deleteSubtask}
 		onAddSubtask={store.addSubtask}
+		onTaskContext={handleTaskContext}
 	/>
 {/if}
 
@@ -843,12 +848,12 @@
 
 		<!-- Mobile: Single List View -->
 		<div class="md:hidden">
-			{#if store.lists[activeListIndex]}
+			{#if visibleLists[activeListIndex]}
 				{#key activeListIndex}
 					<div in:fade={{ duration: 150, delay: 50 }} out:fade={{ duration: 100 }}>
 						<ListPanel
-							list={store.lists[activeListIndex]}
-							tasks={filteredTasksForList(store.lists[activeListIndex].id)}
+							list={visibleLists[activeListIndex]}
+							tasks={filteredTasksForList(visibleLists[activeListIndex].id)}
 							onRename={store.renameList}
 							onDelete={store.deleteList}
 							onIconChange={store.changeListIcon}
@@ -861,15 +866,15 @@
 							onUpdateSubtask={store.updateSubtask}
 							onDeleteSubtask={store.deleteSubtask}
 							onChangePriority={store.changeTaskPriority}
-	
+
 							onEmojiClick={openEmojiPicker}
 							onChangeProgress={store.changeTaskProgress}
-							onListContext={(e: MouseEvent) => handleListContext(e, store.lists[activeListIndex])}
+							onListContext={(e: MouseEvent) => handleListContext(e, visibleLists[activeListIndex])}
 							onTaskContext={handleTaskContext}
 							onNoteClick={openNotePopover}
 							onReorderTask={store.reorderTask}
 							onReorderSubtask={store.reorderSubtask}
-							onShareClick={() => openShareDialog(store.lists[activeListIndex])}
+							onShareClick={() => openShareDialog(visibleLists[activeListIndex])}
 							onTaskClick={openFocusMode}
 							{bulkMode}
 							{selectedTaskIds}

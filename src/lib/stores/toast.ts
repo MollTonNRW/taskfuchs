@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 
 export type ToastType = 'error' | 'success' | 'info';
 
@@ -32,11 +32,33 @@ export const toasts = {
 	}
 };
 
+// ==========================================
+// CONFIRM DIALOG (ersetzt window.confirm)
+// ==========================================
+export interface ConfirmState {
+	show: boolean;
+	message: string;
+	resolve: ((value: boolean) => void) | null;
+}
+
+export const confirmStore = writable<ConfirmState>({ show: false, message: '', resolve: null });
+
 /**
- * Ersetzt window.confirm() mit einem Promise-basierten Ansatz.
- * Für den Moment nutzen wir weiterhin confirm(), aber über diese
- * Funktion zentralisiert, damit es später leicht ersetzt werden kann.
+ * Zeigt einen nicht-blockierenden Bestaetigungsdialog.
+ * Gibt ein Promise<boolean> zurueck (true = bestaetigt, false = abgebrochen).
  */
-export function confirmAction(message: string): boolean {
-	return confirm(message);
+export function confirmAction(message: string): Promise<boolean> {
+	// Falls bereits ein Dialog offen ist, vorherigen ablehnen
+	const current = get(confirmStore);
+	if (current.resolve) current.resolve(false);
+
+	return new Promise<boolean>((resolve) => {
+		confirmStore.set({ show: true, message, resolve });
+	});
+}
+
+export function resolveConfirm(value: boolean) {
+	const current = get(confirmStore);
+	if (current.resolve) current.resolve(value);
+	confirmStore.set({ show: false, message: '', resolve: null });
 }

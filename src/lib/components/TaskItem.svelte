@@ -6,7 +6,7 @@
 	import PriorityPicker from './PriorityPicker.svelte';
 	import { profileMap, getInitials } from '$lib/stores/profiles';
 	import { priorityColors, priorityBadgeBg, priorityLabels, priorityOrder, progressLabels } from '$lib/constants';
-	import { touchDragHandle } from '$lib/actions/touchDrag';
+	import { touchDragHandle, touchDropZone } from '$lib/actions/touchDrag';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 
@@ -67,6 +67,7 @@
 	let animClass = $state('');
 	let showFixedToast = $state(false);
 	let subtasksContainer: HTMLDivElement | undefined = $state();
+	let subtaskInputContainer: HTMLDivElement | undefined = $state();
 
 	// Click-Handler: Einfacher Klick → Focus, Doppelklick → Inline-Edit
 	let clickTimer: ReturnType<typeof setTimeout> | null = null;
@@ -215,6 +216,79 @@
 			return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
 		} catch { return dateStr; }
 	}
+
+	// Touch D&D: subtask container drop zone handler
+	// Allows dropping subtasks into the container (not just onto other subtask items)
+	let subtaskContainerDragOver = $state(false);
+
+	function handleTouchSubtaskContainerDrop(data: unknown, _el: HTMLElement, _x: number, y: number) {
+		if (!onReorderSubtask) return;
+		const d = data as { subtaskId: string; sourceParentId: string };
+		if (!d.subtaskId) return;
+
+		// Find the closest subtask element to determine insert position
+		const subtaskEls = subtasksContainer?.querySelectorAll('.subtask-item');
+		if (!subtaskEls || subtaskEls.length === 0) {
+			// Empty container or no subtasks visible — drop at position 0
+			onReorderSubtask(d.subtaskId, task.id, 0);
+			return;
+		}
+
+		// Find which subtask we're nearest to
+		let insertIdx = subtasks.length; // default: append at end
+		for (let i = 0; i < subtaskEls.length; i++) {
+			const rect = subtaskEls[i].getBoundingClientRect();
+			if (y < rect.top + rect.height / 2) {
+				insertIdx = i;
+				break;
+			}
+		}
+		onReorderSubtask(d.subtaskId, task.id, insertIdx);
+	}
+
+	function handleTouchSubtaskContainerOver(_el: HTMLElement) {
+		subtaskContainerDragOver = true;
+	}
+
+	function handleTouchSubtaskContainerLeave(_el: HTMLElement) {
+		subtaskContainerDragOver = false;
+	}
+
+	// Desktop D&D: subtask container as drop zone for HTML5 drag
+	function handleSubtaskContainerDragOver(e: DragEvent) {
+		if (!e.dataTransfer?.types.includes('application/x-subtask')) return;
+		e.preventDefault();
+		e.dataTransfer.dropEffect = 'move';
+		subtaskContainerDragOver = true;
+	}
+
+	function handleSubtaskContainerDragLeave() {
+		subtaskContainerDragOver = false;
+	}
+
+	function handleSubtaskContainerDrop(e: DragEvent) {
+		e.preventDefault();
+		subtaskContainerDragOver = false;
+		if (!e.dataTransfer || !onReorderSubtask) return;
+		try {
+			const data = JSON.parse(e.dataTransfer.getData('application/x-subtask'));
+			if (!data.subtaskId) return;
+
+			// Determine insert position based on mouse Y
+			const subtaskEls = subtasksContainer?.querySelectorAll('.subtask-item');
+			let insertIdx = subtasks.length;
+			if (subtaskEls) {
+				for (let i = 0; i < subtaskEls.length; i++) {
+					const rect = subtaskEls[i].getBoundingClientRect();
+					if (e.clientY < rect.top + rect.height / 2) {
+						insertIdx = i;
+						break;
+					}
+				}
+			}
+			onReorderSubtask(data.subtaskId, task.id, insertIdx);
+		} catch { /* ignore */ }
+	}
 </script>
 
 <div
@@ -223,9 +297,8 @@
 >
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
-		class="task-item rounded-xl px-3 py-2.5 tf-surface tf-surface-interactive border transition-all duration-200 group relative {task.highlighted ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}"
+		class="task-item rounded-xl px-3 py-2.5 tf-surface tf-surface-interactive border transition-all duration-200 group relative cursor-default"
 		style="border-color: var(--tf-border);"
-		draggable={!task.highlighted}
 		onclick={(e) => {
 			if (task.highlighted && !showFixedToast) {
 				const target = e.target as HTMLElement;
@@ -234,22 +307,21 @@
 			}
 			handleSingleClick(e);
 		}}
-		ondragstart={(e) => {
-			cancelLongPress();
-			if (task.highlighted) { e.preventDefault(); return; }
-			const target = e.target as HTMLElement;
-			if (target.closest('input') || target.closest('textarea')) { e.preventDefault(); return; }
-			onDragStart?.(e);
-		}}
-		ondragend={(e) => onDragEnd?.(e)}
 		oncontextmenu={(e) => { if (onContext) { e.preventDefault(); e.stopPropagation(); onContext(e); } }}
 	>
 		<div class="task-row">
-			<!-- Touch Drag Handle (mobile) -->
+			<!-- Drag Handle (all devices) -->
 			{#if touchDragData && !task.highlighted}
 				<div
-					class="task-touch-drag-handle md:hidden flex items-center cursor-grab active:cursor-grabbing touch-action-none"
+					class="task-drag-handle flex items-center cursor-grab active:cursor-grabbing touch-action-none opacity-40 group-hover/task:opacity-70 hover:!opacity-100 transition-opacity"
 					style="color: var(--tf-text-muted);"
+					draggable="true"
+					ondragstart={(e) => {
+						cancelLongPress();
+						if (task.highlighted) { e.preventDefault(); return; }
+						onDragStart?.(e);
+					}}
+					ondragend={(e) => onDragEnd?.(e)}
 					use:touchDragHandle={{ data: touchDragData, type: touchDragType }}
 					role="button"
 					tabindex="-1"
@@ -361,7 +433,7 @@
 
 			<!-- Add Subtask Button (inline) -->
 			<button
-				onclick={(e) => { e.stopPropagation(); subtasksOpen = true; addingSubtask = true; }}
+				onclick={async (e) => { e.stopPropagation(); subtasksOpen = true; addingSubtask = true; await tick(); subtaskInputContainer?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }}
 				class="add-subtask-inline w-6 h-6 flex items-center justify-center rounded-full border opacity-0 group-hover/task:opacity-40 hover:!opacity-100 transition-all tf-text-muted flex-shrink-0"
 				style="border-color: currentColor;"
 				title="Unteraufgabe hinzufügen"
@@ -428,7 +500,16 @@
 
 		<!-- Subtasks List -->
 		{#if subtasksOpen && !forceCollapse && subtaskCount > 0}
-			<div bind:this={subtasksContainer} transition:slide|global={{ duration: 200 }} class="mt-2 space-y-0.5">
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				bind:this={subtasksContainer}
+				transition:slide|global={{ duration: 200 }}
+				class="mt-2 space-y-0.5 {subtaskContainerDragOver ? 'ring-1 ring-dashed ring-orange-400/50 rounded-lg' : ''}"
+				ondragover={handleSubtaskContainerDragOver}
+				ondragleave={handleSubtaskContainerDragLeave}
+				ondrop={handleSubtaskContainerDrop}
+				use:touchDropZone={{ type: 'subtask', onDragOver: handleTouchSubtaskContainerOver, onDragLeave: handleTouchSubtaskContainerLeave, onDrop: handleTouchSubtaskContainerDrop }}
+			>
 				{#each subtasks as sub (sub.id)}
 					<SubtaskItem
 						subtask={sub}
@@ -446,7 +527,7 @@
 
 		<!-- Add Subtask Input -->
 		{#if addingSubtask}
-			<div transition:slide|global={{ duration: 200 }} class="mt-2">
+			<div bind:this={subtaskInputContainer} transition:slide|global={{ duration: 200 }} class="mt-2">
 				<div class="flex gap-1.5">
 					<!-- svelte-ignore a11y_autofocus -->
 					<input
