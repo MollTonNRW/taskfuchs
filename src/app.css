@@ -618,9 +618,15 @@ body {
 	-webkit-overflow-scrolling: touch;
 	overscroll-behavior: contain;
 	border-radius: 12px; padding: 6px;
-	animation: context-menu-in .2s cubic-bezier(.34,1.56,.64,1) forwards;
+	opacity: 0;
+	animation: context-menu-fade .15s ease forwards;
 	box-shadow: 0 20px 60px rgba(0,0,0,.15), 0 4px 16px rgba(0,0,0,.1);
 	background: #ffffff; border: 1px solid var(--tf-border);
+}
+/* Separate fade-only animation ohne transform (iOS scroll fix) */
+@keyframes context-menu-fade {
+	from { opacity: 0; }
+	to { opacity: 1; }
 }
 .context-menu-item {
 	display: flex; align-items: center; gap: 10px;

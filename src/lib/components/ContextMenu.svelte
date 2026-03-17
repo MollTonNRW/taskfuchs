@@ -70,7 +70,7 @@
 <div
 	class="fixed inset-0 z-[9998]"
 	onclick={onClose}
-	ontouchstart={onClose}
+	ontouchend={onClose}
 	oncontextmenu={(e) => { e.preventDefault(); onClose(); }}
 	role="presentation"
 ></div>
