@@ -80,31 +80,11 @@
 	let subtasksContainer: HTMLDivElement | undefined = $state();
 	let subtaskInputContainer: HTMLDivElement | undefined = $state();
 
-	// Click-Handler: Einfacher Klick → Focus, Doppelklick → Inline-Edit
-	let clickTimer: ReturnType<typeof setTimeout> | null = null;
-
-	function cancelLongPress() {
-		if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
-	}
-
-	function handleSingleClick(e: MouseEvent) {
+	// Click-Handler: Doppelklick → Focus, kein Einzelklick-Trigger
+	function handleDblClick(e: MouseEvent) {
 		const target = e.target as HTMLElement;
-		// Klicks auf interaktive Elemente, Subtasks, Drag-Handles ignorieren
-		if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.priority-bar') || target.closest('.more-menu-btn') || target.closest('.task-badges') || target.closest('.add-subtask-inline') || target.closest('.subtask-item') || target.closest('.task-drag-handle') || target.closest('[data-subtask-area]')) return;
-
-		if (clickTimer) {
-			// Doppelklick erkannt → Inline-Edit
-			clearTimeout(clickTimer);
-			clickTimer = null;
-			startEdit();
-			return;
-		}
-
-		// Timer starten: wenn kein zweiter Klick → Focus
-		clickTimer = setTimeout(() => {
-			clickTimer = null;
-			onTaskClick?.(task.id);
-		}, 300);
+		if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.priority-bar') || target.closest('.more-menu-btn') || target.closest('.task-badges') || target.closest('.add-subtask-inline') || target.closest('.subtask-item') || target.closest('[data-subtask-area]')) return;
+		onTaskClick?.(task.id);
 	}
 
 	// Picker popovers
@@ -310,43 +290,29 @@
 	<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 	<div
-		class="task-item rounded-xl px-3 py-2.5 tf-surface tf-surface-interactive border transition-all duration-200 group relative cursor-default"
+		class="task-item rounded-xl px-3 py-2.5 tf-surface tf-surface-interactive border transition-all duration-200 group relative {!task.highlighted ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}"
 		style="border-color: var(--tf-border);"
-		onclick={(e) => {
-			if (task.highlighted && !showFixedToast) {
-				const target = e.target as HTMLElement;
-				if (target.closest('button') || target.closest('input') || target.closest('label') || target.closest('.task-content') || target.closest('.more-menu-btn') || target.closest('.priority-bar') || target.closest('.task-badges')) return;
-				showFixedToast = true; setTimeout(() => showFixedToast = false, 1500);
-			}
-			handleSingleClick(e);
-		}}
+		ondblclick={handleDblClick}
 		onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTaskClick?.(task.id); } }}
-		oncontextmenu={(e) => { if (onContext) { e.preventDefault(); e.stopPropagation(); onContext(e); } }}
+		oncontextmenu={(e) => {
+			if (!onContext) return;
+			// Kein Kontextmenü per Touch Long-Press — nur Desktop (Rechtsklick)
+			if ('ontouchstart' in window && e.detail === 0) return;
+			e.preventDefault(); e.stopPropagation(); onContext(e);
+		}}
+		draggable={!task.highlighted && !!touchDragData}
+		ondragstart={(e) => {
+			if (task.highlighted) { e.preventDefault(); return; }
+			const target = e.target as HTMLElement;
+			if (target.closest('input') || target.closest('textarea')) { e.preventDefault(); return; }
+			onDragStart?.(e);
+		}}
+		ondragend={(e) => onDragEnd?.(e)}
+		use:touchDragHandle={touchDragData && !task.highlighted ? { data: touchDragData, type: touchDragType } : { data: null, type: '' }}
 		role="article"
 		tabindex="0"
 	>
 		<div class="task-row">
-			<!-- Drag Handle (all devices) -->
-			{#if touchDragData && !task.highlighted}
-				<div
-					class="task-drag-handle flex items-center cursor-grab active:cursor-grabbing touch-action-none opacity-40 group-hover/task:opacity-70 hover:!opacity-100 transition-opacity"
-					style="color: var(--tf-text-muted);"
-					draggable="true"
-					ondragstart={(e) => {
-						cancelLongPress();
-						if (task.highlighted) { e.preventDefault(); return; }
-						onDragStart?.(e);
-					}}
-					ondragend={(e) => onDragEnd?.(e)}
-					use:touchDragHandle={{ data: touchDragData, type: touchDragType }}
-					role="button"
-					tabindex="-1"
-					aria-label="Aufgabe verschieben"
-				>
-					<svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
-				</div>
-			{/if}
-
 			<!-- Priority Bar -->
 			<div
 				class="priority-bar badge-clickable"
