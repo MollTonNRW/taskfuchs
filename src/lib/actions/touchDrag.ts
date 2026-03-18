@@ -151,6 +151,8 @@ export function touchDragHandle(
 	}
 ) {
 	let currentParams = params;
+	let holdTimer: ReturnType<typeof setTimeout> | null = null;
+	let holdReady = false; // true wenn der Finger lang genug gehalten wurde
 
 	function onTouchStart(e: TouchEvent) {
 		if (e.touches.length !== 1) return;
@@ -158,6 +160,13 @@ export function touchDragHandle(
 		startX = touch.clientX;
 		startY = touch.clientY;
 		dragStarted = false;
+		holdReady = false;
+
+		// Drag erst nach 300ms Halten aktivieren
+		holdTimer = setTimeout(() => {
+			holdReady = true;
+			if (navigator.vibrate) navigator.vibrate(30);
+		}, 300);
 	}
 
 	function onTouchMove(e: TouchEvent) {
@@ -167,6 +176,15 @@ export function touchDragHandle(
 		const dy = touch.clientY - startY;
 
 		if (!dragStarted) {
+			// Wenn Finger sich bewegt bevor Hold-Timer abgelaufen → kein Drag, normales Scrollen
+			if (!holdReady) {
+				if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
+					// Bewegung vor Hold → Scroll, Timer abbrechen
+					if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+				}
+				return;
+			}
+			// Hold war erfolgreich + Finger bewegt sich → Drag starten
 			if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
 			dragStarted = true;
 
@@ -183,9 +201,6 @@ export function touchDragHandle(
 				currentDropZone: null
 			});
 			currentParams.onStart?.();
-
-			// Vibrate for haptic feedback
-			if (navigator.vibrate) navigator.vibrate(30);
 		}
 
 		e.preventDefault(); // Prevent scrolling while dragging
@@ -219,6 +234,8 @@ export function touchDragHandle(
 	}
 
 	function onTouchEnd(e: TouchEvent) {
+		if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+		holdReady = false;
 		if (!dragStarted) return;
 
 		const state = get(dragState);
