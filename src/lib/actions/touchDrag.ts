@@ -152,46 +152,20 @@ export function touchDragHandle(
 ) {
 	let currentParams = params;
 	let holdTimer: ReturnType<typeof setTimeout> | null = null;
-	let holdReady = false; // true wenn der Finger lang genug gehalten wurde
 
-	function onTouchStart(e: TouchEvent) {
+	// Non-passive touchmove — wird NUR nach erfolgreichem Hold registriert
+	function onDragMove(e: TouchEvent) {
 		if (e.touches.length !== 1) return;
 		const touch = e.touches[0];
-		startX = touch.clientX;
-		startY = touch.clientY;
-		dragStarted = false;
-		holdReady = false;
-
-		// Drag erst nach 300ms Halten aktivieren
-		holdTimer = setTimeout(() => {
-			holdReady = true;
-			if (navigator.vibrate) navigator.vibrate(30);
-		}, 300);
-	}
-
-	function onTouchMove(e: TouchEvent) {
-		if (e.touches.length !== 1) return;
-		const touch = e.touches[0];
-		const dx = touch.clientX - startX;
-		const dy = touch.clientY - startY;
 
 		if (!dragStarted) {
-			// Wenn Finger sich bewegt bevor Hold-Timer abgelaufen → kein Drag, normales Scrollen
-			if (!holdReady) {
-				if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
-					// Bewegung vor Hold → Scroll, Timer abbrechen
-					if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-				}
-				return;
-			}
-			// Hold war erfolgreich + Finger bewegt sich → Drag starten
+			const dx = touch.clientX - startX;
+			const dy = touch.clientY - startY;
 			if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
 			dragStarted = true;
 
-			// Start drag
 			const ghost = createGhost(node);
 			node.closest('.task-item, .subtask-item, .list-panel')?.classList.add('touch-dragging-source');
-
 			dragState.set({
 				active: true,
 				type: currentParams.type,
@@ -203,7 +177,7 @@ export function touchDragHandle(
 			currentParams.onStart?.();
 		}
 
-		e.preventDefault(); // Prevent scrolling while dragging
+		e.preventDefault(); // Nur hier, nur wenn Drag aktiv
 
 		const state = get(dragState);
 		if (!state.active || !state.ghost) return;
@@ -212,15 +186,12 @@ export function touchDragHandle(
 		moveGhost(state.ghost, touch.clientX, touch.clientY);
 		autoScroll(touch.clientY);
 
-		// Check drop zones
 		const zone = findDropZone(touch.clientX, touch.clientY, state.type);
 		if (zone !== (state.currentDropZone ? dropZones.find((z) => z.el === state.currentDropZone) : null)) {
-			// Leave old zone
 			if (state.currentDropZone) {
 				const oldZone = dropZones.find((z) => z.el === state.currentDropZone);
 				oldZone?.onDragLeave?.(state.currentDropZone);
 			}
-			// Enter new zone
 			if (zone) {
 				zone.onDragOver?.(zone.el, touch.clientX, touch.clientY);
 				dragState.update((s) => ({ ...s, currentDropZone: zone.el }));
@@ -228,27 +199,46 @@ export function touchDragHandle(
 				dragState.update((s) => ({ ...s, currentDropZone: null }));
 			}
 		} else if (zone) {
-			// Still in same zone, update position
 			zone.onDragOver?.(zone.el, touch.clientX, touch.clientY);
 		}
 	}
 
-	function onTouchEnd(e: TouchEvent) {
+	function cleanup() {
 		if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-		holdReady = false;
+		// Non-passive listener entfernen (falls registriert)
+		node.removeEventListener('touchmove', onDragMove);
+	}
+
+	function onTouchStart(e: TouchEvent) {
+		if (e.touches.length !== 1) return;
+		if (!currentParams.data) return;
+		const touch = e.touches[0];
+		startX = touch.clientX;
+		startY = touch.clientY;
+		dragStarted = false;
+
+		// KEIN touchmove-Listener hier — normales Scrollen bleibt aktiv
+		// Nach 300ms Hold: non-passive touchmove registrieren → Drag wird moeglich
+		holdTimer = setTimeout(() => {
+			holdTimer = null;
+			node.addEventListener('touchmove', onDragMove, { passive: false });
+			if (navigator.vibrate) navigator.vibrate(30);
+		}, 300);
+	}
+
+	function onTouchEnd(e: TouchEvent) {
+		cleanup();
 		if (!dragStarted) return;
 
 		const state = get(dragState);
 		if (!state.active) return;
 
-		// Find final drop zone
 		const lastTouch = e.changedTouches[0];
 		const zone = findDropZone(lastTouch.clientX, lastTouch.clientY, state.type);
 		if (zone) {
 			zone.onDrop(state.data, zone.el, lastTouch.clientX, lastTouch.clientY);
 		}
 
-		// Cleanup
 		if (state.ghost) state.ghost.remove();
 		state.sourceEl?.closest('.task-item, .subtask-item, .list-panel')?.classList.remove('touch-dragging-source');
 		if (state.currentDropZone) {
@@ -263,7 +253,7 @@ export function touchDragHandle(
 	}
 
 	node.addEventListener('touchstart', onTouchStart, { passive: true });
-	node.addEventListener('touchmove', onTouchMove, { passive: false });
+	// KEIN touchmove hier — wird erst nach Hold dynamisch registriert
 	node.addEventListener('touchend', onTouchEnd, { passive: true });
 	node.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
@@ -272,8 +262,8 @@ export function touchDragHandle(
 			currentParams = newParams;
 		},
 		destroy() {
+			cleanup();
 			node.removeEventListener('touchstart', onTouchStart);
-			node.removeEventListener('touchmove', onTouchMove);
 			node.removeEventListener('touchend', onTouchEnd);
 			node.removeEventListener('touchcancel', onTouchEnd);
 		}
