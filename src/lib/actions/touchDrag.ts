@@ -205,8 +205,20 @@ export function touchDragHandle(
 
 	function cleanup() {
 		if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
-		// Non-passive listener entfernen (falls registriert)
+		node.removeEventListener('touchmove', onScrollDetect);
 		node.removeEventListener('touchmove', onDragMove);
+	}
+
+	// Passiver Move-Listener: bricht Hold ab wenn Finger sich bewegt (= User scrollt)
+	function onScrollDetect(e: TouchEvent) {
+		if (e.touches.length !== 1) return;
+		const touch = e.touches[0];
+		const dx = Math.abs(touch.clientX - startX);
+		const dy = Math.abs(touch.clientY - startY);
+		if (dx > 5 || dy > 5) {
+			// Finger hat sich bewegt → User scrollt, Hold abbrechen
+			cleanup();
+		}
 	}
 
 	function onTouchStart(e: TouchEvent) {
@@ -217,10 +229,14 @@ export function touchDragHandle(
 		startY = touch.clientY;
 		dragStarted = false;
 
-		// KEIN touchmove-Listener hier — normales Scrollen bleibt aktiv
-		// Nach 300ms Hold: non-passive touchmove registrieren → Drag wird moeglich
+		// Passiven Move-Listener registrieren um Scroll-Bewegung zu erkennen
+		node.addEventListener('touchmove', onScrollDetect, { passive: true });
+
+		// Nach 300ms Hold OHNE Bewegung: Drag aktivieren
 		holdTimer = setTimeout(() => {
 			holdTimer = null;
+			// Scroll-Detector entfernen, Drag-Listener registrieren
+			node.removeEventListener('touchmove', onScrollDetect);
 			node.addEventListener('touchmove', onDragMove, { passive: false });
 			if (navigator.vibrate) navigator.vibrate(30);
 		}, 300);
