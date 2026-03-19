@@ -14,7 +14,7 @@
 
 <div class="level-bar">
 	<span class="level-badge">Lv.{level}</span>
-	<div class="level-track">
+	<div class="level-track" role="progressbar" aria-valuenow={xp} aria-valuemin={0} aria-valuemax={xpMax} aria-label="Level-Fortschritt">
 		<div class="level-fill" style="width: {xpPercent}%"></div>
 	</div>
 	<span class="level-xp">{xp}/{xpMax}</span>

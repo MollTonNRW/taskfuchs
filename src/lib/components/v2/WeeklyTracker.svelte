@@ -52,7 +52,7 @@
 
 	<!-- Progress Bar -->
 	<div class="weekly-progress">
-		<div class="weekly-progress-bar">
+		<div class="weekly-progress-bar" role="progressbar" aria-valuenow={totalWeek} aria-valuemin={0} aria-valuemax={Math.max(bestWeek, 1)} aria-label="Wochenfortschritt">
 			<div class="weekly-progress-fill" style="width: {progressPercent}%"></div>
 		</div>
 	</div>

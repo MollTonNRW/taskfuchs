@@ -32,8 +32,8 @@
 		<span class="sb-label">LVL</span>
 		<span class="sb-value">{level}</span>
 	</span>
-	<span class="sb-sep">|</span>
-	<span class="sb-item">
+	<span class="sb-sep sb-xp-only">|</span>
+	<span class="sb-item sb-xp-only">
 		<span class="sb-label">XP</span>
 		<span class="sb-value">{xp}/{xpMax}</span>
 	</span>
@@ -97,5 +97,12 @@
 
 	.sb-time {
 		color: var(--v2-text-muted);
+	}
+
+	@media (max-width: 768px) {
+		.sb-xp-only { display: none; }
+		.statusbar {
+			padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+		}
 	}
 </style>

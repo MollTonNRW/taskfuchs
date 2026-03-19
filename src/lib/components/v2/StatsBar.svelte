@@ -44,7 +44,7 @@
 
 	<!-- XP Bar -->
 	<div class="stat-xp-wrap">
-		<div class="stat-xp-bar">
+		<div class="stat-xp-bar" role="progressbar" aria-valuenow={xp} aria-valuemin={0} aria-valuemax={xpMax} aria-label="Erfahrungspunkte">
 			<div
 				class="stat-xp-fill"
 				class:shimmer={almostFull}

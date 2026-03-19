@@ -7,6 +7,7 @@
 	import { onMount } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import type { Priority } from '$lib/constants';
+	import { v2Events } from '$lib/stores/v2/events.svelte';
 
 	import Pinboard from '$lib/components/v2/Pinboard.svelte';
 	import ListPanel from '$lib/components/v2/ListPanel.svelte';
@@ -21,6 +22,8 @@
 	import PriorityPicker from '$lib/components/v2/PriorityPicker.svelte';
 	import BulkToolbar from '$lib/components/v2/BulkToolbar.svelte';
 	import ShareDialog from '$lib/components/v2/ShareDialog.svelte';
+	import CoinFloat from '$lib/components/v2/CoinFloat.svelte';
+	import LevelUpOverlay from '$lib/components/v2/LevelUpOverlay.svelte';
 
 	import { createContextMenus, type ContextMenuDeps } from '$lib/composables/v2/useContextMenus.svelte';
 	import { createSortFilter, sortLabels, validSortModes, type SortMode } from '$lib/composables/v2/useSortFilter.svelte';
@@ -34,6 +37,32 @@
 	let { data } = $props();
 
 	const store = createTaskStore();
+
+	// CoinFloat state
+	let coinFloats = $state<Array<{ id: number; amount: number; x: number; y: number }>>([]);
+	let coinFloatCounter = 0;
+
+	// LevelUp state
+	let levelUpData = $state<{ show: boolean; level: number; rank: string }>({ show: false, level: 1, rank: '' });
+
+	// Track gamification events to show CoinFloat + LevelUp
+	let lastGamEventCounter = 0;
+	$effect(() => {
+		const counter = v2Events.eventCounter;
+		const ev = v2Events.lastEvent;
+		if (!ev || counter === lastGamEventCounter) return;
+		if (ev.type !== 'task_done' && ev.type !== 'subtask_done') return;
+		lastGamEventCounter = counter;
+
+		// Show coin float at a semi-random position near center
+		const cx = (typeof window !== 'undefined' ? window.innerWidth / 2 : 300) + (Math.random() - 0.5) * 100;
+		const cy = (typeof window !== 'undefined' ? window.innerHeight / 2 : 300) + (Math.random() - 0.5) * 60;
+		const floatId = ++coinFloatCounter;
+		coinFloats = [...coinFloats, { id: floatId, amount: ev.parentId ? 1 : 2, x: cx, y: cy }];
+		setTimeout(() => {
+			coinFloats = coinFloats.filter(f => f.id !== floatId);
+		}, 1000);
+	});
 
 	// Initialize store
 	$effect(() => {
@@ -197,6 +226,7 @@
 			}
 			// Escape: close all overlays
 			if (e.key === 'Escape') {
+				if (levelUpData.show) { levelUpData = { show: false, level: 1, rank: '' }; return; }
 				if (ctx.contextMenu.show) { ctx.close(); return; }
 				if (popovers.focusMode.show) { popovers.focusMode = { show: false, taskId: '' }; return; }
 				if (popovers.notePopover.show) { popovers.notePopover = { show: false, taskId: '', note: '', x: 0, y: 0 }; return; }
@@ -240,7 +270,21 @@
 
 	function handleToggleTask(id: string) {
 		const task = tasks.find((t: Task) => t.id === id);
-		if (task) store.toggleTask(id, !task.done);
+		if (task) {
+			const newDone = !task.done;
+			store.toggleTask(id, newDone);
+
+			// Emit gamification events
+			if (newDone) {
+				if (task.parent_id) {
+					v2Events.emit('subtask_done', id, task.parent_id);
+				} else {
+					v2Events.emit('task_done', id, null);
+				}
+			} else {
+				v2Events.emit('task_undone', id, task.parent_id);
+			}
+		}
 	}
 
 	function handleEditTask(id: string, text: string) {
@@ -254,7 +298,6 @@
 	function handleListMenuClick(listId: string) {
 		const list = lists.find((l: List) => l.id === listId);
 		if (!list) return;
-		// Create a synthetic MouseEvent at the button position
 		const btn = document.querySelector(`[data-list-menu="${listId}"]`) as HTMLElement;
 		const rect = btn?.getBoundingClientRect();
 		const syntheticEvent = new MouseEvent('contextmenu', {
@@ -277,6 +320,14 @@
 	// Bulk handlers
 	function handleBulkToggleDone(done: boolean) {
 		store.bulkToggleDone([...bulkSelectedIds], done);
+		if (done) {
+			for (const id of bulkSelectedIds) {
+				const task = tasks.find((t: Task) => t.id === id);
+				if (task) {
+					v2Events.emit(task.parent_id ? 'subtask_done' : 'task_done', id, task.parent_id);
+				}
+			}
+		}
 		clearBulkSelection();
 	}
 
@@ -346,7 +397,8 @@
 		{#each validSortModes as mode}
 			<button
 				onclick={() => { sortFilter.sortMode = mode; sortFilter.sortMenuOpen = false; }}
-				style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--v2-radius); font-size: .65rem; color: var(--v2-text-secondary); background: {sortFilter.sortMode === mode ? 'var(--v2-accent-glow)' : 'transparent'}; border: none; cursor: pointer; transition: all .15s ease; text-align: left;"
+				style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--v2-radius); font-size: .65rem; color: var(--v2-text-secondary); background: {sortFilter.sortMode === mode ? 'var(--v2-accent-glow)' : 'transparent'}; border: none; cursor: pointer; transition: all .15s ease; text-align: left; min-height: 44px;"
+				aria-label="Sortierung: {sortLabels[mode]}"
 			>
 				<span>{sortLabels[mode]}</span>
 				{#if sortFilter.sortMode === mode}
@@ -360,14 +412,15 @@
 <!-- Empty state -->
 {#if visibleLists.length === 0}
 	<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center;">
-		<div style="font-size: 2.5rem; margin-bottom: 16px;">&#x1F98A;</div>
+		<div style="font-size: 2.5rem; margin-bottom: 16px;" aria-hidden="true">&#x1F98A;</div>
 		<h2 style="font-size: 1rem; font-weight: 700; color: var(--v2-text); margin-bottom: 8px;">Willkommen bei TaskFuchs v2</h2>
 		<p style="font-size: .75rem; color: var(--v2-text-muted); max-width: 320px; line-height: 1.6;">
 			Erstelle deine erste Liste um loszulegen.
 		</p>
 		<button
 			onclick={() => store.createList()}
-			style="margin-top: 16px; padding: 10px 20px; border: 1px dashed var(--v2-accent); border-radius: var(--v2-radius); background: var(--v2-accent-glow); color: var(--v2-accent); font-size: .75rem; font-weight: 600; cursor: pointer; font-family: var(--v2-font);"
+			style="margin-top: 16px; padding: 10px 20px; border: 1px dashed var(--v2-accent); border-radius: var(--v2-radius); background: var(--v2-accent-glow); color: var(--v2-accent); font-size: .75rem; font-weight: 600; cursor: pointer; font-family: var(--v2-font); min-height: 44px;"
+			aria-label="Neue Liste erstellen"
 		>
 			+ Neue Liste
 		</button>
@@ -477,6 +530,22 @@
 	onMoveToList={handleBulkMoveToList}
 	onCancel={clearBulkSelection}
 />
+
+<!-- CoinFloat particles -->
+{#each coinFloats as float (float.id)}
+	<div aria-hidden="true">
+		<CoinFloat amount={float.amount} x={float.x} y={float.y} />
+	</div>
+{/each}
+
+<!-- Level Up Overlay -->
+{#if levelUpData.show}
+	<LevelUpOverlay
+		newLevel={levelUpData.level}
+		newRank={levelUpData.rank}
+		onClose={() => { levelUpData = { show: false, level: 1, rank: '' }; }}
+	/>
+{/if}
 
 <!-- Toast + Confirm -->
 <ToastContainer />

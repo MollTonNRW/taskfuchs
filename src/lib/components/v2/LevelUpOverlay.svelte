@@ -35,7 +35,7 @@
 
 <div class="levelup-overlay" role="dialog" aria-label="Level Up">
 	<!-- Confetti -->
-	<div class="confetti-container">
+	<div class="confetti-container" aria-hidden="true">
 		{#each confettiPieces as piece (piece.id)}
 			<div
 				class="confetti-piece"

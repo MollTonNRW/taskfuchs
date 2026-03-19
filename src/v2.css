@@ -875,4 +875,96 @@
     color: var(--v2-accent);
     background: var(--v2-accent-glow);
   }
+
+  /* Content bottom padding for statusbar + iOS safe area */
+  .v2-content {
+    padding-bottom: calc(12px + 28px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* =====================================================================
+   TOUCH TARGETS — Minimum 44x44px
+   ===================================================================== */
+.v2-root .v2-checkbox {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.v2-root .v2-list-tab {
+  min-height: 44px;
+}
+
+.v2-root .v2-context-menu-item {
+  min-height: 44px;
+}
+
+.v2-root .v2-search-result {
+  min-height: 44px;
+}
+
+/* =====================================================================
+   PERFORMANCE — backdrop-filter fallback
+   ===================================================================== */
+@supports not (backdrop-filter: blur(1px)) {
+  .v2-glass-card {
+    background: var(--v2-surface);
+    border-color: var(--v2-border);
+  }
+  .v2-focus-overlay {
+    background: rgba(0,0,0,.85);
+  }
+  .v2-search-overlay {
+    background: rgba(0,0,0,.8);
+  }
+  .levelup-overlay {
+    background: rgba(0,0,0,.9);
+  }
+}
+
+/* will-change only on active animated elements */
+.v2-task-card[data-priority="asap"] {
+  will-change: box-shadow;
+}
+.v2-checkbox.invite {
+  will-change: box-shadow;
+}
+.stat-xp-fill.shimmer::after {
+  will-change: transform;
+}
+.v2-progress-fill.shimmer {
+  will-change: background-position;
+}
+.fox-tail {
+  will-change: transform;
+}
+
+/* =====================================================================
+   GAMIFICATION VISIBILITY MODES
+   ===================================================================== */
+/* Minimal: hide quests, shop, achievements, team, weekly */
+.v2-root[data-gamification="minimal"] .v2-gamification-full {
+  display: none !important;
+}
+
+/* Off: hide all gamification elements */
+.v2-root[data-gamification="off"] .v2-gamification-full,
+.v2-root[data-gamification="off"] .v2-gamification-minimal {
+  display: none !important;
+}
+
+/* =====================================================================
+   STATUSBAR — Desktop padding for sidebar
+   ===================================================================== */
+@media (min-width: 769px) {
+  .statusbar {
+    left: var(--v2-sidebar-w);
+  }
+}
+
+/* =====================================================================
+   ACCESSIBILITY — Focus visible
+   ===================================================================== */
+.v2-root *:focus-visible {
+  outline: 2px solid var(--v2-accent);
+  outline-offset: 2px;
 }
