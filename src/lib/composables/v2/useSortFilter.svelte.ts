@@ -1,3 +1,4 @@
+import { browser } from '$app/environment';
 import type { Database } from '$lib/types/database';
 import { priorityWeight } from '$lib/constants';
 
@@ -16,7 +17,7 @@ export const sortLabels: Record<SortMode, string> = {
 };
 
 function loadSortMode(): SortMode {
-	if (typeof localStorage === 'undefined') return 'position';
+	if (!browser) return 'position';
 	const saved = localStorage.getItem('v2-sort-mode');
 	return saved && validSortModes.includes(saved as SortMode) ? (saved as SortMode) : 'position';
 }
@@ -29,7 +30,7 @@ export function createSortFilter(
 	let sortMenuOpen = $state(false);
 
 	$effect(() => {
-		if (typeof localStorage !== 'undefined') localStorage.setItem('v2-sort-mode', sortMode);
+		if (browser) localStorage.setItem('v2-sort-mode', sortMode);
 	});
 
 	function handleReorderTask(taskId: string, targetListId: string, newPosition: number) {
