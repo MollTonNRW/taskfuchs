@@ -8,6 +8,14 @@ type Profile = Database['public']['Tables']['profiles']['Row'];
 
 export type ContextMenuState = { show: boolean; x: number; y: number; items: MenuItem[] };
 
+// Priority colored dot indicators (matching PoC v6)
+const PRIORITY_ICONS: Record<string, string> = {
+	low: '\uD83D\uDFE2',    // green circle
+	normal: '\uD83D\uDFE1', // yellow circle
+	high: '\uD83D\uDD34',   // red circle
+	asap: '\uD83D\uDD34'    // red circle (blinks via CSS)
+};
+
 export interface ContextMenuDeps {
 	store: {
 		tasks: Task[];
@@ -57,28 +65,28 @@ export function createContextMenus(deps: ContextMenuDeps) {
 		contextMenu = {
 			show: true, x: e.clientX, y: e.clientY,
 			items: [
-				{ label: 'Neue Aufgabe', icon: '+', action: () => store.addTask(list.id, 'Neue Aufgabe') },
+				{ label: 'Neue Aufgabe', icon: '\u2795', action: () => store.addTask(list.id, 'Neue Aufgabe') },
 				{
 					label: 'Trenner erstellen',
-					icon: '\u2500',
+					icon: '\u2796',
 					action: () => {
 						const listTasks = store.tasks.filter((t) => t.list_id === list.id && !t.parent_id);
 						store.createDivider(list.id, listTasks.length, 'Neuer Trenner');
 					}
 				},
 				{ divider: true, label: '' },
-				{ label: 'Alle Aufgaben abhaken', icon: '\u2713', action: () => store.checkAllInList(list.id) },
-				{ label: 'Erledigte Eintraege loeschen', icon: '\u2327', action: () => store.deleteDoneInList(list.id) },
-				{ label: 'Alle Unteraufgaben loeschen', icon: '\u00BB', action: () => store.deleteAllSubtasksInList(list.id) },
+				{ label: 'Alle Aufgaben abhaken', icon: '\u2705', action: () => store.checkAllInList(list.id) },
+				{ label: 'Erledigte Eintraege loeschen', icon: '\uD83E\uDDF9', action: () => store.deleteDoneInList(list.id) },
+				{ label: 'Alle Unteraufgaben loeschen', icon: '\uD83D\uDDD1', action: () => store.deleteAllSubtasksInList(list.id) },
 				{
 					label: collapsedSubtasksListIds.has(list.id) ? 'Unteraufgaben aufklappen' : 'Unteraufgaben einklappen',
-					icon: collapsedSubtasksListIds.has(list.id) ? '\u25BC' : '\u25B6',
+					icon: '\uD83D\uDCC2',
 					action: () => toggleCollapseSubtasks(list.id)
 				},
 				{ divider: true, label: '' },
 				{
 					label: 'Liste duplizieren',
-					icon: '\u2398',
+					icon: '\uD83D\uDCCB',
 					action: async () => {
 						const idx = await store.duplicateList(list.id);
 						if (idx >= 0) setActiveListIndex(idx);
@@ -86,18 +94,18 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				},
 				{
 					label: 'Liste teilen',
-					icon: '\u2192',
+					icon: '\uD83D\uDC65',
 					action: () => openShareDialog(list)
 				},
 				{
 					label: 'Liste umbenennen',
-					icon: '\u270E',
+					icon: '\u270F\uFE0F',
 					action: () => {
 						const newName = prompt('Neuer Listenname:', list.title);
 						if (newName?.trim()) store.renameList(list.id, newName.trim());
 					}
 				},
-				{ label: 'Liste loeschen', icon: '\u2715', action: () => store.deleteList(list.id), danger: true }
+				{ label: 'Liste loeschen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteList(list.id), danger: true }
 			]
 		};
 	}
@@ -113,13 +121,13 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				items: [
 					{
 						label: 'Trenner umbenennen',
-						icon: '\u270E',
+						icon: '\u270F',
 						action: () => {
 							const newName = prompt('Neuer Trenner-Name:', task.text);
 							if (newName?.trim()) store.updateTask(task.id, newName.trim());
 						}
 					},
-					{ label: 'Trenner loeschen', icon: '\u2715', action: () => store.deleteTaskDirect(task.id), danger: true }
+					{ label: 'Trenner loeschen', icon: '\uD83D\uDDD1', action: () => store.deleteTaskDirect(task.id), danger: true }
 				]
 			};
 			return;
@@ -132,14 +140,15 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				items: [
 					{
 						label: 'Prioritaet',
-						icon: '\u2691',
+						icon: '\uD83D\uDD34',
 						submenu: (['low', 'normal', 'high', 'asap'] as Priority[]).map((p) => ({
 							label: priorityLabels[p],
+							icon: PRIORITY_ICONS[p],
 							action: () => store.changeTaskPriority(task.id, p),
 							active: task.priority === p
 						}))
 					},
-					{ label: 'Unteraufgabe loeschen', icon: '\u2715', action: () => store.deleteTaskDirect(task.id), danger: true }
+					{ label: 'Unteraufgabe loeschen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteTaskDirect(task.id), danger: true }
 				]
 			};
 			return;
@@ -149,50 +158,44 @@ export function createContextMenus(deps: ContextMenuDeps) {
 		const taskSubtaskCount = store.tasks.filter(t => t.parent_id === task.id).length;
 
 		const items: MenuItem[] = [
-			{ label: 'Fokus-Modus', icon: '\u25CE', action: () => deps.openNotePopover(task.id, 0, 0) },
-			{ label: 'Neue Aufgabe darunter', icon: '+', action: () => store.addTaskAfter(task.id, 'Neue Aufgabe') },
-			{ label: 'Unteraufgabe erstellen', icon: '\u2514', action: () => store.addSubtask(task.id, 'Neue Unteraufgabe') },
+			{ label: 'Neue Aufgabe darunter', icon: '\u2795', action: () => store.addTaskAfter(task.id, 'Neue Aufgabe') },
+			{ label: 'Unteraufgabe erstellen', icon: '\u2795', action: () => store.addSubtask(task.id, 'Neue Unteraufgabe') },
 			...(taskSubtaskCount > 0 ? [{
 				label: `Unteraufgaben loeschen (${taskSubtaskCount})`,
-				icon: '\u2327',
+				icon: '\uD83D\uDDD1',
 				action: () => store.deleteAllSubtasksOfTask(task.id)
 			} as MenuItem] : []),
 			{
 				label: task.done ? 'Nicht erledigt' : 'Erledigt',
-				icon: task.done ? '\u25A1' : '\u2713',
+				icon: '\u2705',
 				action: () => store.toggleTask(task.id, !task.done)
 			},
 			{ divider: true, label: '' },
 			{
+				label: 'In andere Liste',
+				icon: '\uD83D\uDCCB',
+				submenu: otherLists.length > 0
+					? otherLists.map((l) => ({
+						label: `${l.icon} ${l.title}`,
+						action: () => store.moveTaskToList(task.id, l.id)
+					}))
+					: [{ label: 'Keine weiteren Listen', action: () => {} }]
+			},
+			{
 				label: 'Prioritaet',
-				icon: '\u2691',
+				icon: '\uD83D\uDD34',
 				submenu: (['low', 'normal', 'high', 'asap'] as Priority[]).map((p) => ({
 					label: priorityLabels[p],
+					icon: PRIORITY_ICONS[p],
 					action: () => store.changeTaskPriority(task.id, p),
 					active: task.priority === p
 				}))
 			},
-			{ divider: true, label: '' },
-			{
-				label: task.highlighted ? 'Fixierung aufheben' : 'Fixieren',
-				icon: task.highlighted ? '\u2605' : '\u2606',
-				action: () => store.toggleHighlight(task.id)
-			},
-			{
-				label: task.pinned ? 'Von Pinnwand loesen' : 'An Pinnwand pinnen',
-				icon: task.pinned ? '\u25A0' : '\u25A1',
-				action: () => store.togglePin(task.id)
-			},
-			{
-				label: task.note ? 'Notiz bearbeiten' : 'Notiz hinzufuegen',
-				icon: '\u2709',
-				action: () => openNotePopover(task.id, contextMenu.x, contextMenu.y)
-			},
 			{
 				label: 'Zuweisen',
-				icon: '\u2192',
+				icon: '\uD83D\uDC64',
 				submenu: [
-					...(task.assigned_to ? [{ label: 'Niemand', action: () => store.assignTask(task.id, null) }] : []),
+					...(task.assigned_to ? [{ label: '\u274C Niemand', action: () => store.assignTask(task.id, null) }] : []),
 					...[...profileMap.values()].map((p) => ({
 						label: p.display_name || p.username || p.id.slice(0, 8),
 						active: task.assigned_to === p.id,
@@ -207,20 +210,35 @@ export function createContextMenus(deps: ContextMenuDeps) {
 			},
 			{ divider: true, label: '' },
 			{
+				label: task.highlighted ? 'Fixierung aufheben' : 'Fixieren',
+				icon: '\uD83D\uDCCC',
+				action: () => store.toggleHighlight(task.id)
+			},
+			{
+				label: task.pinned ? 'Von Pinnwand loesen' : 'An Pinnwand pinnen',
+				icon: '\uD83D\uDCCD',
+				action: () => store.togglePin(task.id)
+			},
+			{
+				label: task.note ? 'Notiz bearbeiten' : 'Notiz hinzufuegen',
+				icon: '\uD83D\uDCDD',
+				action: () => openNotePopover(task.id, contextMenu.x, contextMenu.y)
+			},
+			{
 				label: 'Terminieren',
-				icon: '\u2637',
+				icon: '\uD83D\uDCC5',
 				action: () => openDatePicker(task.id, contextMenu.x, contextMenu.y)
 			},
 			{
 				label: 'Trenner erstellen',
-				icon: '\u2500',
+				icon: '\u2796',
 				action: () => {
 					store.createDivider(task.list_id, task.position + 1, 'Neuer Trenner');
 				}
 			},
 			{
 				label: task.emoji ? 'Symbol aendern' : 'Mit Symbol versehen',
-				icon: '\uD83D\uDE0A',
+				icon: '\uD83D\uDE00',
 				action: () => openEmojiPicker(task.id, contextMenu.x, contextMenu.y)
 			}
 		];
@@ -229,7 +247,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 		if (taskSubtaskCount > 0) {
 			items.push({
 				label: 'In Liste umwandeln',
-				icon: '\u2630',
+				icon: '\uD83D\uDCC2',
 				action: async () => {
 					const idx = await store.convertTaskToList(task.id);
 					if (idx >= 0) setActiveListIndex(idx);
@@ -237,23 +255,10 @@ export function createContextMenus(deps: ContextMenuDeps) {
 			});
 		}
 
-		// Move to other list
-		if (otherLists.length > 0) {
-			items.push({ divider: true, label: '' });
-			items.push({
-				label: 'In andere Liste',
-				icon: '\u21C4',
-				submenu: otherLists.map((l) => ({
-					label: `${l.icon} ${l.title}`,
-					action: () => store.moveTaskToList(task.id, l.id)
-				}))
-			});
-		}
-
 		items.push({ divider: true, label: '' });
 		items.push({
 			label: 'Aufgabe loeschen',
-			icon: '\u2715',
+			icon: '\uD83D\uDDD1\uFE0F',
 			action: () => store.deleteTaskDirect(task.id),
 			danger: true
 		});

@@ -365,7 +365,10 @@
   overflow-x: hidden;
   padding: 20px 24px;
   -webkit-overflow-scrolling: touch;
-  content-visibility: auto;
+  /* NOTE: content-visibility: auto was removed because it applies
+     contain: layout style paint, which breaks position: sticky on
+     child elements (.v2-list-tabs). This caused tabs to be unclickable
+     in real browsers while appearing fine in headless Playwright. */
 }
 
 /* =====================================================================
@@ -1136,6 +1139,25 @@
   height: 1px;
   background: var(--v2-border);
   margin: 4px 0;
+}
+.v2-ctx-icon {
+  font-size: .75rem;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.v2-ctx-arrow {
+  font-size: .5rem;
+  color: var(--v2-text-muted);
+  margin-left: auto;
+}
+.v2-ctx-submenu-wrap {
+  position: relative;
+}
+.v2-context-submenu {
+  position: absolute;
+  min-width: 160px;
 }
 
 /* =====================================================================
@@ -1932,6 +1954,8 @@
   position: sticky;
   top: 0;
   z-index: 10;
+  /* Ensure tabs are always above the Pinboard when sticky */
+  isolation: isolate;
 }
 .v2-list-tabs::-webkit-scrollbar { display: none; }
 .v2-list-tab {

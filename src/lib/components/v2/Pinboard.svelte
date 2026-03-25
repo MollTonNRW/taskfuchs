@@ -144,6 +144,8 @@
 		border-bottom: 1px dashed var(--v2-border);
 		background: var(--v2-surface);
 		transition: border 0.15s ease, background 0.15s ease;
+		position: relative;
+		z-index: 0;
 	}
 
 	.pinboard.drag-over {
