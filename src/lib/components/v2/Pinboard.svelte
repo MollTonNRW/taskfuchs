@@ -9,16 +9,44 @@
 		lists = [],
 		onUnpin,
 		onUnpinAll,
-		onTaskClick
+		onTaskClick,
+		onPin
 	}: {
 		tasks: Task[];
 		lists?: List[];
 		onUnpin?: (id: string) => void;
 		onUnpinAll?: () => void;
 		onTaskClick?: (task: Task) => void;
+		onPin?: (id: string) => void;
 	} = $props();
 
 	let collapsed = $state(false);
+	let dragOver = $state(false);
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+		dragOver = true;
+	}
+
+	function handleDragLeave() {
+		dragOver = false;
+	}
+
+	function handleDrop(e: DragEvent) {
+		e.preventDefault();
+		dragOver = false;
+		if (!e.dataTransfer || !onPin) return;
+		try {
+			const raw = e.dataTransfer.getData('text/plain');
+			const data = JSON.parse(raw);
+			if (data.taskId) {
+				onPin(data.taskId);
+			}
+		} catch {
+			// ignore invalid drag data
+		}
+	}
 
 	let pinnedTasks = $derived(
 		tasks.filter((t) => t.pinned && !t.done && t.type !== 'divider')
@@ -41,7 +69,15 @@
 	}
 </script>
 
-<div class="pinboard" class:collapsed>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	class="pinboard"
+	class:collapsed
+	class:drag-over={dragOver}
+	ondragover={handleDragOver}
+	ondragleave={handleDragLeave}
+	ondrop={handleDrop}
+>
 	<!-- Header -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="pinboard-header" onclick={() => (collapsed = !collapsed)}>
@@ -107,6 +143,12 @@
 		padding: 12px 24px;
 		border-bottom: 1px dashed var(--v2-border);
 		background: var(--v2-surface);
+		transition: border 0.15s ease, background 0.15s ease;
+	}
+
+	.pinboard.drag-over {
+		border: 2px dashed var(--v2-accent);
+		background: var(--v2-accent-glow);
 	}
 
 	.pinboard-header {

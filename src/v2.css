@@ -1986,6 +1986,18 @@
    TOUCH TARGETS — Minimum 44x44px
    ===================================================================== */
 .v2-root .v2-task-card > .v2-checkbox {
+  /* Visual size stays 18x18 (matches PoC v6).
+     Touch target 44x44 via invisible ::before pseudo-element. */
+  position: relative;
+}
+.v2-root .v2-task-card > .v2-checkbox::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
   min-width: 44px;
   min-height: 44px;
 }

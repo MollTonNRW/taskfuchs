@@ -383,6 +383,7 @@
 	onUnpin={(id) => { store.togglePin(id); }}
 	onUnpinAll={() => { for (const t of pinnedTasks) store.togglePin(t.id); }}
 	onTaskClick={(task) => { popovers.openFocusMode(task.id); }}
+	onPin={(taskId) => { const t = tasks.find((x: Task) => x.id === taskId); if (t && !t.pinned) store.togglePin(taskId); }}
 />
 
 <!-- List Tabs (always visible, like v6 PoC) -->
