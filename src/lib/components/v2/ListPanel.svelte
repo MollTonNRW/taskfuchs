@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { Database } from '$lib/types/database';
 	import TaskCard from './TaskCard.svelte';
-	import SubtaskCard from './SubtaskCard.svelte';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -18,7 +17,8 @@
 		onEditSubtask,
 		onContextMenu,
 		onTaskDblClick,
-		onListMenuClick
+		onListMenuClick,
+		onReorderTask
 	}: {
 		list: List;
 		tasks: Task[];
@@ -32,21 +32,25 @@
 		onContextMenu?: (e: MouseEvent, task: Task) => void;
 		onTaskDblClick?: (task: Task) => void;
 		onListMenuClick?: (listId: string) => void;
+		onReorderTask?: (taskId: string, targetListId: string, newPosition: number) => void;
 	} = $props();
 
 	let quickAddText = $state('');
 	let doneCollapsed = $state(false);
 
-	// Top-level tasks (no parent, not dividers, not done)
-	let activeTasks = $derived(
-		tasks.filter((t: Task) => t.list_id === list.id && !t.parent_id && !t.done && t.type !== 'divider')
-			.sort((a: Task, b: Task) => a.position - b.position)
-	);
+	// ---- Drag & Drop state ----
+	let dragOverIdx: number | null = $state(null);
+	let draggingTaskId: string | null = $state(null);
 
-	// Dividers
+	// Top-level items (tasks + dividers, not done) in position order
 	let allTopLevel = $derived(
 		tasks.filter((t: Task) => t.list_id === list.id && !t.parent_id && !t.done)
 			.sort((a: Task, b: Task) => a.position - b.position)
+	);
+
+	// Active tasks count (excluding dividers)
+	let activeTaskCount = $derived(
+		allTopLevel.filter((t: Task) => t.type !== 'divider').length
 	);
 
 	// Done tasks
@@ -70,6 +74,66 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Enter') handleQuickAdd();
 	}
+
+	// ---- Drag & Drop handlers ----
+	function handleTaskDragStart(e: DragEvent, task: Task) {
+		if (!e.dataTransfer) return;
+		draggingTaskId = task.id;
+		e.dataTransfer.effectAllowed = 'move';
+		e.dataTransfer.setData('text/plain', JSON.stringify({ taskId: task.id, sourceListId: list.id }));
+		// Fade the dragged element after paint
+		const el = e.currentTarget as HTMLElement;
+		requestAnimationFrame(() => { el.style.opacity = '0.4'; });
+	}
+
+	function handleTaskDragEnd(e: DragEvent) {
+		draggingTaskId = null;
+		dragOverIdx = null;
+		const el = e.currentTarget as HTMLElement;
+		el.style.opacity = '';
+	}
+
+	function handleTaskDragOver(e: DragEvent, idx: number) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		// Above/below midpoint determines insert position
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		const isBelow = e.clientY > rect.top + rect.height / 2;
+		dragOverIdx = isBelow ? idx + 1 : idx;
+	}
+
+	function handleTaskDrop(e: DragEvent, idx: number) {
+		e.preventDefault();
+		if (!e.dataTransfer || !onReorderTask) return;
+		const dropIdx = dragOverIdx ?? idx;
+		dragOverIdx = null;
+		draggingTaskId = null;
+		try {
+			const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+			if (data.taskId) {
+				onReorderTask(data.taskId, list.id, dropIdx);
+			}
+		} catch { /* ignore invalid drag data */ }
+	}
+
+	function handleBottomDragOver(e: DragEvent) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		dragOverIdx = allTopLevel.length;
+	}
+
+	function handleBottomDrop(e: DragEvent) {
+		e.preventDefault();
+		if (!e.dataTransfer || !onReorderTask) return;
+		dragOverIdx = null;
+		draggingTaskId = null;
+		try {
+			const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+			if (data.taskId) {
+				onReorderTask(data.taskId, list.id, allTopLevel.length);
+			}
+		} catch { /* ignore */ }
+	}
 </script>
 
 <div
@@ -77,84 +141,79 @@
 	class:active={isActive}
 	data-col={colIndex % 5}
 >
-	<!-- List Header -->
-	<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-		<span style="font-size: 1.1rem;">{list.icon}</span>
-		<h2 style="font-size: .85rem; font-weight: 700; color: var(--v2-text); flex: 1;">{list.title}</h2>
-		<span style="font-size: .55rem; color: var(--v2-text-muted);">
-			{activeTasks.length} offen
-		</span>
-		<button
-			onclick={() => onListMenuClick?.(list.id)}
-			style="background: none; border: 1px dashed var(--v2-border); border-radius: var(--v2-radius); color: var(--v2-text-muted); font-size: .6rem; padding: 3px 8px; cursor: pointer;"
-			title="Kontextmenu"
-		>
-			&#x22EF;
-		</button>
+	<!-- Quick Add -->
+	<div class="v2-add-task-row">
+		<input type="text" placeholder="> neue aufgabe..." bind:value={quickAddText} onkeydown={handleKeydown} maxlength="500" />
+		<button class="v2-add-task-btn" onclick={handleQuickAdd}>+ add</button>
 	</div>
 
-	<!-- Quick Add -->
-	<div class="v2-quick-add">
-		<input
-			type="text"
-			placeholder="+ Neue Aufgabe..."
-			bind:value={quickAddText}
-			onkeydown={handleKeydown}
-			maxlength="500"
-		/>
-	</div>
+	<!-- Section Title (v6-style with box-drawing prefix) -->
+	<div class="v2-section-title">&#x250C;&#x2500; offen ({activeTaskCount})</div>
 
 	<!-- Active Tasks (including dividers, in position order) -->
-	<div style="display: flex; flex-direction: column; gap: 6px;">
-		{#each allTopLevel as task (task.id)}
+	<div class="v2-task-list">
+		{#each allTopLevel as task, idx (task.id)}
 			{#if task.type === 'divider'}
-				<!-- Divider -->
-				<div style="display: flex; align-items: center; gap: 8px; padding: 6px 0;">
-					<div style="flex: 1; height: 1px; background: var(--v2-border);"></div>
-					<span style="font-size: .6rem; color: var(--v2-text-muted); text-transform: uppercase; letter-spacing: 1px;">{task.text}</span>
-					<div style="flex: 1; height: 1px; background: var(--v2-border);"></div>
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div
+					class="v2-task-divider"
+					ondragover={(e) => handleTaskDragOver(e, idx)}
+					ondrop={(e) => handleTaskDrop(e, idx)}
+				>
+					<div class="v2-task-divider-line"></div>
+					<span class="v2-task-divider-label">{task.text}</span>
+					<div class="v2-task-divider-line"></div>
 				</div>
 			{:else}
 				{@const subs = subtasksFor(task.id)}
 				{@const subsDone = subs.filter((s) => s.done).length}
-				<TaskCard
-					{task}
-					subtaskCount={subs.length}
-					subtaskDoneCount={subsDone}
-					allSubtasksDone={subs.length > 0 && subsDone === subs.length}
-					ontoggle={onToggleTask}
-					onedit={onEditTask}
-					oncontextmenu={onContextMenu}
-					ondblclick={onTaskDblClick}
-				/>
-
-				<!-- Subtasks -->
-				{#if subs.length > 0}
-					<div style="margin-left: 28px; display: flex; flex-direction: column; gap: 4px;">
-						{#each subs as sub (sub.id)}
-							<SubtaskCard
-								subtask={sub}
-								ontoggle={onToggleSubtask}
-								onedit={onEditSubtask}
-							/>
-						{/each}
-					</div>
-				{/if}
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div
+					class="v2-task-drop-wrapper"
+					class:drag-over-above={dragOverIdx === idx}
+					class:drag-over-below={dragOverIdx === idx + 1}
+					ondragover={(e) => handleTaskDragOver(e, idx)}
+					ondrop={(e) => handleTaskDrop(e, idx)}
+				>
+					<TaskCard
+						{task}
+						subtasks={subs}
+						subtaskCount={subs.length}
+						subtaskDoneCount={subsDone}
+						allSubtasksDone={subs.length > 0 && subsDone === subs.length}
+						ontoggle={onToggleTask}
+						onedit={onEditTask}
+						ontogglesubtask={onToggleSubtask}
+						oneditsubtask={onEditSubtask}
+						oncontextmenu={onContextMenu}
+						ondblclick={onTaskDblClick}
+						ondragstart={(e) => handleTaskDragStart(e, task)}
+						ondragend={handleTaskDragEnd}
+					/>
+				</div>
 			{/if}
 		{/each}
+
+		<!-- Bottom drop zone (drop at end of list) -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="v2-bottom-drop-zone"
+			class:drag-active={dragOverIdx === allTopLevel.length}
+			ondragover={handleBottomDragOver}
+			ondragleave={() => { if (dragOverIdx === allTopLevel.length) dragOverIdx = null; }}
+			ondrop={handleBottomDrop}
+		></div>
 	</div>
 
 	<!-- Done Section -->
 	{#if doneTasks.length > 0}
-		<button class="v2-done-separator" onclick={() => (doneCollapsed = !doneCollapsed)}>
-			<div class="line"></div>
-			<span class="label">Erledigt ({doneTasks.length})</span>
-			<span class="toggle" class:collapsed={doneCollapsed}>&#x25BC;</span>
-			<div class="line"></div>
+		<button class="v2-section-title v2-done-toggle" onclick={() => (doneCollapsed = !doneCollapsed)}>
+			&#x250C;&#x2500; erledigt ({doneTasks.length})
+			<span class="v2-done-toggle-icon" class:collapsed={doneCollapsed}>&#x25BC;</span>
 		</button>
 
 		{#if !doneCollapsed}
-			<div style="display: flex; flex-direction: column; gap: 4px; opacity: .6;">
+			<div class="v2-done-section">
 				{#each doneTasks as task (task.id)}
 					<TaskCard
 						{task}
@@ -168,3 +227,42 @@
 		{/if}
 	{/if}
 </div>
+
+<style>
+	.v2-task-drop-wrapper {
+		position: relative;
+		transition: transform 0.15s ease;
+	}
+	.v2-task-drop-wrapper.drag-over-above::before {
+		content: '';
+		position: absolute;
+		top: -2px;
+		left: 0;
+		right: 0;
+		height: 3px;
+		background: var(--v2-accent, #f7a072);
+		border-radius: 2px;
+		z-index: 5;
+	}
+	.v2-task-drop-wrapper.drag-over-below::after {
+		content: '';
+		position: absolute;
+		bottom: -2px;
+		left: 0;
+		right: 0;
+		height: 3px;
+		background: var(--v2-accent, #f7a072);
+		border-radius: 2px;
+		z-index: 5;
+	}
+	.v2-bottom-drop-zone {
+		min-height: 24px;
+		border-radius: 0 0 var(--v2-radius, 6px) var(--v2-radius, 6px);
+		transition: all 0.15s ease;
+	}
+	.v2-bottom-drop-zone.drag-active {
+		min-height: 40px;
+		border-top: 3px solid var(--v2-accent, #f7a072);
+		background: rgba(247, 160, 114, 0.05);
+	}
+</style>

@@ -64,11 +64,13 @@
 		}, 1000);
 	});
 
-	// Initialize store
+	// Initialize store in $effect (runs during hydration before onMount)
+	let storeReady = $state(false);
 	$effect(() => {
-		if (data.supabase && data.user) {
+		if (data.supabase && data.user && !storeReady) {
 			store.init(data.supabase, data.user.id, data.lists, data.tasks);
 			listsStore.set(data.lists);
+			storeReady = true;
 		}
 	});
 
@@ -105,10 +107,18 @@
 		bulkSelectedIds = new Set();
 	}
 
-	// Visible lists
+	// Visible lists (with bounds-check on activeListIndex)
 	let visibleLists = $derived(
 		lists.filter((l: List) => !$hiddenListIds.has(l.id))
 	);
+
+	// Clamp activeListIndex when visible lists change (e.g. list hidden/deleted)
+	$effect(() => {
+		const len = visibleLists.length;
+		if (len > 0 && activeListIndex >= len) {
+			activeListIndex = len - 1;
+		}
+	});
 
 	// Pinned tasks
 	let pinnedTasks = $derived(
@@ -142,7 +152,7 @@
 
 	// Share Dialog
 	const share = createShareDialog(
-		{ get sb() { return store.sb; } },
+		{ get sb() { return data.supabase; } },
 		{ error: (msg: string) => toasts.error(msg) }
 	);
 
@@ -202,20 +212,24 @@
 		const handler = (e: MediaQueryListEvent) => { isMobile = e.matches; };
 		mq.addEventListener('change', handler);
 
-		// Realtime subscriptions
-		const sb = store.sb;
-		const listsChannel = sb
-			.channel('v2-lists-realtime')
-			.on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, (payload: any) => {
-				store.handleRealtimeList(payload.eventType, payload.eventType === 'DELETE' ? payload.old : payload.new);
-			})
-			.subscribe();
-		const tasksChannel = sb
-			.channel('v2-tasks-realtime')
-			.on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload: any) => {
-				store.handleRealtimeTask(payload.eventType, payload.eventType === 'DELETE' ? payload.old : payload.new);
-			})
-			.subscribe();
+		// Realtime subscriptions (guard against missing supabase)
+		const sb = data.supabase;
+		let listsChannel: any = null;
+		let tasksChannel: any = null;
+		if (sb) {
+			listsChannel = sb
+				.channel('v2-lists-realtime')
+				.on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, (payload: any) => {
+					store.handleRealtimeList(payload.eventType, payload.eventType === 'DELETE' ? payload.old : payload.new);
+				})
+				.subscribe();
+			tasksChannel = sb
+				.channel('v2-tasks-realtime')
+				.on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload: any) => {
+					store.handleRealtimeTask(payload.eventType, payload.eventType === 'DELETE' ? payload.old : payload.new);
+				})
+				.subscribe();
+		}
 
 		// Keyboard shortcuts
 		function handleGlobalKeydown(e: KeyboardEvent) {
@@ -249,8 +263,8 @@
 		return () => {
 			mq.removeEventListener('change', handler);
 			window.removeEventListener('keydown', handleGlobalKeydown);
-			sb.removeChannel(listsChannel);
-			sb.removeChannel(tasksChannel);
+			if (sb && listsChannel) sb.removeChannel(listsChannel);
+			if (sb && tasksChannel) sb.removeChannel(tasksChannel);
 		};
 	});
 
@@ -259,6 +273,21 @@
 		if (activeListIndex >= visibleLists.length) {
 			activeListIndex = Math.max(0, visibleLists.length - 1);
 		}
+	});
+
+	// Push nav counts to shared event bus for sidebar display
+	$effect(() => {
+		const counts: Record<string, { done: number; total: number }> = {};
+		let totalOpen = 0;
+		for (const list of lists) {
+			const listTasks = tasks.filter((t: Task) => t.list_id === list.id && !t.parent_id && t.type !== 'divider');
+			const done = listTasks.filter((t: Task) => t.done).length;
+			const total = listTasks.length;
+			counts[list.id] = { done, total };
+			totalOpen += (total - done);
+		}
+		v2Events.setNavCounts(counts);
+		v2Events.setOpenTaskCount(totalOpen);
 	});
 
 	// ==========================================
@@ -350,11 +379,14 @@
 <!-- Pinboard -->
 <Pinboard
 	{tasks}
+	{lists}
+	onUnpin={(id) => { store.togglePin(id); }}
+	onUnpinAll={() => { for (const t of pinnedTasks) store.togglePin(t.id); }}
 	onTaskClick={(task) => { popovers.openFocusMode(task.id); }}
 />
 
-<!-- Mobile: List Tabs -->
-{#if isMobile && visibleLists.length > 1}
+<!-- List Tabs (always visible, like v6 PoC) -->
+{#if visibleLists.length > 0}
 	<div class="v2-list-tabs">
 		{#each visibleLists as list, i (list.id)}
 			<button
@@ -362,20 +394,22 @@
 				class:active={i === activeListIndex}
 				onclick={() => (activeListIndex = i)}
 			>
-				{list.icon} {list.title}
+				<span class="v2-tab-icon">{list.icon}</span>
+				{list.title}
 			</button>
 		{/each}
 	</div>
 {/if}
 
-<!-- Lists -->
-<div class="v2-lists-container">
-	{#each visibleLists as list, i (list.id)}
+<!-- Single List View (v6 style: one list at a time) -->
+<div class="v2-single-list-container">
+	{#if visibleLists[activeListIndex]}
+		{@const activeList = visibleLists[activeListIndex]}
 		<ListPanel
-			{list}
-			tasks={sortFilter.tasksForList(list.id)}
-			colIndex={i}
-			isActive={!isMobile || i === activeListIndex}
+			list={activeList}
+			tasks={sortFilter.tasksForList(activeList.id)}
+			colIndex={activeListIndex}
+			isActive={true}
 			onQuickAdd={handleQuickAdd}
 			onToggleTask={handleToggleTask}
 			onEditTask={handleEditTask}
@@ -384,8 +418,9 @@
 			onContextMenu={handleContextMenu}
 			onTaskDblClick={handleTaskDblClick}
 			onListMenuClick={handleListMenuClick}
+			onReorderTask={(taskId, targetListId, newPos) => store.reorderTask(taskId, targetListId, newPos)}
 		/>
-	{/each}
+	{/if}
 </div>
 
 <!-- Sort Dropdown (floating) -->

@@ -32,13 +32,12 @@ function createV2Theme() {
 		`v2-theme-${preset} ${effectiveDark ? 'v2-dark' : 'v2-light'}`
 	);
 
-	// Apply to DOM
-	$effect(() => {
+	function persist() {
 		if (!browser) return;
 		localStorage.setItem('v2-preset', preset);
 		localStorage.setItem('v2-dark', String(isDark));
 		localStorage.setItem('v2-gamification', gamificationMode);
-	});
+	}
 
 	return {
 		get preset() { return preset; },
@@ -47,9 +46,9 @@ function createV2Theme() {
 		get themeClass() { return themeClass; },
 		get gamificationMode() { return gamificationMode; },
 
-		setPreset(id: V2ThemePreset) { preset = id; },
-		toggleDark() { isDark = !isDark; },
-		setGamificationMode(mode: GamificationMode) { gamificationMode = mode; }
+		setPreset(id: V2ThemePreset) { preset = id; persist(); },
+		toggleDark() { isDark = !isDark; persist(); },
+		setGamificationMode(mode: GamificationMode) { gamificationMode = mode; persist(); }
 	};
 }
 

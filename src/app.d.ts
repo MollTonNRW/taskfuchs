@@ -9,6 +9,11 @@ declare global {
 			session: Session | null;
 			user: User | null;
 		}
+		interface Error {
+			message: string;
+			stack?: string;
+			status?: number;
+		}
 		interface PageData {
 			session: Session | null;
 			user: User | null;

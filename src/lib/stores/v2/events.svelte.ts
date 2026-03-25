@@ -22,9 +22,18 @@ function createEventBus() {
 		eventCounter += 1;
 	}
 
+	// Nav counts: listId -> { done, total }
+	let navCounts = $state<Record<string, { done: number; total: number }>>({});
+	// Open task count (all lists)
+	let openTaskCount = $state(0);
+
 	return {
 		get lastEvent() { return lastEvent; },
 		get eventCounter() { return eventCounter; },
+		get navCounts() { return navCounts; },
+		get openTaskCount() { return openTaskCount; },
+		setNavCounts(counts: Record<string, { done: number; total: number }>) { navCounts = counts; },
+		setOpenTaskCount(count: number) { openTaskCount = count; },
 		emit,
 		clear() { lastEvent = null; }
 	};

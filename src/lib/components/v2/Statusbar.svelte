@@ -4,70 +4,74 @@
 		xp = 0,
 		xpMax = 100,
 		coins = 0,
-		streak = 0
+		streak = 0,
+		streakMultiplier = 1.0,
+		questsDone = 0,
+		questsTotal = 5,
+		totalTasks = 0
 	}: {
 		level?: number;
 		xp?: number;
 		xpMax?: number;
 		coins?: number;
 		streak?: number;
+		streakMultiplier?: number;
+		questsDone?: number;
+		questsTotal?: number;
+		totalTasks?: number;
 	} = $props();
-
-	let time = $state('');
-
-	function updateTime() {
-		const now = new Date();
-		time = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-	}
-
-	$effect(() => {
-		updateTime();
-		const interval = setInterval(updateTime, 30000);
-		return () => clearInterval(interval);
-	});
 </script>
 
-<div class="statusbar">
+<div class="statusbar" role="status">
 	<span class="sb-item">
-		<span class="sb-label">LVL</span>
-		<span class="sb-value">{level}</span>
-	</span>
-	<span class="sb-sep sb-xp-only">|</span>
-	<span class="sb-item sb-xp-only">
-		<span class="sb-label">XP</span>
-		<span class="sb-value">{xp}/{xpMax}</span>
+		<span class="sb-prompt">&gt;</span>
+		<span class="sb-label">lvl:</span><strong class="sb-lvl">{level}</strong>
 	</span>
 	<span class="sb-sep">|</span>
-	<span class="sb-item">
-		<span class="sb-label">&#x1FA99;</span>
-		<span class="sb-value">{coins}</span>
+	<span class="sb-item sb-xp-only">
+		<span class="sb-label">xp:</span><strong class="sb-xp">{xp}/{xpMax}</strong>
 	</span>
+	<span class="sb-sep sb-xp-only">|</span>
+	<span class="sb-item">
+		<span class="sb-label">coins:</span><strong class="sb-coin">{coins}</strong>
+	</span>
+	<span class="sb-sep">|</span>
 	{#if streak > 0}
-		<span class="sb-sep">|</span>
 		<span class="sb-item">
-			<span class="sb-label">&#x1F525;</span>
-			<span class="sb-value">{streak}</span>
+			<span class="sb-label">streak:</span><strong class="sb-streak">{streak}d</strong>
+			{#if streakMultiplier > 1}
+				<strong class="sb-mult">x{streakMultiplier}</strong>
+			{/if}
 		</span>
+		<span class="sb-sep">|</span>
 	{/if}
+	<span class="sb-item sb-quest-only">
+		<span class="sb-label">quest:</span><strong class="sb-accent">{questsDone}/{questsTotal}</strong>
+	</span>
+	<span class="sb-sep sb-quest-only">|</span>
+	<span class="sb-item">
+		<span class="sb-label">tasks:</span><strong class="sb-accent">{totalTasks}</strong>
+	</span>
 	<span class="sb-spacer"></span>
-	<span class="sb-time">{time}</span>
+	<span class="sb-version">taskfuchs v6.0</span>
 </div>
 
 <style>
 	.statusbar {
-		position: fixed;
+		position: sticky;
 		bottom: 0;
 		left: 0;
 		right: 0;
 		z-index: 90;
 		display: flex;
 		align-items: center;
-		gap: 6px;
-		padding: 4px 14px;
+		gap: 12px;
+		padding: 5px 20px;
 		border-top: 1px dashed var(--v2-border);
 		background: var(--v2-surface);
 		font-family: var(--v2-font, monospace);
-		font-size: .55rem;
+		font-size: .6rem;
+		color: var(--v2-text-muted);
 	}
 
 	.sb-item {
@@ -76,33 +80,70 @@
 		gap: 3px;
 	}
 
-	.sb-label {
-		color: var(--v2-text-muted);
-		text-transform: uppercase;
-		letter-spacing: .5px;
+	.sb-prompt {
+		color: var(--v2-accent);
+		font-weight: 700;
+		margin-right: 2px;
 	}
 
-	.sb-value {
-		color: var(--v2-text-secondary);
-		font-weight: 600;
+	.sb-label {
+		color: var(--v2-text-muted);
 	}
 
 	.sb-sep {
 		color: var(--v2-border);
 	}
 
+	.sb-lvl {
+		color: var(--v2-purple);
+		font-weight: 600;
+	}
+
+	.sb-xp {
+		color: var(--v2-purple);
+		font-weight: 600;
+	}
+
+	.sb-coin {
+		color: var(--v2-coin, var(--v2-yellow));
+		font-weight: 600;
+	}
+
+	.sb-streak {
+		color: var(--v2-streak, var(--v2-orange));
+		font-weight: 600;
+	}
+
+	.sb-mult {
+		color: var(--v2-yellow);
+		font-weight: 600;
+	}
+
+	.sb-accent {
+		color: var(--v2-accent);
+		font-weight: 600;
+	}
+
 	.sb-spacer {
 		flex: 1;
 	}
 
-	.sb-time {
-		color: var(--v2-text-muted);
+	.sb-version {
+		color: var(--v2-orange);
+		margin-left: auto;
+	}
+
+	@media (min-width: 769px) {
+		.statusbar {
+			margin-left: var(--v2-sidebar-w);
+		}
 	}
 
 	@media (max-width: 768px) {
 		.sb-xp-only { display: none; }
+		.sb-quest-only { display: none; }
 		.statusbar {
-			padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
+			padding-bottom: calc(5px + env(safe-area-inset-bottom, 0px));
 		}
 	}
 </style>

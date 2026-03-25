@@ -26,11 +26,23 @@
 	$effect(() => {
 		if (menuEl) {
 			const rect = menuEl.getBoundingClientRect();
-			if (rect.right > window.innerWidth) {
-				menuEl.style.left = `${window.innerWidth - rect.width - 8}px`;
+			const vw = window.innerWidth;
+			const vh = window.innerHeight;
+
+			// Horizontal: keep within viewport
+			if (rect.right > vw) {
+				menuEl.style.left = `${Math.max(8, vw - rect.width - 8)}px`;
 			}
-			if (rect.bottom > window.innerHeight) {
-				menuEl.style.top = `${window.innerHeight - rect.height - 8}px`;
+
+			// Vertical: if menu overflows bottom, flip upward from click point
+			if (rect.bottom > vh) {
+				const flippedTop = y - rect.height;
+				if (flippedTop >= 8) {
+					menuEl.style.top = `${flippedTop}px`;
+				} else {
+					// Can't fit above either — clamp to viewport
+					menuEl.style.top = `${Math.max(8, vh - rect.height - 8)}px`;
+				}
 			}
 		}
 	});

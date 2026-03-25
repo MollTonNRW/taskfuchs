@@ -6,7 +6,8 @@
 		coins = 0,
 		streak = 0,
 		rank = 'Neuling',
-		streakMultiplier = 1.0
+		streakMultiplier = 1.0,
+		streakFreezes = 0
 	}: {
 		level?: number;
 		xp?: number;
@@ -15,6 +16,7 @@
 		streak?: number;
 		rank?: string;
 		streakMultiplier?: number;
+		streakFreezes?: number;
 	} = $props();
 
 	let xpPercent = $derived(Math.min(100, Math.round((xp / xpMax) * 100)));
@@ -35,99 +37,87 @@
 	);
 </script>
 
-<div class="stats-bar">
-	<!-- Level + Rank -->
-	<div class="stat-group">
-		<span class="stat-level">{level}</span>
-		<span class="stat-rank">{rank}</span>
-	</div>
-
-	<!-- XP Bar -->
-	<div class="stat-xp-wrap">
-		<div class="stat-xp-bar" role="progressbar" aria-valuenow={xp} aria-valuemin={0} aria-valuemax={xpMax} aria-label="Erfahrungspunkte">
+<div class="stats-bar-v2">
+	<!-- XP Section -->
+	<div class="xp-section">
+		<div class="xp-header">
+			<span class="xp-label">XP</span>
+			<span class="xp-values">{xp}/{xpMax}</span>
+		</div>
+		<div class="xp-bar" role="progressbar" aria-valuenow={xp} aria-valuemin={0} aria-valuemax={xpMax} aria-label="Erfahrungspunkte">
 			<div
-				class="stat-xp-fill"
+				class="xp-bar-fill"
 				class:shimmer={almostFull}
 				style="width: {xpPercent}%"
 			></div>
 		</div>
-		<span class="stat-xp-text">{xp}/{xpMax} XP</span>
+		<div class="level-rank-row">
+			<span class="level-num">Lvl {level}</span>
+			<span class="rank-name">{rank}</span>
+		</div>
 	</div>
 
-	<!-- Coins -->
-	<div class="stat-group">
-		<span class="stat-coin" class:pop={coinPop}>
-			{coins}
-		</span>
-	</div>
-
-	<!-- Streak -->
-	{#if streak > 0}
-		<div class="stat-group">
-			<span class="stat-streak" data-tier={streakTier}>
-				{streak}
-			</span>
-			{#if streakMultiplier > 1}
-				<span class="stat-multiplier">x{streakMultiplier.toFixed(1)}</span>
+	<!-- Currency Row: Coins + Streak as separate boxes -->
+	<div class="currency-row">
+		<div class="coin-display">
+			<span class="coin-icon">&#x1FA99;</span>
+			<span class="coin-count" class:pop={coinPop}>{coins}</span>
+			<span class="coin-label">coins</span>
+		</div>
+		<div class="streak-display" data-tier={streakTier}>
+			<span class="streak-fire">&#x1F525;</span>
+			<div class="streak-info">
+				<span class="streak-count">{streak}d</span>
+				{#if streakMultiplier > 1}
+					<span class="streak-mult">x{streakMultiplier.toFixed(1)}</span>
+				{/if}
+			</div>
+			{#if streakFreezes > 0}
+				<span class="streak-freeze">&#x2744;&#xFE0F; {streakFreezes}</span>
 			{/if}
 		</div>
-	{/if}
+	</div>
 </div>
 
 <style>
-	.stats-bar {
+	.stats-bar-v2 {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		font-family: var(--v2-font, monospace);
+	}
+
+	/* XP Section */
+	.xp-section {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+
+	.xp-header {
 		display: flex;
 		align-items: center;
-		gap: 12px;
-		padding: 6px 12px;
-		border: 1px dashed var(--v2-border);
-		border-radius: var(--v2-radius, 6px);
-		background: var(--v2-surface);
-		font-family: var(--v2-font, monospace);
+		justify-content: space-between;
 		font-size: .65rem;
 	}
 
-	.stat-group {
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		flex-shrink: 0;
-	}
-
-	.stat-level {
-		background: var(--v2-accent-glow);
-		color: var(--v2-accent);
+	.xp-label {
+		color: var(--v2-purple, #bb9af7);
 		font-weight: 700;
-		padding: 2px 7px;
-		border-radius: var(--v2-radius, 6px);
-		border: 1px dashed var(--v2-accent);
-		font-size: .6rem;
 	}
 
-	.stat-rank {
-		color: var(--v2-text-secondary);
-		font-size: .58rem;
-		text-transform: uppercase;
-		letter-spacing: .5px;
+	.xp-values {
+		color: var(--v2-text-muted);
 	}
 
-	.stat-xp-wrap {
-		flex: 1;
-		min-width: 60px;
-		display: flex;
-		align-items: center;
-		gap: 6px;
-	}
-
-	.stat-xp-bar {
-		flex: 1;
+	.xp-bar {
 		height: 6px;
 		background: var(--v2-border);
 		border-radius: 3px;
 		overflow: hidden;
 	}
 
-	.stat-xp-fill {
+	.xp-bar-fill {
 		height: 100%;
 		background: linear-gradient(90deg, var(--v2-accent), var(--v2-green));
 		border-radius: 3px;
@@ -135,7 +125,7 @@
 		position: relative;
 	}
 
-	.stat-xp-fill.shimmer::after {
+	.xp-bar-fill.shimmer::after {
 		content: '';
 		position: absolute;
 		inset: 0;
@@ -143,45 +133,109 @@
 		animation: v2-xp-shimmer 1.5s linear infinite;
 	}
 
-	.stat-xp-text {
-		color: var(--v2-text-muted);
-		font-size: .55rem;
-		white-space: nowrap;
+	.level-rank-row {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		font-size: .68rem;
 	}
 
-	.stat-coin {
-		color: var(--v2-coin, var(--v2-yellow));
+	.level-num {
+		color: var(--v2-purple, #bb9af7);
 		font-weight: 700;
-		transition: transform .2s ease;
+		font-size: .8rem;
+		min-width: 42px;
 	}
-	.stat-coin::before { content: '\01FA99 '; }
-	.stat-coin.pop {
+
+	.rank-name {
+		color: var(--v2-green);
+		font-size: .62rem;
+	}
+
+	/* Currency Row */
+	.currency-row {
+		display: flex;
+		gap: 8px;
+	}
+
+	.coin-display, .streak-display {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 8px 10px;
+		background: var(--v2-bg);
+		border: 1px solid var(--v2-border);
+		border-radius: var(--v2-radius, 6px);
+		font-size: .75rem;
+	}
+
+	.coin-icon {
+		font-size: 1rem;
+	}
+
+	.coin-count {
+		font-weight: 700;
+		color: var(--v2-coin, var(--v2-yellow));
+		text-shadow: 0 0 8px rgba(224,175,104,.3);
+		transition: all .3s ease;
+	}
+
+	.coin-count.pop {
 		animation: coin-pop .4s var(--v2-bounce, cubic-bezier(.34,1.56,.64,1));
 	}
 
-	.stat-streak {
-		font-weight: 700;
-	}
-	.stat-streak::before { content: '\01F525 '; }
-	.stat-streak[data-tier="normal"] { color: var(--v2-streak, var(--v2-orange)); }
-	.stat-streak[data-tier="blue"] {
-		color: var(--v2-cyan);
-		text-shadow: 0 0 6px var(--v2-cyan);
-	}
-	.stat-streak[data-tier="golden"] {
-		color: var(--v2-gold, #ffd700);
-		text-shadow: 0 0 8px rgba(255,215,0,.5);
+	.coin-label {
+		color: var(--v2-text-muted);
+		font-size: .55rem;
+		margin-left: auto;
 	}
 
-	.stat-multiplier {
-		font-size: .5rem;
-		color: var(--v2-green);
+	.streak-fire {
+		animation: fire-glow 1.5s ease-in-out infinite alternate;
+		font-size: 1rem;
+	}
+
+	.streak-display[data-tier="blue"] .streak-fire {
+		filter: hue-rotate(-30deg) brightness(1.3);
+	}
+
+	.streak-display[data-tier="golden"] .streak-fire {
+		filter: hue-rotate(15deg) brightness(1.5) saturate(1.5);
+	}
+
+	.streak-info {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+	}
+
+	.streak-count {
+		color: var(--v2-streak, var(--v2-orange));
+		font-weight: 700;
+		font-size: .75rem;
+	}
+
+	.streak-mult {
+		color: var(--v2-yellow);
+		font-size: .55rem;
 		font-weight: 600;
+	}
+
+	.streak-freeze {
+		color: var(--v2-cyan, #7dcfff);
+		font-size: .6rem;
+		margin-left: auto;
 	}
 
 	@keyframes coin-pop {
 		0% { transform: scale(1); }
 		40% { transform: scale(1.3); }
 		100% { transform: scale(1); }
+	}
+
+	@keyframes fire-glow {
+		0% { text-shadow: 0 0 4px #ff9e64; }
+		100% { text-shadow: 0 0 12px #ff9e64, 0 0 20px #f7768e; }
 	}
 </style>
