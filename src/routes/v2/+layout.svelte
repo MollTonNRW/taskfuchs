@@ -32,7 +32,7 @@
 	import TeamStats from '$lib/components/v2/TeamStats.svelte';
 
 	let { data, children } = $props();
-	let sidebarOpen = $state(false);
+	let sidebarOpen = $state(browser && window.innerWidth >= 769);
 	let filterOpen = $state(false);
 	let prioFilterOpen = $state(false);
 	let viewFilterOpen = $state(false);
@@ -232,7 +232,7 @@
 	{/if}
 
 	<!-- Sidebar -->
-	<aside class="v2-sidebar {sidebarOpen ? 'open' : ''}" class:collapsed={!sidebarOpen && typeof window !== 'undefined' && window.innerWidth >= 769}>
+	<aside class="v2-sidebar" class:open={sidebarOpen} class:collapsed={!sidebarOpen}>
 		<!-- Sidebar Header (v6 style) -->
 		<div class="v2-sidebar-topbar">
 			<span class="v2-sidebar-title">TaskFuchs</span>
@@ -549,7 +549,7 @@
 
 	<div class="v2-app">
 		<!-- Main area -->
-		<div class="v2-main" class:sidebar-collapsed={sidebarOpen === false && typeof window !== 'undefined' && window.innerWidth < 769}>
+		<div class="v2-main" class:sidebar-collapsed={!sidebarOpen}>
 			<!-- Header -->
 			<header class="v2-header">
 				<button

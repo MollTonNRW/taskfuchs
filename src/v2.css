@@ -215,9 +215,10 @@
   overflow-x: hidden;
   transition: transform .3s cubic-bezier(.4,0,.2,1);
 }
-/* On desktop, sidebar is always visible — collapsed class is ignored */
+/* On desktop, sidebar can be toggled open/closed */
 @media (min-width: 769px) {
-  .v2-sidebar.collapsed { transform: translateX(0); }
+  .v2-sidebar { transform: translateX(0); }
+  .v2-sidebar.collapsed { transform: translateX(-100%); }
 }
 /* On mobile, collapsed is handled by the mobile media query below */
 
@@ -236,6 +237,7 @@
   position: relative;
   z-index: 1;
 }
+/* When sidebar is collapsed (desktop or mobile), remove left margin */
 .v2-main.sidebar-collapsed { margin-left: 0; }
 
 .v2-header {
