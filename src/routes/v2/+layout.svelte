@@ -571,18 +571,28 @@
 				<div class="v2-header-actions">
 					<!-- View Toggle -->
 					<div class="v2-view-toggle">
-						<button class="active">&#x2261; Liste</button>
-						<button disabled title="Kanban kommt bald">&#x2593; Kanban</button>
+						<button
+							class:active={v2Events.viewMode === 'list'}
+							onclick={() => window.dispatchEvent(new CustomEvent('v2:set-view', { detail: 'list' }))}
+						>&#x2261; Liste</button>
+						<button
+							class:active={v2Events.viewMode === 'kanban'}
+							onclick={() => window.dispatchEvent(new CustomEvent('v2:set-view', { detail: 'kanban' }))}
+						>&#x2593; Kanban</button>
 					</div>
 
 					<!-- Sort Button -->
 					<button class="v2-sort-btn" onclick={() => window.dispatchEvent(new CustomEvent('v2:toggle-sort'))}>
-						&#x21C5; <span>Position</span>
+						&#x21C5; <span>{v2Events.sortLabel}</span>
 					</button>
 
 					<!-- Bulk Mode -->
-					<button class="v2-bulk-mode-btn" onclick={() => window.dispatchEvent(new CustomEvent('v2:toggle-bulk'))}>
-						&#x2610; Auswaehlen
+					<button
+						class="v2-bulk-mode-btn"
+						class:active={v2Events.bulkModeActive}
+						onclick={() => window.dispatchEvent(new CustomEvent('v2:toggle-bulk'))}
+					>
+						{v2Events.bulkModeActive ? '\u2611 Auswaehlen' : '\u2610 Auswaehlen'}
 					</button>
 
 					<!-- Inline Search (Desktop: immer sichtbar, Mobile: nur Icon) -->

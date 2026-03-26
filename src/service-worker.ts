@@ -39,28 +39,27 @@ sw.addEventListener('fetch', (event) => {
 
 	const url = new URL(event.request.url);
 
-	// Don't cache API calls or auth requests
+	// Don't cache API calls, auth requests, or page navigations
 	if (url.pathname.startsWith('/api') || url.hostname.includes('supabase')) return;
+
+	// Never cache HTML page navigations — always go to network
+	if (event.request.mode === 'navigate') return;
 
 	event.respondWith(
 		(async () => {
 			const cache = await caches.open(CACHE);
-			const cachedResponse = await cache.match(event.request);
-
-			if (cachedResponse) {
-				return cachedResponse;
-			}
 
 			try {
+				// Network first for everything
 				const response = await fetch(event.request);
 				if (response.status === 200) {
 					cache.put(event.request, response.clone());
 				}
 				return response;
 			} catch {
-				// Network failed, return offline fallback if available
-				const fallback = await cache.match('/app');
-				if (fallback) return fallback;
+				// Network failed — try cache for static assets only
+				const cachedResponse = await cache.match(event.request);
+				if (cachedResponse) return cachedResponse;
 				return new Response('Offline', { status: 503 });
 			}
 		})()

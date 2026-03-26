@@ -27,11 +27,22 @@ function createEventBus() {
 	// Open task count (all lists)
 	let openTaskCount = $state(0);
 
+	// Shared header state (Page -> Layout communication)
+	let viewMode = $state<'list' | 'kanban'>('list');
+	let sortLabel = $state('Position');
+	let bulkModeActive = $state(false);
+
 	return {
 		get lastEvent() { return lastEvent; },
 		get eventCounter() { return eventCounter; },
 		get navCounts() { return navCounts; },
 		get openTaskCount() { return openTaskCount; },
+		get viewMode() { return viewMode; },
+		set viewMode(v: 'list' | 'kanban') { viewMode = v; },
+		get sortLabel() { return sortLabel; },
+		set sortLabel(v: string) { sortLabel = v; },
+		get bulkModeActive() { return bulkModeActive; },
+		set bulkModeActive(v: boolean) { bulkModeActive = v; },
 		setNavCounts(counts: Record<string, { done: number; total: number }>) { navCounts = counts; },
 		setOpenTaskCount(count: number) { openTaskCount = count; },
 		emit,

@@ -18,7 +18,10 @@
 		ontogglesubtask,
 		oneditsubtask,
 		ondragstart,
-		ondragend
+		ondragend,
+		bulkMode = false,
+		bulkSelected = false,
+		onBulkToggle
 	}: {
 		task: Task;
 		subtasks?: Task[];
@@ -33,6 +36,9 @@
 		oneditsubtask?: (id: string, text: string) => void;
 		ondragstart?: (e: DragEvent) => void;
 		ondragend?: (e: DragEvent) => void;
+		bulkMode?: boolean;
+		bulkSelected?: boolean;
+		onBulkToggle?: (id: string) => void;
 	} = $props();
 
 	let editing = $state(false);
@@ -107,6 +113,7 @@
 <div
 	class="v2-glass-card v2-task-card"
 	class:v2-highlighted={task.highlighted}
+	class:v2-bulk-selected={bulkSelected}
 	data-priority={task.priority}
 	oncontextmenu={handleContext}
 	ondblclick={handleDblClick}
@@ -114,6 +121,18 @@
 	ondragstart={ondragstart}
 	ondragend={ondragend}
 >
+	<!-- Bulk Checkbox -->
+	{#if bulkMode}
+		<button
+			class="v2-bulk-checkbox"
+			class:checked={bulkSelected}
+			onclick={(e) => { e.stopPropagation(); onBulkToggle?.(task.id); }}
+			aria-label={bulkSelected ? 'Abwaehlen' : 'Auswaehlen'}
+		>
+			{bulkSelected ? '\u2713' : ''}
+		</button>
+	{/if}
+
 	<!-- Emoji (before checkbox, like v6) -->
 	{#if task.emoji}
 		<span class="v2-task-emoji">{task.emoji}</span>

@@ -18,7 +18,10 @@
 		onContextMenu,
 		onTaskDblClick,
 		onListMenuClick,
-		onReorderTask
+		onReorderTask,
+		bulkMode = false,
+		bulkSelectedIds = new Set<string>(),
+		onBulkToggle
 	}: {
 		list: List;
 		tasks: Task[];
@@ -33,6 +36,9 @@
 		onTaskDblClick?: (task: Task) => void;
 		onListMenuClick?: (listId: string) => void;
 		onReorderTask?: (taskId: string, targetListId: string, newPosition: number) => void;
+		bulkMode?: boolean;
+		bulkSelectedIds?: Set<string>;
+		onBulkToggle?: (id: string) => void;
 	} = $props();
 
 	let quickAddText = $state('');
@@ -189,6 +195,9 @@
 						ondblclick={onTaskDblClick}
 						ondragstart={(e) => handleTaskDragStart(e, task)}
 						ondragend={handleTaskDragEnd}
+						{bulkMode}
+						bulkSelected={bulkSelectedIds.has(task.id)}
+						{onBulkToggle}
 					/>
 				</div>
 			{/if}
@@ -221,6 +230,9 @@
 						onedit={onEditTask}
 						oncontextmenu={onContextMenu}
 						ondblclick={onTaskDblClick}
+						{bulkMode}
+						bulkSelected={bulkSelectedIds.has(task.id)}
+						{onBulkToggle}
 					/>
 				{/each}
 			</div>

@@ -11,6 +11,7 @@
 
 	import Pinboard from '$lib/components/v2/Pinboard.svelte';
 	import ListPanel from '$lib/components/v2/ListPanel.svelte';
+	import TaskCard from '$lib/components/v2/TaskCard.svelte';
 	import ToastContainer from '$lib/components/v2/ToastContainer.svelte';
 	import ConfirmDialog from '$lib/components/v2/ConfirmDialog.svelte';
 	import FocusOverlay from '$lib/components/v2/FocusOverlay.svelte';
@@ -95,7 +96,13 @@
 
 	// Bulk selection
 	let bulkSelectedIds = $state(new Set<string>());
-	let bulkMode = $derived(bulkSelectedIds.size > 0);
+	let explicitBulkMode = $state(false);
+	let bulkMode = $derived(explicitBulkMode || bulkSelectedIds.size > 0);
+
+	// Sync bulkMode to shared event bus for header display
+	$effect(() => {
+		v2Events.bulkModeActive = bulkMode;
+	});
 
 	function toggleBulkSelect(taskId: string) {
 		const next = new Set(bulkSelectedIds);
@@ -105,7 +112,16 @@
 
 	function clearBulkSelection() {
 		bulkSelectedIds = new Set();
+		explicitBulkMode = false;
 	}
+
+	// View mode: 'list' | 'kanban'
+	let viewMode = $state<'list' | 'kanban'>('list');
+
+	// Sync viewMode to shared event bus for header display
+	$effect(() => {
+		v2Events.viewMode = viewMode;
+	});
 
 	// Visible lists (with bounds-check on activeListIndex)
 	let visibleLists = $derived(
@@ -128,6 +144,23 @@
 	// Search overlay
 	let searchOpen = $state(false);
 
+	// Kanban derived data for the active list
+	let kanbanOpenTasks = $derived(
+		visibleLists[activeListIndex]
+			? tasks.filter((t: Task) => t.list_id === visibleLists[activeListIndex].id && !t.parent_id && t.type !== 'divider' && !t.done && (t.progress === 0 || t.progress === null))
+			: []
+	);
+	let kanbanInProgressTasks = $derived(
+		visibleLists[activeListIndex]
+			? tasks.filter((t: Task) => t.list_id === visibleLists[activeListIndex].id && !t.parent_id && t.type !== 'divider' && !t.done && t.progress !== null && t.progress > 0)
+			: []
+	);
+	let kanbanDoneTasks = $derived(
+		visibleLists[activeListIndex]
+			? tasks.filter((t: Task) => t.list_id === visibleLists[activeListIndex].id && !t.parent_id && t.type !== 'divider' && t.done)
+			: []
+	);
+
 	// ==========================================
 	// COMPOSABLES
 	// ==========================================
@@ -149,6 +182,11 @@
 		},
 		{ show: (msg: string, type: 'info' | 'error' | 'success', duration?: number) => toasts.show(msg, type, duration) }
 	);
+
+	// Sync sort label to shared event bus for header display
+	$effect(() => {
+		v2Events.sortLabel = sortLabels[sortFilter.sortMode];
+	});
 
 	// Share Dialog
 	const share = createShareDialog(
@@ -260,9 +298,38 @@
 		}
 		window.addEventListener('keydown', handleGlobalKeydown);
 
+		// Header button event listeners (Layout -> Page communication)
+		function handleToggleSort() {
+			sortFilter.sortMenuOpen = !sortFilter.sortMenuOpen;
+		}
+		function handleToggleBulk() {
+			if (bulkMode) {
+				clearBulkSelection();
+			} else {
+				explicitBulkMode = true;
+			}
+		}
+		function handleToggleSearch() {
+			searchOpen = !searchOpen;
+		}
+		function handleSetView(e: Event) {
+			const detail = (e as CustomEvent).detail;
+			if (detail === 'list' || detail === 'kanban') {
+				viewMode = detail;
+			}
+		}
+		window.addEventListener('v2:toggle-sort', handleToggleSort);
+		window.addEventListener('v2:toggle-bulk', handleToggleBulk);
+		window.addEventListener('v2:toggle-search', handleToggleSearch);
+		window.addEventListener('v2:set-view', handleSetView);
+
 		return () => {
 			mq.removeEventListener('change', handler);
 			window.removeEventListener('keydown', handleGlobalKeydown);
+			window.removeEventListener('v2:toggle-sort', handleToggleSort);
+			window.removeEventListener('v2:toggle-bulk', handleToggleBulk);
+			window.removeEventListener('v2:toggle-search', handleToggleSearch);
+			window.removeEventListener('v2:set-view', handleSetView);
 			if (sb && listsChannel) sb.removeChannel(listsChannel);
 			if (sb && tasksChannel) sb.removeChannel(tasksChannel);
 		};
@@ -402,27 +469,122 @@
 	</div>
 {/if}
 
-<!-- Single List View (v6 style: one list at a time) -->
-<div class="v2-single-list-container">
-	{#if visibleLists[activeListIndex]}
-		{@const activeList = visibleLists[activeListIndex]}
-		<ListPanel
-			list={activeList}
-			tasks={sortFilter.tasksForList(activeList.id)}
-			colIndex={activeListIndex}
-			isActive={true}
-			onQuickAdd={handleQuickAdd}
-			onToggleTask={handleToggleTask}
-			onEditTask={handleEditTask}
-			onToggleSubtask={handleToggleTask}
-			onEditSubtask={handleEditTask}
-			onContextMenu={handleContextMenu}
-			onTaskDblClick={handleTaskDblClick}
-			onListMenuClick={handleListMenuClick}
-			onReorderTask={(taskId, targetListId, newPos) => store.reorderTask(taskId, targetListId, newPos)}
-		/>
-	{/if}
-</div>
+<!-- View: List or Kanban -->
+{#if viewMode === 'kanban' && visibleLists[activeListIndex]}
+	<!-- Kanban View -->
+	{@const activeList = visibleLists[activeListIndex]}
+	<div class="v2-kanban-view">
+		<!-- Offen -->
+		<div class="v2-kanban-col">
+			<div class="v2-kanban-header">
+				<span class="dot" style="background: var(--v2-accent);"></span>
+				<span>Offen</span>
+				<span class="v2-kanban-count">{kanbanOpenTasks.length}</span>
+			</div>
+			<div class="v2-kanban-body">
+				{#each kanbanOpenTasks as task (task.id)}
+					{@const subs = tasks.filter((t: Task) => t.parent_id === task.id).sort((a: Task, b: Task) => a.position - b.position)}
+					{@const subsDone = subs.filter((s: Task) => s.done).length}
+					<TaskCard
+						{task}
+						subtasks={subs}
+						subtaskCount={subs.length}
+						subtaskDoneCount={subsDone}
+						allSubtasksDone={subs.length > 0 && subsDone === subs.length}
+						ontoggle={handleToggleTask}
+						onedit={handleEditTask}
+						ontogglesubtask={handleToggleTask}
+						oneditsubtask={handleEditTask}
+						oncontextmenu={handleContextMenu}
+						ondblclick={handleTaskDblClick}
+						{bulkMode}
+						bulkSelected={bulkSelectedIds.has(task.id)}
+						onBulkToggle={toggleBulkSelect}
+					/>
+				{/each}
+			</div>
+		</div>
+
+		<!-- In Arbeit -->
+		<div class="v2-kanban-col">
+			<div class="v2-kanban-header">
+				<span class="dot" style="background: var(--v2-yellow, #f59e0b);"></span>
+				<span>In Arbeit</span>
+				<span class="v2-kanban-count">{kanbanInProgressTasks.length}</span>
+			</div>
+			<div class="v2-kanban-body">
+				{#each kanbanInProgressTasks as task (task.id)}
+					{@const subs = tasks.filter((t: Task) => t.parent_id === task.id).sort((a: Task, b: Task) => a.position - b.position)}
+					{@const subsDone = subs.filter((s: Task) => s.done).length}
+					<TaskCard
+						{task}
+						subtasks={subs}
+						subtaskCount={subs.length}
+						subtaskDoneCount={subsDone}
+						allSubtasksDone={subs.length > 0 && subsDone === subs.length}
+						ontoggle={handleToggleTask}
+						onedit={handleEditTask}
+						ontogglesubtask={handleToggleTask}
+						oneditsubtask={handleEditTask}
+						oncontextmenu={handleContextMenu}
+						ondblclick={handleTaskDblClick}
+						{bulkMode}
+						bulkSelected={bulkSelectedIds.has(task.id)}
+						onBulkToggle={toggleBulkSelect}
+					/>
+				{/each}
+			</div>
+		</div>
+
+		<!-- Erledigt -->
+		<div class="v2-kanban-col">
+			<div class="v2-kanban-header">
+				<span class="dot" style="background: var(--v2-green, #22c55e);"></span>
+				<span>Erledigt</span>
+				<span class="v2-kanban-count">{kanbanDoneTasks.length}</span>
+			</div>
+			<div class="v2-kanban-body">
+				{#each kanbanDoneTasks as task (task.id)}
+					<TaskCard
+						{task}
+						ontoggle={handleToggleTask}
+						onedit={handleEditTask}
+						oncontextmenu={handleContextMenu}
+						ondblclick={handleTaskDblClick}
+						{bulkMode}
+						bulkSelected={bulkSelectedIds.has(task.id)}
+						onBulkToggle={toggleBulkSelect}
+					/>
+				{/each}
+			</div>
+		</div>
+	</div>
+{:else}
+	<!-- Single List View (v6 style: one list at a time) -->
+	<div class="v2-single-list-container">
+		{#if visibleLists[activeListIndex]}
+			{@const activeList = visibleLists[activeListIndex]}
+			<ListPanel
+				list={activeList}
+				tasks={sortFilter.tasksForList(activeList.id)}
+				colIndex={activeListIndex}
+				isActive={true}
+				onQuickAdd={handleQuickAdd}
+				onToggleTask={handleToggleTask}
+				onEditTask={handleEditTask}
+				onToggleSubtask={handleToggleTask}
+				onEditSubtask={handleEditTask}
+				onContextMenu={handleContextMenu}
+				onTaskDblClick={handleTaskDblClick}
+				onListMenuClick={handleListMenuClick}
+				onReorderTask={(taskId, targetListId, newPos) => store.reorderTask(taskId, targetListId, newPos)}
+				{bulkMode}
+				bulkSelectedIds={bulkSelectedIds}
+				onBulkToggle={toggleBulkSelect}
+			/>
+		{/if}
+	</div>
+{/if}
 
 <!-- Sort Dropdown (floating) -->
 {#if sortFilter.sortMenuOpen}

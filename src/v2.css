@@ -1284,6 +1284,38 @@
   background: var(--v2-accent-glow);
 }
 
+/* Bulk Checkbox (inside TaskCard when bulk mode is active) */
+.v2-bulk-checkbox {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border: 2px dashed var(--v2-accent);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--v2-accent);
+  font-size: .7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--v2-transition);
+  padding: 0;
+  margin-right: 4px;
+}
+.v2-bulk-checkbox.checked {
+  background: var(--v2-accent);
+  color: var(--v2-bg);
+  border-style: solid;
+}
+.v2-bulk-checkbox:hover {
+  border-color: var(--v2-accent);
+  background: var(--v2-accent-glow);
+}
+.v2-task-card.v2-bulk-selected {
+  border-color: var(--v2-accent);
+  box-shadow: 0 0 8px var(--v2-accent-glow);
+}
+
 /* =====================================================================
    TOAST
    ===================================================================== */
@@ -1574,6 +1606,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
+  padding: 0 16px 16px;
 }
 .v2-kanban-col {
   background: var(--v2-surface);
