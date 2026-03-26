@@ -200,7 +200,7 @@
 /* =====================================================================
    LAYOUT
    ===================================================================== */
-.v2-app { display: flex; flex: 1; min-height: 0; position: relative; z-index: 1; }
+.v2-app { display: flex; flex: 1; min-height: 0; min-width: 0; max-width: 100%; overflow-x: hidden; position: relative; z-index: 1; }
 
 .v2-sidebar {
   width: var(--v2-sidebar-w);
@@ -227,6 +227,9 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
+  max-width: 100vw;
+  overflow-x: hidden;
   transition: margin-left .3s cubic-bezier(.4,0,.2,1);
   /* Create stacking context above AsciiParticles (z-index: 0) so all
      children (header, content) are guaranteed to receive pointer events */
@@ -240,12 +243,15 @@
   border-bottom: 1px dashed var(--v2-border);
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   padding: 10px 20px;
-  gap: 14px;
+  gap: 8px 14px;
   flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: 50;
+  max-width: 100%;
+  overflow: hidden;
   /* Ensure header is always clickable above particles and other overlays */
   isolation: isolate;
 }
@@ -293,8 +299,10 @@
 .v2-header-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-left: auto;
+  min-width: 0;
 }
 
 /* Header Inline Search (Desktop) */
@@ -1914,7 +1922,7 @@
     z-index: 200;
   }
   .v2-sidebar.open { transform: translateX(0); }
-  .v2-main { margin-left: 0 !important; }
+  .v2-main { margin-left: 0 !important; width: 100vw; max-width: 100vw; }
 
   .v2-content { padding: 14px; }
 
@@ -1938,8 +1946,27 @@
   /* Kanban single column on mobile */
   .v2-kanban-view { grid-template-columns: 1fr; }
 
+  /* Header: constrain to viewport width, wrap actions */
+  .v2-header {
+    padding: 8px 12px;
+    gap: 6px 10px;
+    max-width: 100vw;
+    box-sizing: border-box;
+  }
+  .v2-header-logo { display: none; }
+  .v2-header-game-stats { display: none; }
+  .v2-header-actions {
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+  }
+
   /* View toggle smaller on mobile */
   .v2-view-toggle button { padding: 4px 7px; font-size: .65rem; }
+  .v2-sort-btn { font-size: .6rem; padding: 4px 7px; }
+  .v2-sort-btn span { display: none; }
+  .v2-bulk-mode-btn { font-size: .6rem; padding: 4px 7px; }
 
   /* Bottom padding for mobile tabs */
   .v2-main { padding-bottom: 56px; }
