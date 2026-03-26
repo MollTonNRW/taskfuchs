@@ -5,7 +5,7 @@
 		action?: () => void;
 		danger?: boolean;
 		divider?: boolean;
-		submenu?: { label: string; icon?: string; action: () => void; active?: boolean }[];
+		submenu?: { label: string; icon?: string; action: () => void; active?: boolean; blink?: boolean }[];
 	};
 
 	let {
@@ -92,13 +92,13 @@
 				</button>
 				{#if activeSubmenu === item.label}
 					<div
-						class="v2-context-menu v2-context-submenu"
-						style="{submenuDirection === 'left' ? 'right: 100%; left: auto;' : 'left: 100%;'} top: 0;"
+						class="v2-context-submenu"
+						style="{submenuDirection === 'left' ? 'right: 100%; left: auto;' : ''}"
 					>
 						{#each item.submenu as sub}
 							<button
-								class="v2-context-menu-item"
-								style="width: 100%; {sub.active ? 'font-weight: 700; color: var(--v2-accent);' : ''}"
+								class="v2-context-menu-item {sub.active ? 'v2-ctx-submenu-active' : ''} {sub.blink ? 'v2-ctx-asap-blink' : ''}"
+								style="width: 100%;"
 								onclick={() => { sub.action(); onclose(); }}
 							>
 								{#if sub.icon}<span class="v2-ctx-icon">{sub.icon}</span>{/if}
