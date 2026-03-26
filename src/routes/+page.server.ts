@@ -5,7 +5,7 @@ export const load: PageServerLoad = async ({ locals: { safeGetSession } }) => {
 	const { session } = await safeGetSession();
 
 	if (session) {
-		redirect(303, '/app');
+		redirect(303, '/v2');
 	} else {
 		redirect(303, '/auth/login');
 	}

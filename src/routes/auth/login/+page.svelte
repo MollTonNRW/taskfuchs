@@ -15,7 +15,7 @@
 			error = err.message;
 			loading = false;
 		} else {
-			goto('/app');
+			goto('/v2');
 		}
 	}
 

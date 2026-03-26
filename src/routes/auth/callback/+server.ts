@@ -13,5 +13,5 @@ export const GET: RequestHandler = async ({ url, locals: { supabase } }) => {
 		redirect(303, '/auth/login?error=callback_failed');
 	}
 
-	redirect(303, '/app');
+	redirect(303, '/v2');
 };
