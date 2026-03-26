@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { get } from 'svelte/store';
 	import type { Database } from '$lib/types/database';
+	import { subtasksCollapsedByDefault } from '$lib/stores/filters';
 	import SubtaskCard from './SubtaskCard.svelte';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -48,7 +50,7 @@
 	let editing = $state(false);
 	let editText = $state('');
 	let editInput: HTMLInputElement | undefined = $state();
-	let localSubtasksOpen = $state(false);
+	let localSubtasksOpen = $state(!get(subtasksCollapsedByDefault));
 
 	// ---- Subtask Drag & Drop ----
 	let subDragOverIdx: number | null = $state(null);
