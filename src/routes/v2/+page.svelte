@@ -165,6 +165,19 @@
 	// Search overlay
 	let searchOpen = $state(false);
 
+	// List Icon Picker state
+	let listIconPicker = $state<{ show: boolean; listId: string; x: number; y: number }>({ show: false, listId: '', x: 0, y: 0 });
+
+	function openListIconPicker(listId: string, x: number, y: number) {
+		listIconPicker = { show: true, listId, x, y };
+	}
+
+	function handleListIconSelect(emoji: string) {
+		if (listIconPicker.listId) {
+			store.changeListIcon(listIconPicker.listId, emoji || '\uD83D\uDCCB');
+		}
+	}
+
 	// Kanban derived data for the active list
 	let activeListTopLevelTasks = $derived(
 		visibleLists[activeListIndex]
@@ -232,6 +245,7 @@
 			deleteList: (listId: string) => store.deleteList(listId),
 			toggleTask: (taskId: string, done: boolean) => store.toggleTask(taskId, done),
 			changeTaskPriority: (taskId: string, priority: Priority) => store.changeTaskPriority(taskId, priority),
+			changeTaskTimeframe: (taskId: string, timeframe: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null) => store.changeTaskTimeframe(taskId, timeframe),
 			toggleHighlight: (taskId: string) => store.toggleHighlight(taskId),
 			togglePin: (taskId: string) => store.togglePin(taskId),
 			updateTask: (taskId: string, text: string) => store.updateTask(taskId, text),
@@ -257,7 +271,8 @@
 		openNotePopover: (taskId: string, x: number, y: number) => popovers.openNotePopover(taskId, x, y),
 		openDatePicker: (taskId: string, x: number, y: number) => popovers.openDatePicker(taskId, x, y),
 		openEmojiPicker: (taskId: string, x: number, y: number) => popovers.openEmojiPicker(taskId, x, y),
-		openShareDialog: (list: List) => share.openShareDialog(list)
+		openShareDialog: (list: List) => share.openShareDialog(list),
+		openListIconPicker: (listId: string, x: number, y: number) => openListIconPicker(listId, x, y)
 	};
 	const ctx = createContextMenus(ctxDeps);
 
@@ -317,6 +332,7 @@
 				if (popovers.focusMode.show) { popovers.focusMode = { show: false, taskId: '' }; return; }
 				if (popovers.notePopover.show) { popovers.notePopover = { show: false, taskId: '', note: '', x: 0, y: 0 }; return; }
 				if (popovers.emojiPicker.show) { popovers.emojiPicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
+				if (listIconPicker.show) { listIconPicker = { show: false, listId: '', x: 0, y: 0 }; return; }
 				if (popovers.datePicker.show) { popovers.datePicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
 				if (popovers.priorityPicker.show) { popovers.priorityPicker = { show: false, taskId: '', x: 0, y: 0, current: 'normal' }; return; }
 				if (share.shareDialog.show) { share.close(); return; }
@@ -454,6 +470,100 @@
 		if (task) popovers.openFocusMode(task.id);
 	}
 
+	// ---- Swipe between lists (mobile) ----
+	let swipeStartX = 0;
+	let swipeStartY = 0;
+	let swipeActive = false;
+
+	function handleSwipeTouchStart(e: TouchEvent) {
+		if (e.touches.length !== 1) return;
+		const touch = e.touches[0];
+		swipeStartX = touch.clientX;
+		swipeStartY = touch.clientY;
+		swipeActive = true;
+	}
+
+	function handleSwipeTouchMove(e: TouchEvent) {
+		if (!swipeActive || e.touches.length !== 1) return;
+		// We only detect — no preventDefault here (passive listener, keeps scrolling intact)
+	}
+
+	function handleSwipeTouchEnd(e: TouchEvent) {
+		if (!swipeActive) return;
+		swipeActive = false;
+
+		const touch = e.changedTouches[0];
+		const dx = touch.clientX - swipeStartX;
+		const dy = touch.clientY - swipeStartY;
+
+		// Only trigger swipe if horizontal > 50px and vertical < 30px
+		if (Math.abs(dx) < 50 || Math.abs(dy) > 30) return;
+
+		if (dx < 0) {
+			// Swipe left -> next list
+			if (activeListIndex < visibleLists.length - 1) {
+				activeListIndex = activeListIndex + 1;
+			}
+		} else {
+			// Swipe right -> previous list
+			if (activeListIndex > 0) {
+				activeListIndex = activeListIndex - 1;
+			}
+		}
+	}
+
+	// ---- List Tab Drag & Drop ----
+	let tabDragOverIdx: number | null = $state(null);
+	let draggingTabId: string | null = $state(null);
+
+	function handleTabDragStart(e: DragEvent, list: List, idx: number) {
+		if (!e.dataTransfer) return;
+		draggingTabId = list.id;
+		e.dataTransfer.effectAllowed = 'move';
+		e.dataTransfer.setData('application/x-list-tab', JSON.stringify({ listId: list.id }));
+		const el = e.currentTarget as HTMLElement;
+		requestAnimationFrame(() => { el.style.opacity = '0.4'; });
+	}
+
+	function handleTabDragEnd(e: DragEvent) {
+		draggingTabId = null;
+		tabDragOverIdx = null;
+		const el = e.currentTarget as HTMLElement;
+		el.style.opacity = '';
+	}
+
+	function handleTabDragOver(e: DragEvent, idx: number) {
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		const isAfter = e.clientX > rect.left + rect.width / 2;
+		tabDragOverIdx = isAfter ? idx + 1 : idx;
+	}
+
+	function handleTabDrop(e: DragEvent) {
+		e.preventDefault();
+		if (!e.dataTransfer) return;
+		const dropIdx = tabDragOverIdx ?? 0;
+		tabDragOverIdx = null;
+		draggingTabId = null;
+		try {
+			const raw = e.dataTransfer.getData('application/x-list-tab');
+			if (raw) {
+				const data = JSON.parse(raw);
+				if (data.listId) {
+					// Map visible index back to the actual list position
+					const targetList = visibleLists[dropIdx] ?? visibleLists[visibleLists.length - 1];
+					const newPosition = targetList ? targetList.position : visibleLists.length;
+					store.reorderList(data.listId, dropIdx);
+					// Update activeListIndex to follow the moved tab
+					const newIdx = visibleLists.findIndex((l: List) => l.id === data.listId);
+					if (newIdx >= 0) activeListIndex = newIdx;
+					else activeListIndex = Math.min(dropIdx, visibleLists.length - 1);
+				}
+			}
+		} catch { /* ignore */ }
+	}
+
 	// Long-press on list tabs (mobile touch-and-hold, 300ms)
 	let tabLongPressTimer: ReturnType<typeof setTimeout> | null = null;
 	function handleTabTouchStart(e: TouchEvent, list: List) {
@@ -521,15 +631,23 @@
 {#if visibleLists.length > 0}
 	<div class="v2-list-tabs">
 		{#each visibleLists as list, i (list.id)}
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<button
 				class="v2-list-tab"
 				class:active={i === activeListIndex}
+				class:tab-drag-over-left={tabDragOverIdx === i && draggingTabId && draggingTabId !== list.id}
+				class:tab-drag-over-right={tabDragOverIdx === i + 1 && draggingTabId && draggingTabId !== list.id}
 				onclick={() => (activeListIndex = i)}
 				oncontextmenu={(e) => ctx.handleListContext(e, list)}
 				ontouchstart={(e) => handleTabTouchStart(e, list)}
 				ontouchend={handleTabTouchEnd}
 				ontouchmove={handleTabTouchCancel}
 				ontouchcancel={handleTabTouchCancel}
+				draggable="true"
+				ondragstart={(e) => handleTabDragStart(e, list, i)}
+				ondragend={handleTabDragEnd}
+				ondragover={(e) => handleTabDragOver(e, i)}
+				ondrop={handleTabDrop}
 			>
 				<span class="v2-tab-icon">{list.icon}</span>
 				{list.title}
@@ -566,6 +684,7 @@
 						oneditsubtask={handleEditTask}
 						oncontextmenu={handleContextMenu}
 						ondblclick={handleTaskDblClick}
+						onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
 						{bulkMode}
 						bulkSelected={bulkSelectedIds.has(task.id)}
 						onBulkToggle={toggleBulkSelect}
@@ -597,6 +716,7 @@
 						oneditsubtask={handleEditTask}
 						oncontextmenu={handleContextMenu}
 						ondblclick={handleTaskDblClick}
+						onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
 						{bulkMode}
 						bulkSelected={bulkSelectedIds.has(task.id)}
 						onBulkToggle={toggleBulkSelect}
@@ -630,7 +750,13 @@
 	</div>
 {:else}
 	<!-- Single List View (v6 style: one list at a time) -->
-	<div class="v2-single-list-container">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="v2-single-list-container"
+		ontouchstart={handleSwipeTouchStart}
+		ontouchmove={handleSwipeTouchMove}
+		ontouchend={handleSwipeTouchEnd}
+	>
 		{#if visibleLists[activeListIndex]}
 			{@const activeList = visibleLists[activeListIndex]}
 			<ListPanel
@@ -648,6 +774,7 @@
 				onTaskDblClick={handleTaskDblClick}
 				onListMenuClick={handleListMenuClick}
 				onReorderTask={(taskId, targetListId, newPos) => store.reorderTask(taskId, targetListId, newPos)}
+				onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
 				{bulkMode}
 				bulkSelectedIds={bulkSelectedIds}
 				onBulkToggle={toggleBulkSelect}
@@ -704,6 +831,7 @@
 		onToggle={handleToggleTask}
 		onUpdate={handleEditTask}
 		onChangePriority={(id, p) => store.changeTaskPriority(id, p)}
+		onChangeTimeframe={(id, tf) => store.changeTaskTimeframe(id, tf)}
 		onUpdateNote={(id, note) => store.updateTaskNote(id, note)}
 		onUpdateEmoji={(id, emoji) => store.updateTaskEmoji(id, emoji)}
 		onToggleSubtask={handleToggleTask}
@@ -743,13 +871,23 @@
 	/>
 {/if}
 
-<!-- Emoji Picker -->
+<!-- Emoji Picker (Task) -->
 {#if popovers.emojiPicker.show}
 	<EmojiPicker
 		x={popovers.emojiPicker.x}
 		y={popovers.emojiPicker.y}
 		onSelect={(emoji) => { popovers.handleEmojiSelect(emoji); }}
 		onClose={() => { popovers.emojiPicker = { show: false, taskId: '', x: 0, y: 0 }; }}
+	/>
+{/if}
+
+<!-- Emoji Picker (List Icon) -->
+{#if listIconPicker.show}
+	<EmojiPicker
+		x={listIconPicker.x}
+		y={listIconPicker.y}
+		onSelect={(emoji) => { handleListIconSelect(emoji); }}
+		onClose={() => { listIconPicker = { show: false, listId: '', x: 0, y: 0 }; }}
 	/>
 {/if}
 

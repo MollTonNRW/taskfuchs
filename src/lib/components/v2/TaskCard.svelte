@@ -20,6 +20,7 @@
 		oneditsubtask,
 		ondragstart,
 		ondragend,
+		onReorderSubtask,
 		bulkMode = false,
 		bulkSelected = false,
 		onBulkToggle
@@ -38,6 +39,7 @@
 		oneditsubtask?: (id: string, text: string) => void;
 		ondragstart?: (e: DragEvent) => void;
 		ondragend?: (e: DragEvent) => void;
+		onReorderSubtask?: (subtaskId: string, parentId: string, newPosition: number) => void;
 		bulkMode?: boolean;
 		bulkSelected?: boolean;
 		onBulkToggle?: (id: string) => void;
@@ -47,6 +49,54 @@
 	let editText = $state('');
 	let editInput: HTMLInputElement | undefined = $state();
 	let localSubtasksOpen = $state(false);
+
+	// ---- Subtask Drag & Drop ----
+	let subDragOverIdx: number | null = $state(null);
+	let draggingSubId: string | null = $state(null);
+
+	function handleSubDragStart(e: DragEvent, sub: Task) {
+		if (!e.dataTransfer) return;
+		e.stopPropagation(); // Prevent parent task drag
+		draggingSubId = sub.id;
+		e.dataTransfer.effectAllowed = 'move';
+		e.dataTransfer.setData('application/x-subtask', JSON.stringify({ subtaskId: sub.id, parentId: task.id }));
+		const el = e.currentTarget as HTMLElement;
+		requestAnimationFrame(() => { el.style.opacity = '0.4'; });
+	}
+
+	function handleSubDragEnd(e: DragEvent) {
+		draggingSubId = null;
+		subDragOverIdx = null;
+		const el = e.currentTarget as HTMLElement;
+		el.style.opacity = '';
+	}
+
+	function handleSubDragOver(e: DragEvent, idx: number) {
+		e.preventDefault();
+		e.stopPropagation();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		const isBelow = e.clientY > rect.top + rect.height / 2;
+		subDragOverIdx = isBelow ? idx + 1 : idx;
+	}
+
+	function handleSubDrop(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		if (!e.dataTransfer || !onReorderSubtask) return;
+		const dropIdx = subDragOverIdx ?? 0;
+		subDragOverIdx = null;
+		draggingSubId = null;
+		try {
+			const raw = e.dataTransfer.getData('application/x-subtask');
+			if (raw) {
+				const data = JSON.parse(raw);
+				if (data.subtaskId) {
+					onReorderSubtask(data.subtaskId, task.id, dropIdx);
+				}
+			}
+		} catch { /* ignore invalid drag data */ }
+	}
 
 	// If forceSubtasksOpen is set (not null), use it; otherwise use local state
 	let subtasksOpen = $derived(forceSubtasksOpen !== null ? forceSubtasksOpen : localSubtasksOpen);
@@ -93,6 +143,13 @@
 		normal: 'NORMAL',
 		high: 'HIGH',
 		asap: 'ASAP'
+	};
+
+	const timeframeTagLabel: Record<string, string> = {
+		akut: 'AKUT',
+		zeitnah: 'ZEITNAH',
+		mittelfristig: 'MITTELFRISTIG',
+		langfristig: 'LANGFRISTIG'
 	};
 
 	// Auto-calculate progress from subtasks (like v6), fallback to manual progress
@@ -175,6 +232,9 @@
 			{#if task.priority}
 				<span class="v2-tag v2-tag-{task.priority}">{priorityTagLabel[task.priority] ?? task.priority}</span>
 			{/if}
+			{#if task.timeframe}
+				<span class="v2-tag v2-tag-timeframe">{timeframeTagLabel[task.timeframe] ?? task.timeframe}</span>
+			{/if}
 			{#if task.due_date}
 				<span class="v2-tag v2-tag-due">&#x1F4C5; {task.due_date}</span>
 			{/if}
@@ -204,13 +264,29 @@
 
 		<!-- Subtasks (inside task-body, collapsible, like v6) -->
 		{#if subtasks.length > 0}
-			<div class="v2-subtasks" class:collapsed={!subtasksOpen}>
-				{#each subtasks as sub (sub.id)}
-					<SubtaskCard
-						subtask={sub}
-						ontoggle={ontogglesubtask ?? (() => {})}
-						onedit={oneditsubtask ?? (() => {})}
-					/>
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="v2-subtasks"
+				class:collapsed={!subtasksOpen}
+				ondragover={(e) => { e.preventDefault(); e.stopPropagation(); }}
+				ondrop={handleSubDrop}
+			>
+				{#each subtasks as sub, idx (sub.id)}
+					<!-- svelte-ignore a11y_no_static_element_interactions -->
+					<div
+						class="v2-subtask-drop-wrapper"
+						class:sub-drag-over-above={subDragOverIdx === idx}
+						class:sub-drag-over-below={subDragOverIdx === idx + 1}
+						ondragover={(e) => handleSubDragOver(e, idx)}
+					>
+						<SubtaskCard
+							subtask={sub}
+							ontoggle={ontogglesubtask ?? (() => {})}
+							onedit={oneditsubtask ?? (() => {})}
+							ondragstart={(e) => handleSubDragStart(e, sub)}
+							ondragend={handleSubDragEnd}
+						/>
+					</div>
 				{/each}
 			</div>
 		{/if}
@@ -223,3 +299,32 @@
 		aria-label="Menu"
 	>&#x22EE;</button>
 </div>
+
+<style>
+	.v2-subtask-drop-wrapper {
+		position: relative;
+		transition: transform 0.1s ease;
+	}
+	.v2-subtask-drop-wrapper.sub-drag-over-above::before {
+		content: '';
+		position: absolute;
+		top: -1px;
+		left: 0;
+		right: 0;
+		height: 2px;
+		background: var(--v2-accent, #f7a072);
+		border-radius: 1px;
+		z-index: 5;
+	}
+	.v2-subtask-drop-wrapper.sub-drag-over-below::after {
+		content: '';
+		position: absolute;
+		bottom: -1px;
+		left: 0;
+		right: 0;
+		height: 2px;
+		background: var(--v2-accent, #f7a072);
+		border-radius: 1px;
+		z-index: 5;
+	}
+</style>

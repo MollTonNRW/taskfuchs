@@ -1,6 +1,6 @@
 import type { Database } from '$lib/types/database';
 import type { MenuItem } from '$lib/components/v2/ContextMenu.svelte';
-import { priorityLabels, priorityColors, type Priority } from '$lib/constants';
+import { priorityLabels, priorityColors, type Priority, timeframeLabels, type Timeframe } from '$lib/constants';
 
 type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
@@ -33,6 +33,7 @@ export interface ContextMenuDeps {
 		deleteList: (listId: string) => void;
 		toggleTask: (taskId: string, done: boolean) => void;
 		changeTaskPriority: (taskId: string, priority: Priority) => void;
+		changeTaskTimeframe: (taskId: string, timeframe: Timeframe | null) => void;
 		toggleHighlight: (taskId: string) => void;
 		togglePin: (taskId: string) => void;
 		updateTask: (taskId: string, text: string) => void;
@@ -55,6 +56,7 @@ export interface ContextMenuDeps {
 	openDatePicker: (taskId: string, x: number, y: number) => void;
 	openEmojiPicker: (taskId: string, x: number, y: number) => void;
 	openShareDialog: (list: List) => void;
+	openListIconPicker: (listId: string, x: number, y: number) => void;
 }
 
 export function createContextMenus(deps: ContextMenuDeps) {
@@ -62,7 +64,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 
 	function handleListContext(e: MouseEvent, list: List) {
 		e.preventDefault();
-		const { store, collapsedSubtasksListIds, setSubtasksForceState, setActiveListIndex, openShareDialog } = deps;
+		const { store, collapsedSubtasksListIds, setSubtasksForceState, setActiveListIndex, openShareDialog, openListIconPicker } = deps;
 		contextMenu = {
 			show: true, x: e.clientX, y: e.clientY,
 			items: [
@@ -115,6 +117,11 @@ export function createContextMenus(deps: ContextMenuDeps) {
 						const newName = prompt('Neuer Listenname:', list.title);
 						if (newName?.trim()) store.renameList(list.id, newName.trim());
 					}
+				},
+				{
+					label: 'Icon aendern',
+					icon: '\uD83C\uDFA8',
+					action: () => openListIconPicker(list.id, e.clientX, e.clientY)
 				},
 				{ label: 'Liste loeschen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteList(list.id), danger: true }
 			]
@@ -201,6 +208,18 @@ export function createContextMenus(deps: ContextMenuDeps) {
 					action: () => store.changeTaskPriority(task.id, p),
 					active: task.priority === p
 				}))
+			},
+			{
+				label: 'Zeitrahmen',
+				icon: '\u23F1',
+				submenu: [
+					{ label: 'Keiner', action: () => store.changeTaskTimeframe(task.id, null), active: !task.timeframe },
+					...(['akut', 'zeitnah', 'mittelfristig', 'langfristig'] as Timeframe[]).map((tf) => ({
+						label: timeframeLabels[tf],
+						action: () => store.changeTaskTimeframe(task.id, tf),
+						active: task.timeframe === tf
+					}))
+				]
 			},
 			{
 				label: 'Zuweisen',

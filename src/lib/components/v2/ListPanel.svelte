@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Database } from '$lib/types/database';
 	import TaskCard from './TaskCard.svelte';
+	import { touchDragHandle, touchDropZone } from '$lib/actions/touchDrag';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -20,6 +21,7 @@
 		onTaskDblClick,
 		onListMenuClick,
 		onReorderTask,
+		onReorderSubtask,
 		bulkMode = false,
 		bulkSelectedIds = new Set<string>(),
 		onBulkToggle
@@ -38,6 +40,7 @@
 		onTaskDblClick?: (task: Task) => void;
 		onListMenuClick?: (listId: string) => void;
 		onReorderTask?: (taskId: string, targetListId: string, newPosition: number) => void;
+		onReorderSubtask?: (subtaskId: string, parentId: string, newPosition: number) => void;
 		bulkMode?: boolean;
 		bulkSelectedIds?: Set<string>;
 		onBulkToggle?: (id: string) => void;
@@ -140,6 +143,51 @@
 			}
 		} catch { /* ignore */ }
 	}
+
+	// ---- Touch D&D: drop zone callbacks ----
+	function touchDropDragOver(el: HTMLElement, x: number, y: number) {
+		// Find which task wrapper the touch is over and compute above/below
+		const wrappers = el.querySelectorAll('.v2-task-drop-wrapper, .v2-task-divider');
+		let closestIdx = allTopLevel.length; // default: drop at end
+		for (let i = 0; i < wrappers.length; i++) {
+			const rect = wrappers[i].getBoundingClientRect();
+			if (y < rect.top + rect.height / 2) {
+				closestIdx = i;
+				break;
+			}
+		}
+		dragOverIdx = closestIdx;
+	}
+
+	function touchDropDragLeave(_el: HTMLElement) {
+		dragOverIdx = null;
+	}
+
+	function touchDropOnDrop(data: unknown, _el: HTMLElement, _x: number, y: number) {
+		if (!onReorderTask || !data) return;
+		const { taskId } = data as { taskId: string; sourceListId: string };
+		if (!taskId) return;
+
+		// Determine drop position from y coordinate
+		const taskListEl = document.querySelector(`[data-list-drop="${list.id}"]`);
+		if (!taskListEl) {
+			onReorderTask(taskId, list.id, allTopLevel.length);
+			dragOverIdx = null;
+			return;
+		}
+		const wrappers = taskListEl.querySelectorAll('.v2-task-drop-wrapper, .v2-task-divider');
+		let dropIdx = allTopLevel.length;
+		for (let i = 0; i < wrappers.length; i++) {
+			const rect = wrappers[i].getBoundingClientRect();
+			if (y < rect.top + rect.height / 2) {
+				dropIdx = i;
+				break;
+			}
+		}
+		onReorderTask(taskId, list.id, dropIdx);
+		dragOverIdx = null;
+		draggingTaskId = null;
+	}
 </script>
 
 <div
@@ -157,7 +205,17 @@
 	<div class="v2-section-title">&#x250C;&#x2500; offen ({activeTaskCount})</div>
 
 	<!-- Active Tasks (including dividers, in position order) -->
-	<div class="v2-task-list">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div
+		class="v2-task-list"
+		data-list-drop={list.id}
+		use:touchDropZone={{
+			type: 'task',
+			onDragOver: touchDropDragOver,
+			onDragLeave: touchDropDragLeave,
+			onDrop: touchDropOnDrop
+		}}
+	>
 		{#each allTopLevel as task, idx (task.id)}
 			{#if task.type === 'divider'}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -180,6 +238,12 @@
 					class:drag-over-below={dragOverIdx === idx + 1}
 					ondragover={(e) => handleTaskDragOver(e, idx)}
 					ondrop={(e) => handleTaskDrop(e, idx)}
+					use:touchDragHandle={{
+						data: { taskId: task.id, sourceListId: list.id },
+						type: 'task',
+						onStart: () => { draggingTaskId = task.id; },
+						onEnd: () => { draggingTaskId = null; dragOverIdx = null; }
+					}}
 				>
 					<TaskCard
 						{task}
@@ -196,6 +260,7 @@
 						ondblclick={onTaskDblClick}
 						ondragstart={(e) => handleTaskDragStart(e, task)}
 						ondragend={handleTaskDragEnd}
+						{onReorderSubtask}
 						{bulkMode}
 						bulkSelected={bulkSelectedIds.has(task.id)}
 						{onBulkToggle}

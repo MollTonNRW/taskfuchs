@@ -959,6 +959,7 @@
 .v2-tag-normal { background: rgba(224,175,104,.15); color: var(--v2-yellow); }
 .v2-tag-high { background: rgba(247,118,142,.15); color: var(--v2-red); }
 .v2-tag-asap { background: rgba(247,118,142,.3); color: var(--v2-red); animation: v2-asap-pulse 2s infinite; }
+.v2-tag-timeframe { background: rgba(122,162,247,.12); color: var(--v2-accent); }
 .v2-tag-due { background: rgba(122,162,247,.1); color: var(--v2-cyan); font-size: .5rem; display: flex; align-items: center; gap: 3px; text-transform: none; }
 
 /* Progress bar on task (matches v6 .task-progress-bar) */
@@ -2115,6 +2116,14 @@
 }
 .v2-tab-icon { font-size: .85rem; }
 
+/* List tab D&D indicators */
+.v2-list-tab.tab-drag-over-left {
+  box-shadow: inset 3px 0 0 0 var(--v2-accent, #f7a072);
+}
+.v2-list-tab.tab-drag-over-right {
+  box-shadow: inset -3px 0 0 0 var(--v2-accent, #f7a072);
+}
+
 /* Single list container (v6: one list at a time) */
 .v2-single-list-container {
   max-width: none;
@@ -2135,6 +2144,15 @@
   .v2-content {
     padding-bottom: calc(12px + 28px + env(safe-area-inset-bottom, 0px));
   }
+}
+
+/* =====================================================================
+   TOUCH DRAG & DROP
+   ===================================================================== */
+.v2-task-drop-wrapper.touch-dragging-source {
+  opacity: .3;
+  transform: scale(.96);
+  transition: opacity .2s, transform .2s;
 }
 
 /* =====================================================================

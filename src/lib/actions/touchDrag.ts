@@ -65,7 +65,7 @@ let lastTouchX = 0; // Track touch X for scroll container lookup
 
 function findScrollContainer(_clientY: number): HTMLElement | null {
 	// Finde den sichtbaren Scroll-Container (nicht den versteckten Desktop/Mobile-Container)
-	const candidates = document.querySelectorAll('.task-list-scroll');
+	const candidates = document.querySelectorAll('.task-list-scroll, .v2-content');
 	for (const el of candidates) {
 		const htmlEl = el as HTMLElement;
 		if (htmlEl.offsetParent !== null || htmlEl.getClientRects().length > 0) {
@@ -78,7 +78,7 @@ function findScrollContainer(_clientY: number): HTMLElement | null {
 
 // ── Ghost element ──────────────────────────────────────────────────
 function createGhost(sourceEl: HTMLElement): HTMLElement {
-	const taskEl = sourceEl.closest('.task-item, .subtask-item, .list-panel');
+	const taskEl = sourceEl.closest('.task-item, .subtask-item, .list-panel, .v2-task-drop-wrapper, .v2-task-card');
 	const cloneSource = taskEl || sourceEl;
 	const rect = cloneSource.getBoundingClientRect();
 
@@ -102,7 +102,7 @@ function createGhost(sourceEl: HTMLElement): HTMLElement {
 	// Simple text preview inside ghost
 	const label = document.createElement('div');
 	label.style.cssText = 'padding: 8px 12px; font-size: 13px; color: var(--tf-text, #333); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
-	const textEl = cloneSource.querySelector('.task-text, span.text-xs, h2');
+	const textEl = cloneSource.querySelector('.task-text, .v2-task-text, span.text-xs, h2');
 	label.textContent = textEl?.textContent?.trim() || 'Verschieben...';
 	ghost.appendChild(label);
 
@@ -165,7 +165,7 @@ export function touchDragHandle(
 			dragStarted = true;
 
 			const ghost = createGhost(node);
-			node.closest('.task-item, .subtask-item, .list-panel')?.classList.add('touch-dragging-source');
+			node.closest('.task-item, .subtask-item, .list-panel, .v2-task-drop-wrapper, .v2-task-card')?.classList.add('touch-dragging-source');
 			dragState.set({
 				active: true,
 				type: currentParams.type,
@@ -256,7 +256,7 @@ export function touchDragHandle(
 		}
 
 		if (state.ghost) state.ghost.remove();
-		state.sourceEl?.closest('.task-item, .subtask-item, .list-panel')?.classList.remove('touch-dragging-source');
+		state.sourceEl?.closest('.task-item, .subtask-item, .list-panel, .v2-task-drop-wrapper, .v2-task-card')?.classList.remove('touch-dragging-source');
 		if (state.currentDropZone) {
 			const oldZone = dropZones.find((z) => z.el === state.currentDropZone);
 			oldZone?.onDragLeave?.(state.currentDropZone);

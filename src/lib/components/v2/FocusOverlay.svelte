@@ -12,6 +12,7 @@
 		onToggle,
 		onUpdate,
 		onChangePriority,
+		onChangeTimeframe,
 		onUpdateNote,
 		onUpdateEmoji,
 		onToggleSubtask,
@@ -24,6 +25,7 @@
 		onToggle: (id: string) => void;
 		onUpdate: (id: string, text: string) => void;
 		onChangePriority: (id: string, priority: 'low' | 'normal' | 'high' | 'asap') => void;
+		onChangeTimeframe: (id: string, timeframe: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null) => void;
 		onUpdateNote: (id: string, note: string) => void;
 		onUpdateEmoji: (id: string, emoji: string) => void;
 		onToggleSubtask: (id: string) => void;
@@ -40,6 +42,9 @@
 
 	const priorityLabels: Record<string, string> = { low: 'Niedrig', normal: 'Normal', high: 'Hoch', asap: 'ASAP!' };
 	const priorityOrder: ('low' | 'normal' | 'high' | 'asap')[] = ['low', 'normal', 'high', 'asap'];
+
+	const timeframeLabels: Record<string, string> = { akut: 'Akut', zeitnah: 'Zeitnah', mittelfristig: 'Mittelfristig', langfristig: 'Langfristig' };
+	const timeframeOrder: ('akut' | 'zeitnah' | 'mittelfristig' | 'langfristig')[] = ['akut', 'zeitnah', 'mittelfristig', 'langfristig'];
 
 	function startEdit() {
 		editText = task.text;
@@ -138,6 +143,29 @@
 					{priorityLabels[p]}
 				</button>
 			{/each}
+		</div>
+
+		<!-- Timeframe Selector -->
+		<div style="margin-bottom: 16px;">
+			<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); margin-bottom: 6px;">Zeitrahmen</div>
+			<div style="display: flex; gap: 6px; flex-wrap: wrap;">
+				<button
+					class="v2-badge"
+					style="cursor: pointer; border: 1px dashed {!task.timeframe ? 'var(--v2-accent)' : 'var(--v2-border)'}; background: {!task.timeframe ? 'var(--v2-accent-glow)' : 'transparent'}; color: {!task.timeframe ? 'var(--v2-accent)' : 'var(--v2-text-muted)'};"
+					onclick={() => onChangeTimeframe(task.id, null)}
+				>
+					Keiner
+				</button>
+				{#each timeframeOrder as tf}
+					<button
+						class="v2-badge"
+						style="cursor: pointer; border: 1px dashed {task.timeframe === tf ? 'var(--v2-accent)' : 'var(--v2-border)'}; background: {task.timeframe === tf ? 'var(--v2-accent-glow)' : 'transparent'}; color: {task.timeframe === tf ? 'var(--v2-accent)' : 'var(--v2-text-muted)'};"
+						onclick={() => onChangeTimeframe(task.id, tf)}
+					>
+						{timeframeLabels[tf]}
+					</button>
+				{/each}
+			</div>
 		</div>
 
 		<!-- Checkbox -->

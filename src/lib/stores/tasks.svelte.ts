@@ -227,6 +227,13 @@ export function createTaskStore() {
 		if (error) tasks = oldTasks;
 	}
 
+	async function changeTaskTimeframe(id: string, timeframe: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null) {
+		const oldTasks = tasks;
+		tasks = tasks.map((t) => (t.id === id ? { ...t, timeframe } : t));
+		const { error } = await crud.updateTaskField(sb, id, { timeframe });
+		if (error) tasks = oldTasks;
+	}
+
 	async function changeTaskProgress(id: string, progress: number) {
 		const oldTasks = tasks;
 		const autoDone = progress === 3;
@@ -806,7 +813,7 @@ export function createTaskStore() {
 		createList, renameList, deleteList, changeListIcon, reorderList,
 		// Task operations
 		addTask, addTaskAfter, toggleTask, updateTask, deleteTask, deleteTaskDirect,
-		changeTaskPriority, changeTaskProgress,
+		changeTaskPriority, changeTaskTimeframe, changeTaskProgress,
 		toggleHighlight, togglePin, clearPinboard,
 		updateTaskNote, assignTask, moveTaskToList,
 		updateTaskEmoji, updateTaskDate,

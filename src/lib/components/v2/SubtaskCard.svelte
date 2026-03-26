@@ -7,11 +7,15 @@
 	let {
 		subtask,
 		ontoggle,
-		onedit
+		onedit,
+		ondragstart,
+		ondragend
 	}: {
 		subtask: Task;
 		ontoggle: (id: string) => void;
 		onedit: (id: string, text: string) => void;
+		ondragstart?: (e: DragEvent) => void;
+		ondragend?: (e: DragEvent) => void;
 	} = $props();
 
 	let editing = $state(false);
@@ -43,6 +47,9 @@
 	class="v2-subtask"
 	class:done={subtask.done}
 	ondblclick={startEdit}
+	draggable={!editing ? 'true' : 'false'}
+	{ondragstart}
+	{ondragend}
 >
 	<!-- Mini checkbox (13x13, like v6) -->
 	<button
