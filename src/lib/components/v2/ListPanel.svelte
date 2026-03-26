@@ -48,10 +48,9 @@
 	let dragOverIdx: number | null = $state(null);
 	let draggingTaskId: string | null = $state(null);
 
-	// Top-level items (tasks + dividers, not done) in position order
+	// Top-level items (tasks + dividers, not done) — preserve incoming sort order from parent
 	let allTopLevel = $derived(
 		tasks.filter((t: Task) => t.list_id === list.id && !t.parent_id && !t.done)
-			.sort((a: Task, b: Task) => a.position - b.position)
 	);
 
 	// Active tasks count (excluding dividers)
@@ -59,10 +58,9 @@
 		allTopLevel.filter((t: Task) => t.type !== 'divider').length
 	);
 
-	// Done tasks
+	// Done tasks — preserve incoming sort order from parent
 	let doneTasks = $derived(
 		tasks.filter((t: Task) => t.list_id === list.id && !t.parent_id && t.done)
-			.sort((a: Task, b: Task) => a.position - b.position)
 	);
 
 	// Subtasks for a given task

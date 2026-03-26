@@ -118,6 +118,9 @@
 	// View mode: 'list' | 'kanban'
 	let viewMode = $state<'list' | 'kanban'>('list');
 
+	// Sort menu position (computed from sort button)
+	let sortMenuPos = $state<{ left: number; top: number }>({ left: 0, top: 0 });
+
 	// Sync viewMode to shared event bus for header display
 	$effect(() => {
 		v2Events.viewMode = viewMode;
@@ -145,20 +148,19 @@
 	let searchOpen = $state(false);
 
 	// Kanban derived data for the active list
-	let kanbanOpenTasks = $derived(
+	let activeListTopLevelTasks = $derived(
 		visibleLists[activeListIndex]
-			? tasks.filter((t: Task) => t.list_id === visibleLists[activeListIndex].id && !t.parent_id && t.type !== 'divider' && !t.done && (t.progress === 0 || t.progress === null))
-			: []
-	);
-	let kanbanInProgressTasks = $derived(
-		visibleLists[activeListIndex]
-			? tasks.filter((t: Task) => t.list_id === visibleLists[activeListIndex].id && !t.parent_id && t.type !== 'divider' && !t.done && t.progress !== null && t.progress > 0)
+			? tasks.filter((t: Task) => t.list_id === visibleLists[activeListIndex].id && !t.parent_id && t.type !== 'divider')
 			: []
 	);
 	let kanbanDoneTasks = $derived(
-		visibleLists[activeListIndex]
-			? tasks.filter((t: Task) => t.list_id === visibleLists[activeListIndex].id && !t.parent_id && t.type !== 'divider' && t.done)
-			: []
+		activeListTopLevelTasks.filter((t: Task) => t.done)
+	);
+	let kanbanInProgressTasks = $derived(
+		activeListTopLevelTasks.filter((t: Task) => !t.done && tasks.some((sub: Task) => sub.parent_id === t.id && sub.done))
+	);
+	let kanbanOpenTasks = $derived(
+		activeListTopLevelTasks.filter((t: Task) => !t.done && !tasks.some((sub: Task) => sub.parent_id === t.id && sub.done))
 	);
 
 	// ==========================================
@@ -236,6 +238,15 @@
 	};
 	const ctx = createContextMenus(ctxDeps);
 
+	// Sorted tasks for active list (reactive to sortMode changes)
+	// Read sortFilter.sortMode explicitly so Svelte 5 tracks it as a dependency
+	let sortedActiveListTasks = $derived.by(() => {
+		const _mode = sortFilter.sortMode; // explicit dependency on sortMode
+		const activeList = visibleLists[activeListIndex];
+		if (!activeList) return [];
+		return sortFilter.tasksForList(activeList.id);
+	});
+
 	// Focus subtasks (derived from popovers)
 	let focusSubtasks = $derived(
 		popovers.focusTask
@@ -300,6 +311,13 @@
 
 		// Header button event listeners (Layout -> Page communication)
 		function handleToggleSort() {
+			if (!sortFilter.sortMenuOpen) {
+				const btn = document.querySelector('.v2-sort-btn') as HTMLElement;
+				if (btn) {
+					const rect = btn.getBoundingClientRect();
+					sortMenuPos = { left: rect.left, top: rect.bottom + 4 };
+				}
+			}
 			sortFilter.sortMenuOpen = !sortFilter.sortMenuOpen;
 		}
 		function handleToggleBulk() {
@@ -566,7 +584,7 @@
 			{@const activeList = visibleLists[activeListIndex]}
 			<ListPanel
 				list={activeList}
-				tasks={sortFilter.tasksForList(activeList.id)}
+				tasks={sortedActiveListTasks}
 				colIndex={activeListIndex}
 				isActive={true}
 				onQuickAdd={handleQuickAdd}
@@ -590,7 +608,7 @@
 {#if sortFilter.sortMenuOpen}
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="fixed inset-0" style="z-index: 60;" onclick={() => { sortFilter.sortMenuOpen = false; }} role="presentation"></div>
-	<div class="v2-glass-card" style="position: fixed; z-index: 61; top: 60px; right: 16px; padding: 8px; min-width: 160px;">
+	<div class="v2-glass-card" style="position: fixed; z-index: 61; top: {sortMenuPos.top}px; left: {sortMenuPos.left}px; padding: 8px; min-width: 160px;">
 		<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); padding: 4px 8px; margin-bottom: 4px;">Sortierung</div>
 		{#each validSortModes as mode}
 			<button
