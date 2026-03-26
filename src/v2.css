@@ -555,6 +555,47 @@
   min-height: 44px;
 }
 .v2-filter-check-standalone input[type="checkbox"] { accent-color: var(--v2-accent); width: 13px; height: 13px; }
+
+/* Subtask default toggle (radio-style buttons) */
+.v2-subtask-default-label {
+  font-size: .55rem;
+  color: var(--v2-text-muted);
+  padding: 6px 8px 2px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.v2-subtask-default-row {
+  display: flex;
+  gap: 4px;
+  padding: 2px 8px 4px;
+}
+.v2-subtask-default-btn {
+  flex: 1;
+  padding: 5px 4px;
+  font-size: .55rem;
+  font-family: var(--v2-font);
+  border: 1px dashed var(--v2-border);
+  border-radius: 4px;
+  color: var(--v2-text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+.v2-subtask-default-btn.active {
+  border-color: var(--v2-accent);
+  color: var(--v2-accent);
+  background: var(--v2-accent-glow);
+  border-style: solid;
+}
+.v2-subtask-default-btn:hover:not(.active) {
+  border-color: var(--v2-border-bright, var(--v2-border));
+}
+
 .v2-filter-reset {
   font-size: .55rem;
   color: var(--v2-accent);

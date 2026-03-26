@@ -78,10 +78,20 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				{ label: 'Alle Aufgaben abhaken', icon: '\u2705', action: () => store.checkAllInList(list.id) },
 				{ label: 'Erledigte Eintraege loeschen', icon: '\uD83E\uDDF9', action: () => store.deleteDoneInList(list.id) },
 				{ label: 'Alle Unteraufgaben loeschen', icon: '\uD83D\uDDD1', action: () => store.deleteAllSubtasksInList(list.id) },
+					{ divider: true, label: '' },
 				{
-					label: collapsedSubtasksListIds.has(list.id) ? 'Unteraufgaben aufklappen' : 'Unteraufgaben einklappen',
+					label: 'Unteraufgaben einklappen',
+					icon: '\uD83D\uDCC1',
+					action: () => {
+						if (!collapsedSubtasksListIds.has(list.id)) toggleCollapseSubtasks(list.id);
+					}
+				},
+				{
+					label: 'Unteraufgaben ausklappen',
 					icon: '\uD83D\uDCC2',
-					action: () => toggleCollapseSubtasks(list.id)
+					action: () => {
+						if (collapsedSubtasksListIds.has(list.id)) toggleCollapseSubtasks(list.id);
+					}
 				},
 				{ divider: true, label: '' },
 				{

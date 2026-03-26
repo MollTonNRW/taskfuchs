@@ -431,6 +431,29 @@
 		if (task) popovers.openFocusMode(task.id);
 	}
 
+	// Long-press on list tabs (mobile touch-and-hold, 300ms)
+	let tabLongPressTimer: ReturnType<typeof setTimeout> | null = null;
+	function handleTabTouchStart(e: TouchEvent, list: List) {
+		const touch = e.touches[0];
+		const tx = touch.clientX;
+		const ty = touch.clientY;
+		tabLongPressTimer = setTimeout(() => {
+			tabLongPressTimer = null;
+			const syntheticEvent = new MouseEvent('contextmenu', {
+				clientX: tx,
+				clientY: ty,
+				bubbles: true
+			});
+			ctx.handleListContext(syntheticEvent, list);
+		}, 300);
+	}
+	function handleTabTouchEnd() {
+		if (tabLongPressTimer) { clearTimeout(tabLongPressTimer); tabLongPressTimer = null; }
+	}
+	function handleTabTouchCancel() {
+		if (tabLongPressTimer) { clearTimeout(tabLongPressTimer); tabLongPressTimer = null; }
+	}
+
 	// Bulk handlers
 	function handleBulkToggleDone(done: boolean) {
 		store.bulkToggleDone([...bulkSelectedIds], done);
@@ -479,6 +502,11 @@
 				class="v2-list-tab"
 				class:active={i === activeListIndex}
 				onclick={() => (activeListIndex = i)}
+				oncontextmenu={(e) => ctx.handleListContext(e, list)}
+				ontouchstart={(e) => handleTabTouchStart(e, list)}
+				ontouchend={handleTabTouchEnd}
+				ontouchmove={handleTabTouchCancel}
+				ontouchcancel={handleTabTouchCancel}
 			>
 				<span class="v2-tab-icon">{list.icon}</span>
 				{list.title}

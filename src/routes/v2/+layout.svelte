@@ -339,11 +339,24 @@
 					</label>
 				</div>
 
-				<!-- Subtasks collapsed -->
-				<label class="v2-filter-check-standalone">
-					<input type="checkbox" checked={$subtasksCollapsedByDefault} onchange={toggleSubtasksDefault} />
-					Unteraufgaben eingeklappt
-				</label>
+				<!-- Subtask default visibility -->
+				<div class="v2-subtask-default-label">Unteraufgaben bei Start</div>
+				<div class="v2-subtask-default-row">
+					<button
+						class="v2-subtask-default-btn"
+						class:active={!$subtasksCollapsedByDefault}
+						onclick={() => { if ($subtasksCollapsedByDefault) toggleSubtasksDefault(); }}
+					>
+						&#x25BC; Ausgeklappt
+					</button>
+					<button
+						class="v2-subtask-default-btn"
+						class:active={$subtasksCollapsedByDefault}
+						onclick={() => { if (!$subtasksCollapsedByDefault) toggleSubtasksDefault(); }}
+					>
+						&#x25B6; Eingeklappt
+					</button>
+				</div>
 
 				{#if $hasActiveFilter}
 					<button
