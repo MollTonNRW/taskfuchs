@@ -240,7 +240,7 @@
 
 <!-- Nested children (level 2) -->
 {#if childrenOpen && children.length > 0}
-	<div bind:this={childrenContainer} transition:slide|global={{ duration: 200 }} class="ml-6 pl-3 space-y-0.5" style="border-left: 1.5px solid var(--tf-border);">
+	<div bind:this={childrenContainer} transition:slide={{ duration: 200 }} class="ml-6 pl-3 space-y-0.5" style="border-left: 1.5px solid var(--tf-border);">
 		{#each children as child (child.id)}
 			<SubtaskItem
 				subtask={child}
@@ -258,7 +258,7 @@
 
 <!-- Add child input -->
 {#if addingChild && canNest}
-	<div bind:this={childInputContainer} transition:slide|global={{ duration: 200 }} class="ml-6 pl-3" style="border-left: 1.5px solid var(--tf-border);">
+	<div bind:this={childInputContainer} transition:slide={{ duration: 200 }} class="ml-6 pl-3" style="border-left: 1.5px solid var(--tf-border);">
 		<div class="flex gap-1.5 py-1">
 			<!-- svelte-ignore a11y_autofocus -->
 			<input
