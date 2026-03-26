@@ -25,7 +25,7 @@
 
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
-		if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 		dragOver = true;
 	}
 

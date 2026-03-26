@@ -200,7 +200,7 @@
 /* =====================================================================
    LAYOUT
    ===================================================================== */
-.v2-app { display: flex; flex: 1; min-height: 0; position: relative; }
+.v2-app { display: flex; flex: 1; min-height: 0; position: relative; z-index: 1; }
 
 .v2-sidebar {
   width: var(--v2-sidebar-w);
@@ -228,6 +228,10 @@
   flex-direction: column;
   min-height: 0;
   transition: margin-left .3s cubic-bezier(.4,0,.2,1);
+  /* Create stacking context above AsciiParticles (z-index: 0) so all
+     children (header, content) are guaranteed to receive pointer events */
+  position: relative;
+  z-index: 1;
 }
 .v2-main.sidebar-collapsed { margin-left: 0; }
 
@@ -242,6 +246,8 @@
   position: sticky;
   top: 0;
   z-index: 50;
+  /* Ensure header is always clickable above particles and other overlays */
+  isolation: isolate;
 }
 
 /* Header Logo (ASCII art, v6 style) */
