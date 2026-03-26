@@ -45,6 +45,7 @@ export interface ContextMenuDeps {
 	};
 	collapsedSubtasksListIds: Set<string>;
 	toggleCollapseSubtasks: (listId: string) => void;
+	setSubtasksForceState: (listId: string, open: boolean) => void;
 	getActiveListIndex: () => number;
 	setActiveListIndex: (idx: number) => void;
 	profileMap: Map<string, Profile>;
@@ -61,7 +62,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 
 	function handleListContext(e: MouseEvent, list: List) {
 		e.preventDefault();
-		const { store, collapsedSubtasksListIds, toggleCollapseSubtasks, setActiveListIndex, openShareDialog } = deps;
+		const { store, collapsedSubtasksListIds, setSubtasksForceState, setActiveListIndex, openShareDialog } = deps;
 		contextMenu = {
 			show: true, x: e.clientX, y: e.clientY,
 			items: [
@@ -83,14 +84,14 @@ export function createContextMenus(deps: ContextMenuDeps) {
 					label: 'Unteraufgaben einklappen',
 					icon: '\uD83D\uDCC1',
 					action: () => {
-						if (!collapsedSubtasksListIds.has(list.id)) toggleCollapseSubtasks(list.id);
+						setSubtasksForceState(list.id, false);
 					}
 				},
 				{
 					label: 'Unteraufgaben ausklappen',
 					icon: '\uD83D\uDCC2',
 					action: () => {
-						if (collapsedSubtasksListIds.has(list.id)) toggleCollapseSubtasks(list.id);
+						setSubtasksForceState(list.id, true);
 					}
 				},
 				{ divider: true, label: '' },

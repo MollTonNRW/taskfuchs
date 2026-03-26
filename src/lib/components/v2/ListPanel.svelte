@@ -10,6 +10,7 @@
 		tasks,
 		colIndex = 0,
 		isActive = true,
+		forceSubtasksOpen = null,
 		onQuickAdd,
 		onToggleTask,
 		onEditTask,
@@ -27,6 +28,7 @@
 		tasks: Task[];
 		colIndex?: number;
 		isActive?: boolean;
+		forceSubtasksOpen?: boolean | null;
 		onQuickAdd: (listId: string, text: string) => void;
 		onToggleTask: (id: string) => void;
 		onEditTask: (id: string, text: string) => void;
@@ -185,6 +187,7 @@
 						subtaskCount={subs.length}
 						subtaskDoneCount={subsDone}
 						allSubtasksDone={subs.length > 0 && subsDone === subs.length}
+						{forceSubtasksOpen}
 						ontoggle={onToggleTask}
 						onedit={onEditTask}
 						ontogglesubtask={onToggleSubtask}

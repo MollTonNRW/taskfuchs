@@ -11,6 +11,7 @@
 		subtaskCount = 0,
 		subtaskDoneCount = 0,
 		allSubtasksDone = false,
+		forceSubtasksOpen = null,
 		ontoggle,
 		onedit,
 		oncontextmenu,
@@ -28,6 +29,7 @@
 		subtaskCount?: number;
 		subtaskDoneCount?: number;
 		allSubtasksDone?: boolean;
+		forceSubtasksOpen?: boolean | null;
 		ontoggle: (id: string) => void;
 		onedit: (id: string, text: string) => void;
 		oncontextmenu?: (e: MouseEvent, task: Task) => void;
@@ -44,7 +46,10 @@
 	let editing = $state(false);
 	let editText = $state('');
 	let editInput: HTMLInputElement | undefined = $state();
-	let subtasksOpen = $state(false);
+	let localSubtasksOpen = $state(false);
+
+	// If forceSubtasksOpen is set (not null), use it; otherwise use local state
+	let subtasksOpen = $derived(forceSubtasksOpen !== null ? forceSubtasksOpen : localSubtasksOpen);
 
 	function startEdit() {
 		editText = task.text;
@@ -80,7 +85,7 @@
 
 	function toggleSubtasksOpen(e: MouseEvent) {
 		e.stopPropagation();
-		subtasksOpen = !subtasksOpen;
+		localSubtasksOpen = !subtasksOpen;
 	}
 
 	const priorityTagLabel: Record<string, string> = {

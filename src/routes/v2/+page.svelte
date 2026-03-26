@@ -83,12 +83,30 @@
 	let activeListIndex = $state(0);
 	let isMobile = $state(false);
 
-	// Collapsed subtask list IDs
-	let collapsedSubtasksListIds = $state(new Set<string>());
+	// Force subtasks open/closed per list (null = TaskCard controls itself)
+	let subtasksForceState = $state<Map<string, boolean>>(new Map());
+	// Legacy compat: collapsedSubtasksListIds derived from forceState for context menu deps
+	let collapsedSubtasksListIds = $derived.by(() => {
+		const set = new Set<string>();
+		for (const [id, open] of subtasksForceState) {
+			if (!open) set.add(id);
+		}
+		return set;
+	});
 	function toggleCollapseSubtasks(listId: string) {
-		const next = new Set(collapsedSubtasksListIds);
-		if (next.has(listId)) next.delete(listId); else next.add(listId);
-		collapsedSubtasksListIds = next;
+		const next = new Map(subtasksForceState);
+		const current = next.get(listId);
+		if (current === false) {
+			// Currently forced closed -> force open
+			next.set(listId, true);
+		} else {
+			// Currently forced open or not set -> force closed
+			next.set(listId, false);
+		}
+		subtasksForceState = next;
+	}
+	function getForceSubtasksOpen(listId: string): boolean | null {
+		return subtasksForceState.has(listId) ? subtasksForceState.get(listId)! : null;
 	}
 
 	// Profile map (for assign submenu)
@@ -226,6 +244,11 @@
 		},
 		get collapsedSubtasksListIds() { return collapsedSubtasksListIds; },
 		toggleCollapseSubtasks,
+		setSubtasksForceState: (listId: string, open: boolean) => {
+			const next = new Map(subtasksForceState);
+			next.set(listId, open);
+			subtasksForceState = next;
+		},
 		getActiveListIndex: () => activeListIndex,
 		setActiveListIndex: (idx: number) => { activeListIndex = idx; },
 		get profileMap() { return profileMap; },
@@ -615,6 +638,7 @@
 				tasks={sortedActiveListTasks}
 				colIndex={activeListIndex}
 				isActive={true}
+				forceSubtasksOpen={getForceSubtasksOpen(activeList.id)}
 				onQuickAdd={handleQuickAdd}
 				onToggleTask={handleToggleTask}
 				onEditTask={handleEditTask}
