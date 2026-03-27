@@ -87,6 +87,7 @@ export async function bulkDeleteTasks(sb: Sb, ids: string[]) {
 	return sb.from('tasks').delete().in('id', ids);
 }
 
+
 export async function bulkMoveToList(sb: Sb, ids: string[], targetListId: string, basePos: number) {
 	const results = await Promise.all(
 		ids.map((id, i) => sb.from('tasks').update({ list_id: targetListId, position: basePos + i }).eq('id', id))

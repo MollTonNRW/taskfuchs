@@ -607,21 +607,39 @@ export function createTaskStore() {
 	// LIST-LEVEL OPERATIONS
 	// ==========================================
 	async function deleteAllSubtasksInList(listId: string) {
-		const subtaskIds = tasks.filter(t => t.list_id === listId && t.parent_id !== null).map(t => t.id);
-		if (subtaskIds.length === 0) return;
-		const oldTasks = tasks;
+		const deleted = tasks.filter(t => t.list_id === listId && t.parent_id !== null);
+		if (deleted.length === 0) return;
 		tasks = tasks.filter(t => !(t.list_id === listId && t.parent_id !== null));
-		const { error } = await crud.bulkDeleteTasks(sb, subtaskIds);
-		if (error) tasks = oldTasks;
+		undoableBulkDelete(deleted, `${deleted.length} Unteraufgaben gelöscht`);
 	}
 
 	async function deleteDoneInList(listId: string) {
-		const doneIds = tasks.filter(t => t.list_id === listId && t.done).map(t => t.id);
-		if (doneIds.length === 0) return;
-		const oldTasks = tasks;
+		const deleted = tasks.filter(t => t.list_id === listId && t.done);
+		if (deleted.length === 0) return;
 		tasks = tasks.filter(t => !(t.list_id === listId && t.done));
-		const { error } = await crud.bulkDeleteTasks(sb, doneIds);
-		if (error) tasks = oldTasks;
+		undoableBulkDelete(deleted, `${deleted.length} erledigte Aufgaben gelöscht`);
+	}
+
+	function undoableBulkDelete(deleted: Task[], message: string) {
+		let undone = false;
+		const deleteTimer = setTimeout(async () => {
+			if (undone) return;
+			const ids = deleted.map(t => t.id);
+			const { error } = await crud.bulkDeleteTasks(sb, ids);
+			if (error) {
+				// Rollback: Tasks wieder einfügen falls DB-Löschung fehlschlägt
+				tasks = [...tasks, ...deleted].sort((a, b) => a.position - b.position);
+				toasts.error('Fehler beim Löschen');
+			}
+		}, 8000);
+
+		toasts.undo(message, async () => {
+			undone = true;
+			clearTimeout(deleteTimer);
+			// Tasks sofort in UI wiederherstellen
+			tasks = [...tasks, ...deleted].sort((a, b) => a.position - b.position);
+			toasts.success('Rückgängig gemacht');
+		});
 	}
 
 	async function checkAllInList(listId: string) {

@@ -28,12 +28,13 @@ export const toasts = {
 	success(message: string) {
 		this.show(message, 'success', 3000);
 	},
-	undo(message: string, undoFn: () => void, duration = 3000) {
+	undo(message: string, onUndo: () => void, duration = 8000) {
 		const id = `toast-${++counter}`;
-		update((all) => [...all, { id, message, type: 'undo' as ToastType, onUndo: undoFn }]);
-		setTimeout(() => {
+		update((all) => [...all, { id, message, type: 'undo' as ToastType, onUndo }]);
+		const timeout = setTimeout(() => {
 			update((all) => all.filter((t) => t.id !== id));
 		}, duration);
+		return { id, cancel: () => clearTimeout(timeout) };
 	},
 	dismiss(id: string) {
 		update((all) => all.filter((t) => t.id !== id));
