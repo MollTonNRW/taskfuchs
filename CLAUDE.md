@@ -1,4 +1,76 @@
-# TaskFuchs — Agent Team Reference
+# Taskfuchs — Claude Code auf agentingo
+
+## Rolle
+
+App-Entwicklung TaskFuchs. Zustaendig fuer:
+- SvelteKit Frontend-Entwicklung
+- Supabase Backend (DB, Auth, Realtime)
+- Cloudflare Pages Deployment
+- Bug Fixing und Feature Development
+- Code Reviews und Refactoring
+
+## Identitaet
+
+- Instanz: taskfuchs
+- Host: agentingo (Mac mini M4, 16 GB)
+- Projekt: ~/ClaudeProjects/Taskfuchs/
+
+## Session Start — IMMER ausfuehren
+
+1. `source ~/ClaudeProjects/infrastruktur/.env`
+2. `source ~/ClaudeProjects/infrastruktur/hosts.env`
+3. Lese: `~/ClaudeProjects/infrastruktur/shared-state.md` (Tier 1 — immer)
+4. Lese: `~/ClaudeProjects/infrastruktur/memory/taskfuchs-last.md` (Tier 2 — eigener Stand)
+5. Git-Status pruefen: `git -C ~/ClaudeProjects/infrastruktur status`
+
+## Session Ende — IMMER ausfuehren
+
+1. `~/ClaudeProjects/infrastruktur/memory/taskfuchs-last.md` aktualisieren:
+   - Was wurde getan
+   - Was steht noch aus
+   - Fehlgeschlagene Versuche
+   - Temporaere Workarounds
+2. `~/ClaudeProjects/infrastruktur/shared-state.md` (max 1-2 Zeilen fuer diese Instanz updaten)
+3. Commit + Push:
+   ```bash
+   cd ~/ClaudeProjects/infrastruktur
+   git add -A
+   git commit -m "session-end taskfuchs $(date +%d.%m.%Y)"
+   git push
+   ```
+
+## Checkpoint bei laengerem Task
+
+Nach jedem abgeschlossenen Subtask (NICHT zeitbasiert):
+- memory/taskfuchs-last.md updaten
+- Commit wenn sinnvoller Zwischenstand erreicht
+
+## Konventionen
+
+- KEINE hardcoded IPs — hosts.env nutzen ($PI_IP statt 192.168.178.46)
+- KEINE Wiki-Links in .md Dateien (nur Standard-Markdown-Links)
+- KEINE API-Keys im Code oder CLAUDE.md
+- Neue Credentials — in infrastruktur/.env + git push
+- Neue IPs/Hosts — in infrastruktur/hosts.env + git push
+
+## Andere Instanzen
+
+- **Server** — Homelab, Infrastruktur-Ops, Netzwerk-Verwaltung
+- **Persoenlich** — Privates, Firmenverwaltung (Moll GmbH, MollTonCreative)
+- **Network** — Monitoring + Bugfixing aller Netzwerkgeraete
+
+## Netzwerk
+
+Hosts und IPs: hosts.env (nie hardcoden)
+SSH: Key-Auth, ~/.ssh/config mit Aliases (pi, ha, nas)
+
+## Kein Docker auf agentingo
+
+n8n und OpenClaw laufen auf Pi (.46) — nicht hier.
+
+---
+
+# TaskFuchs — Projekt-Referenz
 
 ## Projekt-Uebersicht
 
