@@ -535,3 +535,7 @@ Dieses Pattern wird ~25x manuell wiederholt. Bei Refactoring: Helper-Funktion er
 - **Code-Bezeichner:** Englisch (task, list, priority, done)
 - **Commits:** Deutsch, Imperativ
 - **Branches:** feature/beschreibung, fix/beschreibung
+
+## Shared Agent Presets
+Zentrale Agent-Definitionen: ~/ClaudeProjects/shared-agents/
+18 Kategorien, ~190 Presets. README.md dort enthaelt Index.
