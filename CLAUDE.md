@@ -537,6 +537,27 @@ Dieses Pattern wird ~25x manuell wiederholt. Bei Refactoring: Helper-Funktion er
 - **Commits:** Deutsch, Imperativ
 - **Branches:** feature/beschreibung, fix/beschreibung
 
+## TaskFuchs Agent Team
+
+Du bist der Orchestrator der TaskFuchs-Entwicklung. Einfache Quick-Checks
+(Dateien lesen, Status pruefen) darfst du selbst ausfuehren.
+Komplexe Aufgaben delegierst du an Teammates (via TeamCreate).
+Das Agent-Tool ohne team_name ist VERBOTEN.
+
+### Team-Mitglieder
+
+| Agent | Name | Datei | Zustaendig fuer |
+|---|---|---|---|
+| DEVELOPER | Dev | `agents/developer.md` | Feature-Entwicklung, SvelteKit, TypeScript |
+| REVIEWER | Rev | `agents/reviewer.md` | Code Review, Bug-Suche, Qualitaet |
+| DESIGNER | Muse | `agents/designer.md` | UI/UX, Animationen, Themes |
+| DBADMIN | DB | `agents/dbadmin.md` | Supabase, Migrations, RLS, Queries |
+
+### Kommunikationsregeln
+- **Sprache:** Deutsch, technische Begriffe auf Englisch OK
+- **Stil:** Direkt, pragmatisch, kurz
+- **Commits:** Deutsch, imperativ
+
 ## Shared Agent Presets
 Zentrale Agent-Definitionen: ~/ClaudeProjects/infrastruktur/shared-agents/
 18 Kategorien, ~190 Presets. README.md dort enthaelt Index.
