@@ -537,5 +537,5 @@ Dieses Pattern wird ~25x manuell wiederholt. Bei Refactoring: Helper-Funktion er
 - **Branches:** feature/beschreibung, fix/beschreibung
 
 ## Shared Agent Presets
-Zentrale Agent-Definitionen: ~/ClaudeProjects/shared-agents/
+Zentrale Agent-Definitionen: ~/ClaudeProjects/infrastruktur/shared-agents/
 18 Kategorien, ~190 Presets. README.md dort enthaelt Index.
