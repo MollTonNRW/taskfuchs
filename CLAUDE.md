@@ -17,11 +17,15 @@ App-Entwicklung TaskFuchs. Zustaendig fuer:
 
 ## Session Start — IMMER ausfuehren
 
-1. `source ~/ClaudeProjects/infrastruktur/.env`
-2. `source ~/ClaudeProjects/infrastruktur/hosts.env`
-3. Lese: `~/ClaudeProjects/infrastruktur/shared-state.md` (Tier 1 — immer)
-4. Lese: `~/ClaudeProjects/infrastruktur/memory/taskfuchs-last.md` (Tier 2 — eigener Stand)
-5. Git-Status pruefen: `git -C ~/ClaudeProjects/infrastruktur status`
+1. Infrastruktur-Repo synchronisieren:
+   ```bash
+   git -C ~/ClaudeProjects/infrastruktur pull --rebase
+   ```
+2. `source ~/ClaudeProjects/infrastruktur/.env`
+3. `source ~/ClaudeProjects/infrastruktur/hosts.env`
+4. Lese: `~/ClaudeProjects/infrastruktur/shared-state.md` (Tier 1 — immer)
+5. Lese: `~/ClaudeProjects/infrastruktur/memory/taskfuchs-last.md` (Tier 2 — eigener Stand)
+6. Git-Status pruefen: `git -C ~/ClaudeProjects/infrastruktur status`
 
 ## Session Ende — IMMER ausfuehren
 
@@ -30,12 +34,13 @@ App-Entwicklung TaskFuchs. Zustaendig fuer:
    - Was steht noch aus
    - Fehlgeschlagene Versuche
    - Temporaere Workarounds
-2. `~/ClaudeProjects/infrastruktur/shared-state.md` (max 1-2 Zeilen fuer diese Instanz updaten)
-3. Commit + Push:
+2. `~/ClaudeProjects/infrastruktur/shared-state.md` — eigene Zeile im Log anfuegen (append-only, neueste oben). Fremde Eintraege nie aendern.
+3. Commit + Push (mit pull --rebase vor Push um Konflikte zu vermeiden):
    ```bash
    cd ~/ClaudeProjects/infrastruktur
    git add -A
    git commit -m "session-end taskfuchs $(date +%d.%m.%Y)"
+   git pull --rebase
    git push
    ```
 
