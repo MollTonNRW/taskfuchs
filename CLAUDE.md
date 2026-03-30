@@ -60,7 +60,8 @@ Nach jedem abgeschlossenen Subtask (NICHT zeitbasiert):
 
 ## Andere Instanzen
 
-- **Server** — Homelab, Infrastruktur-Ops, Netzwerk-Verwaltung
+- **Infrastruktur** — CC-Instanz-Verwaltung, Shared State, Credentials, Health-Checks
+- **Homelab** — Homelab-Ops, Pi, n8n, HA, Netzwerk
 - **Persoenlich** — Privates, Firmenverwaltung (Moll GmbH, MollTonCreative)
 - **Network** — Monitoring + Bugfixing aller Netzwerkgeraete
 
@@ -539,3 +540,4 @@ Dieses Pattern wird ~25x manuell wiederholt. Bei Refactoring: Helper-Funktion er
 ## Shared Agent Presets
 Zentrale Agent-Definitionen: ~/ClaudeProjects/infrastruktur/shared-agents/
 18 Kategorien, ~190 Presets. README.md dort enthaelt Index.
+Archiviertes Wissen (HA-Entities, n8n-Incidents, Netzwerk): shared-agents/_memory/
