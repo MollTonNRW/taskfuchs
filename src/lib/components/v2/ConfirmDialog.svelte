@@ -3,8 +3,14 @@
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (!$confirmStore.show) return;
-		if (e.key === 'Escape') resolveConfirm(false);
-		if (e.key === 'Enter') resolveConfirm(true);
+		if (e.key === 'Escape') {
+			e.stopPropagation();
+			resolveConfirm(false);
+		}
+		if (e.key === 'Enter') {
+			e.stopPropagation();
+			resolveConfirm(true);
+		}
 	}
 </script>
 

@@ -114,6 +114,13 @@ export function createGamificationStore() {
 	const currentRank = $derived(rankFromLevel(level));
 	const currentStreakMultiplier = $derived(streakMultiplier(streakDays));
 
+	// M4: freeze_tokens aus DB laden
+	let freezeTokens = $state(2);
+
+	// H4: XP-Exploit-Schutz — Tasks die bereits belohnt wurden
+	let rewardedTaskIds = $state(new Set<string>());
+	let rewardedDate = $state('');
+
 	// --- Init ---
 	async function init(supabase: Sb, uid: string) {
 		sb = supabase;
@@ -129,27 +136,32 @@ export function createGamificationStore() {
 			bestStreak = data.best_streak ?? 0;
 			totalTasksDone = data.total_tasks_done ?? 0;
 			weeklyTasks = (data.weekly_tasks as WeeklyTaskEntry[]) ?? [];
+			freezeTokens = data.freeze_tokens ?? 2;
 			// Recalc level from XP to be safe
 			level = levelFromXP(xp);
 		}
 
 		// Load daily quests
-		const today = new Date().toISOString().slice(0, 10);
+		const today = todayStr();
 		const { data: quests } = await gCrud.getDailyQuests(sb, userId, today);
 		dailyQuests = (quests as DailyQuest[]) ?? [];
+
+		// H4: Reset rewarded set bei Tageswechsel
+		rewardedDate = today;
 
 		initialized = true;
 	}
 
 	// --- Streak logic ---
+	// M2: Lokalzeit statt UTC
 	function todayStr(): string {
-		return new Date().toISOString().slice(0, 10);
+		return new Date().toLocaleDateString('sv-SE');
 	}
 
 	function yesterdayStr(): string {
 		const d = new Date();
 		d.setDate(d.getDate() - 1);
-		return d.toISOString().slice(0, 10);
+		return d.toLocaleDateString('sv-SE');
 	}
 
 	async function updateStreak() {
@@ -184,19 +196,36 @@ export function createGamificationStore() {
 	}
 
 	// --- XP & Coins ---
+	// C1: Atomarer RPC statt Read-then-Write
 	async function grantRewards(xpAmount: number, coinAmount: number) {
 		const multiplier = currentStreakMultiplier;
 		const finalXP = Math.round(xpAmount * multiplier);
 
+		// Optimistic Update
 		xp += finalXP;
 		coins += coinAmount;
 		const newLevel = levelFromXP(xp);
 		const leveledUp = newLevel > level;
 		level = newLevel;
 
+		const { data, error } = await gCrud.grantRewards(sb, userId, finalXP, coinAmount);
+		if (error) {
+			// Rollback bei Fehler
+			xp -= finalXP;
+			coins -= coinAmount;
+			level = levelFromXP(xp);
+			return { xpGained: 0, coinsGained: 0, leveledUp: false };
+		}
+
+		// Server-Werte uebernehmen falls vorhanden
+		if (data && data.length > 0) {
+			xp = data[0].new_xp;
+			coins = data[0].new_coins;
+			level = levelFromXP(xp);
+		}
+
+		// Restliche Profil-Felder separat updaten
 		await gCrud.updateProfile(sb, userId, {
-			xp,
-			coins,
 			level,
 			total_tasks_done: totalTasksDone,
 			weekly_tasks: weeklyTasks
@@ -206,20 +235,40 @@ export function createGamificationStore() {
 	}
 
 	// --- Quest progress ---
+	// H3: Error-Handling fuer Quest-Rewards
 	async function progressQuests(questType: string, amount: number = 1) {
 		for (const quest of dailyQuests) {
 			if (quest.quest_type === questType && !quest.completed) {
-				quest.progress = Math.min(quest.progress + amount, quest.target);
-				await gCrud.updateQuestProgress(sb, quest.id, quest.progress);
+				const oldProgress = quest.progress;
+				const newProgress = Math.min(quest.progress + amount, quest.target);
+				quest.progress = newProgress;
 
-				if (quest.progress >= quest.target) {
+				const { error: progressError } = await gCrud.updateQuestProgress(sb, quest.id, newProgress);
+				if (progressError) {
+					quest.progress = oldProgress;
+					continue;
+				}
+
+				if (newProgress >= quest.target) {
 					quest.completed = true;
-					await gCrud.completeQuest(sb, quest.id);
-					// Grant quest rewards
-					xp += quest.reward_xp;
-					coins += quest.reward_coins;
-					level = levelFromXP(xp);
-					await gCrud.updateProfile(sb, userId, { xp, coins, level });
+					const { error: completeError } = await gCrud.completeQuest(sb, quest.id);
+					if (completeError) {
+						quest.completed = false;
+						quest.progress = oldProgress;
+						continue;
+					}
+					// Quest-Rewards atomar ueber RPC
+					const { data, error: rewardError } = await gCrud.grantRewards(
+						sb, userId, quest.reward_xp, quest.reward_coins
+					);
+					if (!rewardError && data && data.length > 0) {
+						xp = data[0].new_xp;
+						coins = data[0].new_coins;
+						level = levelFromXP(xp);
+					} else if (rewardError) {
+						quest.completed = false;
+						quest.progress = oldProgress;
+					}
 				}
 			}
 		}
@@ -237,8 +286,23 @@ export function createGamificationStore() {
 	}
 
 	// --- Public event handlers ---
+	// H4: XP-Exploit-Schutz — jede Task-ID wird nur einmal pro Tag belohnt
 	async function onTaskDone(task: { id: string; parent_id: string | null }) {
 		if (!initialized) return { xpGained: 0, coinsGained: 0, leveledUp: false, speedCount: 0 };
+
+		// H4: Tageswechsel-Reset
+		const today = todayStr();
+		if (rewardedDate !== today) {
+			rewardedTaskIds = new Set();
+			rewardedDate = today;
+		}
+
+		// H4: Bereits belohnte Task ignorieren
+		if (rewardedTaskIds.has(task.id)) {
+			const speedCount = trackCompletion();
+			return { xpGained: 0, coinsGained: 0, leveledUp: false, speedCount };
+		}
+		rewardedTaskIds = new Set([...rewardedTaskIds, task.id]);
 
 		const isSubtask = !!task.parent_id;
 		const xpAmount = isSubtask ? 5 : 10;
@@ -284,6 +348,7 @@ export function createGamificationStore() {
 		get weeklyTasks() { return weeklyTasks; },
 		get dailyQuests() { return dailyQuests; },
 		get initialized() { return initialized; },
+		get freezeTokens() { return freezeTokens; },
 
 		// Derived
 		get xpForNextLevel() { return xpForNextLevel; },

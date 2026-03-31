@@ -46,9 +46,9 @@ function createV2Theme() {
 		get themeClass() { return themeClass; },
 		get gamificationMode() { return gamificationMode; },
 
-		setPreset(id: V2ThemePreset) { preset = id; persist(); },
-		toggleDark() { isDark = !isDark; persist(); },
-		setGamificationMode(mode: GamificationMode) { gamificationMode = mode; persist(); }
+		setPreset(id: V2ThemePreset) { if (!browser) return; preset = id; persist(); },
+		toggleDark() { if (!browser) return; isDark = !isDark; persist(); },
+		setGamificationMode(mode: GamificationMode) { if (!browser) return; gamificationMode = mode; persist(); }
 	};
 }
 

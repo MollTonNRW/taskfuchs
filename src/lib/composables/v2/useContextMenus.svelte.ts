@@ -1,6 +1,7 @@
 import type { Database } from '$lib/types/database';
 import type { MenuItem } from '$lib/components/v2/ContextMenu.svelte';
 import { priorityLabels, priorityColors, type Priority, timeframeLabels, type Timeframe } from '$lib/constants';
+import { showInputDialog } from '$lib/stores/toast';
 
 type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
@@ -113,8 +114,8 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				{
 					label: 'Liste umbenennen',
 					icon: '\u270F\uFE0F',
-					action: () => {
-						const newName = prompt('Neuer Listenname:', list.title);
+					action: async () => {
+						const newName = await showInputDialog('Liste umbenennen', '', list.title, 'Neuer Listenname');
 						if (newName?.trim()) store.renameList(list.id, newName.trim());
 					}
 				},
@@ -140,8 +141,8 @@ export function createContextMenus(deps: ContextMenuDeps) {
 					{
 						label: 'Trenner umbenennen',
 						icon: '\u270F',
-						action: () => {
-							const newName = prompt('Neuer Trenner-Name:', task.text);
+						action: async () => {
+							const newName = await showInputDialog('Trenner umbenennen', '', task.text, 'Neuer Trenner-Name');
 							if (newName?.trim()) store.updateTask(task.id, newName.trim());
 						}
 					},

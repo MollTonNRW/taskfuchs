@@ -37,17 +37,14 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') onClose();
+		if (e.key === 'Escape') {
+			e.stopPropagation();
+			onClose();
+		}
 	}
 
 	onMount(() => {
 		inputEl?.focus();
-
-		function handleCustomEvent() {
-			inputEl?.focus();
-		}
-		window.addEventListener('v2:toggle-search', handleCustomEvent);
-		return () => window.removeEventListener('v2:toggle-search', handleCustomEvent);
 	});
 </script>
 

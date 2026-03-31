@@ -212,10 +212,21 @@ export function createTaskStore() {
 		}
 		if (deletedTask) {
 			toasts.undo('Aufgabe gelöscht', async () => {
+				pendingTaskIds.add(deletedTask.id);
+				for (const sub of deletedSubtasks) pendingTaskIds.add(sub.id);
 				const { error: reErr } = await crud.reinsertTask(sb, deletedTask);
-				if (reErr) { toasts.error('Wiederherstellen fehlgeschlagen.'); return; }
+				if (reErr) {
+					pendingTaskIds.delete(deletedTask.id);
+					for (const sub of deletedSubtasks) pendingTaskIds.delete(sub.id);
+					toasts.error('Wiederherstellen fehlgeschlagen.');
+					return;
+				}
 				if (deletedSubtasks.length > 0) await crud.reinsertTasks(sb, deletedSubtasks);
 				tasks = [...tasks, deletedTask, ...deletedSubtasks];
+				setTimeout(() => {
+					pendingTaskIds.delete(deletedTask.id);
+					for (const sub of deletedSubtasks) pendingTaskIds.delete(sub.id);
+				}, 3000);
 			});
 		}
 	}
@@ -251,7 +262,8 @@ export function createTaskStore() {
 		const { error } = await crud.updateTaskField(sb, id, update);
 		if (error) { tasks = oldTasks; return; }
 		if (autoDone) {
-			await sb.from('tasks').update({ done: true }).eq('parent_id', id);
+			const { error: subErr } = await sb.from('tasks').update({ done: true }).eq('parent_id', id);
+			if (subErr) tasks = oldTasks;
 		}
 	}
 
@@ -795,10 +807,24 @@ export function createTaskStore() {
 		}
 		if (deletedTask) {
 			toasts.undo('Aufgabe gelöscht', async () => {
+				// Pending-IDs setzen BEVOR der Insert an Supabase geht,
+				// damit das Realtime-INSERT-Event dedupliziert wird
+				pendingTaskIds.add(deletedTask.id);
+				for (const sub of deletedSubtasks) pendingTaskIds.add(sub.id);
 				const { error: reErr } = await crud.reinsertTask(sb, deletedTask);
-				if (reErr) { toasts.error('Wiederherstellen fehlgeschlagen.'); return; }
+				if (reErr) {
+					pendingTaskIds.delete(deletedTask.id);
+					for (const sub of deletedSubtasks) pendingTaskIds.delete(sub.id);
+					toasts.error('Wiederherstellen fehlgeschlagen.');
+					return;
+				}
 				if (deletedSubtasks.length > 0) await crud.reinsertTasks(sb, deletedSubtasks);
 				tasks = [...tasks, deletedTask, ...deletedSubtasks];
+				// Pending-IDs nach kurzer Verzögerung aufräumen (Realtime-Event kann verzögert kommen)
+				setTimeout(() => {
+					pendingTaskIds.delete(deletedTask.id);
+					for (const sub of deletedSubtasks) pendingTaskIds.delete(sub.id);
+				}, 3000);
 			});
 		}
 	}

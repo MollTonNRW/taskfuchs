@@ -14,6 +14,7 @@
 	import TaskCard from '$lib/components/v2/TaskCard.svelte';
 	import ToastContainer from '$lib/components/v2/ToastContainer.svelte';
 	import ConfirmDialog from '$lib/components/v2/ConfirmDialog.svelte';
+	import InputDialog from '$lib/components/v2/InputDialog.svelte';
 	import FocusOverlay from '$lib/components/v2/FocusOverlay.svelte';
 	import SearchOverlay from '$lib/components/v2/SearchOverlay.svelte';
 	import ContextMenu from '$lib/components/v2/ContextMenu.svelte';
@@ -348,8 +349,26 @@
 		}
 		window.addEventListener('keydown', handleGlobalKeydown);
 
-		// Header button event listeners (Layout -> Page communication)
-		function handleToggleSort() {
+		return () => {
+			mq.removeEventListener('change', handler);
+			window.removeEventListener('keydown', handleGlobalKeydown);
+			if (sb && listsChannel) sb.removeChannel(listsChannel);
+			if (sb && tasksChannel) sb.removeChannel(tasksChannel);
+		};
+	});
+
+	// Layout -> Page communication via store signals (replaces window custom events)
+	let lastSearchToggle = 0;
+	$effect(() => {
+		const val = v2Events.searchToggle;
+		if (val > lastSearchToggle) { searchOpen = !searchOpen; }
+		lastSearchToggle = val;
+	});
+
+	let lastSortToggle = 0;
+	$effect(() => {
+		const val = v2Events.sortToggle;
+		if (val > lastSortToggle) {
 			if (!sortFilter.sortMenuOpen) {
 				const btn = document.querySelector('.v2-sort-btn') as HTMLElement;
 				if (btn) {
@@ -359,44 +378,32 @@
 			}
 			sortFilter.sortMenuOpen = !sortFilter.sortMenuOpen;
 		}
-		function handleToggleBulk() {
-			if (bulkMode) {
-				clearBulkSelection();
-			} else {
-				explicitBulkMode = true;
-			}
-		}
-		function handleToggleSearch() {
-			searchOpen = !searchOpen;
-		}
-		function handleSetView(e: Event) {
-			const detail = (e as CustomEvent).detail;
-			if (detail === 'list' || detail === 'kanban') {
-				viewMode = detail;
-			}
-		}
-		window.addEventListener('v2:toggle-sort', handleToggleSort);
-		window.addEventListener('v2:toggle-bulk', handleToggleBulk);
-		window.addEventListener('v2:toggle-search', handleToggleSearch);
-		window.addEventListener('v2:set-view', handleSetView);
-
-		return () => {
-			mq.removeEventListener('change', handler);
-			window.removeEventListener('keydown', handleGlobalKeydown);
-			window.removeEventListener('v2:toggle-sort', handleToggleSort);
-			window.removeEventListener('v2:toggle-bulk', handleToggleBulk);
-			window.removeEventListener('v2:toggle-search', handleToggleSearch);
-			window.removeEventListener('v2:set-view', handleSetView);
-			if (sb && listsChannel) sb.removeChannel(listsChannel);
-			if (sb && tasksChannel) sb.removeChannel(tasksChannel);
-		};
+		lastSortToggle = val;
 	});
 
-	// Bounds-check activeListIndex
+	let lastBulkToggle = 0;
 	$effect(() => {
-		if (activeListIndex >= visibleLists.length) {
-			activeListIndex = Math.max(0, visibleLists.length - 1);
+		const val = v2Events.bulkToggle;
+		if (val > lastBulkToggle) {
+			if (bulkMode) { clearBulkSelection(); } else { explicitBulkMode = true; }
 		}
+		lastBulkToggle = val;
+	});
+
+	let lastViewSignal = 0;
+	$effect(() => {
+		const sig = v2Events.viewSignal;
+		if (sig.counter > lastViewSignal) {
+			if (sig.mode === 'list' || sig.mode === 'kanban') { viewMode = sig.mode; }
+		}
+		lastViewSignal = sig.counter;
+	});
+
+	let lastAddListSignal = 0;
+	$effect(() => {
+		const val = v2Events.addListSignal;
+		if (val > lastAddListSignal) { store.createList(); }
+		lastAddListSignal = val;
 	});
 
 	// Push nav counts to shared event bus for sidebar display
@@ -953,6 +960,7 @@
 	/>
 {/if}
 
-<!-- Toast + Confirm -->
+<!-- Toast + Confirm + Input -->
 <ToastContainer />
 <ConfirmDialog />
+<InputDialog />

@@ -199,7 +199,7 @@
 	function handleKeydown(e: KeyboardEvent) {
 		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
 			e.preventDefault();
-			window.dispatchEvent(new CustomEvent('v2:toggle-search'));
+			v2Events.toggleSearch();
 		}
 	}
 </script>
@@ -268,7 +268,7 @@
 						streak={gStore.streakDays}
 						rank={gStore.currentRank}
 						streakMultiplier={gStore.currentStreakMultiplier}
-						streakFreezes={2}
+						streakFreezes={gStore.freezeTokens}
 					/>
 				</div>
 			</div>
@@ -460,7 +460,7 @@
 				{:else}
 					<p class="v2-nav-empty">Noch keine Listen</p>
 				{/if}
-				<button class="v2-nav-add-list" onclick={() => window.dispatchEvent(new CustomEvent('v2:add-list'))} aria-label="Neue Liste">+ Neue Liste</button>
+				<button class="v2-nav-add-list" onclick={() => v2Events.triggerAddList()} aria-label="Neue Liste">+ Neue Liste</button>
 
 				<!-- Ansichten sub-section (v6 style) -->
 				<h3 class="v2-nav-sub-header">&#x250C;&#x2500; Ansichten</h3>
@@ -577,7 +577,7 @@
 								<span class="v2-header-mult">x{gStore.currentStreakMultiplier}</span>
 							{/if}
 						</span>
-						<span class="v2-header-freeze">&#x2744;&#xFE0F; 2</span>
+						<span class="v2-header-freeze">&#x2744;&#xFE0F; {gStore.freezeTokens}</span>
 					</div>
 				{/if}
 
@@ -586,16 +586,16 @@
 					<div class="v2-view-toggle">
 						<button
 							class:active={v2Events.viewMode === 'list'}
-							onclick={() => window.dispatchEvent(new CustomEvent('v2:set-view', { detail: 'list' }))}
+							onclick={() => v2Events.setView('list')}
 						>&#x2261; Liste</button>
 						<button
 							class:active={v2Events.viewMode === 'kanban'}
-							onclick={() => window.dispatchEvent(new CustomEvent('v2:set-view', { detail: 'kanban' }))}
+							onclick={() => v2Events.setView('kanban')}
 						>&#x2593; Kanban</button>
 					</div>
 
 					<!-- Sort Button -->
-					<button class="v2-sort-btn" onclick={() => window.dispatchEvent(new CustomEvent('v2:toggle-sort'))}>
+					<button class="v2-sort-btn" onclick={() => v2Events.toggleSort()}>
 						&#x21C5; <span>{v2Events.sortLabel}</span>
 					</button>
 
@@ -603,7 +603,7 @@
 					<button
 						class="v2-bulk-mode-btn"
 						class:active={v2Events.bulkModeActive}
-						onclick={() => window.dispatchEvent(new CustomEvent('v2:toggle-bulk'))}
+						onclick={() => v2Events.toggleBulk()}
 					>
 						{v2Events.bulkModeActive ? '\u2611 Auswaehlen' : '\u2610 Auswaehlen'}
 					</button>
@@ -615,14 +615,14 @@
 							type="text"
 							placeholder="Ctrl+K"
 							readonly
-							onclick={() => window.dispatchEvent(new CustomEvent('v2:toggle-search'))}
+							onclick={() => v2Events.toggleSearch()}
 							aria-label="Suchen"
 						/>
 						<span class="v2-cursor-blink">&#x2588;</span>
 					</div>
 					<button
 						class="v2-mobile-search-toggle"
-						onclick={() => window.dispatchEvent(new CustomEvent('v2:toggle-search'))}
+						onclick={() => v2Events.toggleSearch()}
 						aria-label="Suche oeffnen"
 					>
 						&#x26B2;
@@ -646,8 +646,8 @@
 					{#snippet failed(error)}
 						<div style="padding: 40px; font-family: monospace; color: var(--v2-red, red);">
 							<h2>v2 Error</h2>
-							<pre style="white-space: pre-wrap; font-size: 12px; max-width: 100%; overflow-x: auto;">{error?.message ?? error}</pre>
-							<pre style="white-space: pre-wrap; font-size: 10px; color: var(--v2-text-muted, #888); margin-top: 8px;">{error?.stack ?? ''}</pre>
+							<pre style="white-space: pre-wrap; font-size: 12px; max-width: 100%; overflow-x: auto;">{(error as any)?.message ?? error}</pre>
+							<pre style="white-space: pre-wrap; font-size: 10px; color: var(--v2-text-muted, #888); margin-top: 8px;">{(error as any)?.stack ?? ''}</pre>
 						</div>
 					{/snippet}
 				</svelte:boundary>

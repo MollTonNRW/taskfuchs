@@ -4,6 +4,22 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 type Sb = SupabaseClient<any>;
 
 // ==========================================
+// H5: Typisierte Update-Felder statt Record<string, unknown>
+// ==========================================
+
+export interface GamificationProfileUpdate {
+	xp: number;
+	coins: number;
+	level: number;
+	streak_days: number;
+	streak_last_date: string | null;
+	best_streak: number;
+	total_tasks_done: number;
+	weekly_tasks: unknown;
+	freeze_tokens: number;
+}
+
+// ==========================================
 // GAMIFICATION PROFILE
 // ==========================================
 
@@ -28,7 +44,7 @@ export async function getOrCreateProfile(sb: Sb, userId: string) {
 export async function updateProfile(
 	sb: Sb,
 	userId: string,
-	changes: Record<string, unknown>
+	changes: Partial<GamificationProfileUpdate>
 ) {
 	return sb
 		.from('gamification_profiles')
@@ -36,30 +52,17 @@ export async function updateProfile(
 		.eq('user_id', userId);
 }
 
+// C1: Atomare RPC-Funktionen statt Read-then-Write
 export async function addXP(sb: Sb, userId: string, amount: number) {
-	const { data } = await sb
-		.from('gamification_profiles')
-		.select('xp')
-		.eq('user_id', userId)
-		.single();
-	const newXP = (data?.xp ?? 0) + amount;
-	return sb
-		.from('gamification_profiles')
-		.update({ xp: newXP, updated_at: new Date().toISOString() })
-		.eq('user_id', userId);
+	return sb.rpc('increment_xp', { p_user_id: userId, p_amount: amount });
 }
 
 export async function addCoins(sb: Sb, userId: string, amount: number) {
-	const { data } = await sb
-		.from('gamification_profiles')
-		.select('coins')
-		.eq('user_id', userId)
-		.single();
-	const newCoins = (data?.coins ?? 0) + amount;
-	return sb
-		.from('gamification_profiles')
-		.update({ coins: newCoins, updated_at: new Date().toISOString() })
-		.eq('user_id', userId);
+	return sb.rpc('increment_coins', { p_user_id: userId, p_amount: amount });
+}
+
+export async function grantRewards(sb: Sb, userId: string, xpAmount: number, coinAmount: number) {
+	return sb.rpc('grant_rewards', { p_user_id: userId, p_xp: xpAmount, p_coins: coinAmount });
 }
 
 // ==========================================

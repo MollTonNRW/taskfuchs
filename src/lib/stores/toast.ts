@@ -70,3 +70,43 @@ export function resolveConfirm(value: boolean) {
 	if (current.resolve) current.resolve(value);
 	confirmStore.set({ show: false, message: '', resolve: null });
 }
+
+// ==========================================
+// INPUT DIALOG (ersetzt window.prompt)
+// ==========================================
+export interface InputDialogState {
+	show: boolean;
+	title: string;
+	message: string;
+	defaultValue: string;
+	placeholder: string;
+	resolve: ((value: string | null) => void) | null;
+}
+
+export const inputDialogStore = writable<InputDialogState>({
+	show: false, title: '', message: '', defaultValue: '', placeholder: '', resolve: null
+});
+
+/**
+ * Zeigt einen nicht-blockierenden Input-Dialog.
+ * Gibt ein Promise<string | null> zurueck (string = Eingabe, null = abgebrochen).
+ */
+export function showInputDialog(
+	title: string,
+	message: string,
+	defaultValue = '',
+	placeholder = ''
+): Promise<string | null> {
+	const current = get(inputDialogStore);
+	if (current.resolve) current.resolve(null);
+
+	return new Promise<string | null>((resolve) => {
+		inputDialogStore.set({ show: true, title, message, defaultValue, placeholder, resolve });
+	});
+}
+
+export function resolveInput(value: string | null) {
+	const current = get(inputDialogStore);
+	if (current.resolve) current.resolve(value);
+	inputDialogStore.set({ show: false, title: '', message: '', defaultValue: '', placeholder: '', resolve: null });
+}
