@@ -179,8 +179,8 @@ export async function updateShareRole(sb: Sb, shareId: string, role: 'editor' | 
 
 export async function loadUserData(sb: Sb, userId: string) {
 	const [listsResult, tasksResult] = await Promise.all([
-		sb.from('lists').select('*').eq('user_id', userId).order('position'),
-		sb.from('tasks').select('*').eq('user_id', userId).order('position')
+		sb.from('lists').select('*').order('position'),
+		sb.from('tasks').select('*').order('position')
 	]);
 	return {
 		lists: (listsResult.data as List[]) ?? [],

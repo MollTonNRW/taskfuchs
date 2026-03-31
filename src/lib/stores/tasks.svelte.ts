@@ -173,10 +173,11 @@ export function createTaskStore() {
 		const oldTasks = tasks;
 		tasks = tasks.map((t) => (t.id === id ? { ...t, done } : t));
 		if (done) {
-			const subtaskIds = tasks.filter((t) => t.parent_id === id).map((t) => t.id);
-			if (subtaskIds.length > 0) {
-				tasks = tasks.map((t) => (subtaskIds.includes(t.id) ? { ...t, done: true } : t));
-				const { error: subError } = await crud.bulkUpdateField(sb, subtaskIds, { done: true });
+			const descendantIds = [...getDescendantIds(id)];
+			if (descendantIds.length > 0) {
+				const descSet = new Set(descendantIds);
+				tasks = tasks.map((t) => (descSet.has(t.id) ? { ...t, done: true } : t));
+				const { error: subError } = await crud.bulkUpdateField(sb, descendantIds, { done: true });
 				if (subError) { tasks = oldTasks; return; }
 			}
 		}
@@ -237,14 +238,21 @@ export function createTaskStore() {
 			return updated;
 		});
 		if (autoDone) {
-			tasks = tasks.map((t) => (t.parent_id === id ? { ...t, done: true } : t));
+			const descendantIds = [...getDescendantIds(id)];
+			if (descendantIds.length > 0) {
+				const descSet = new Set(descendantIds);
+				tasks = tasks.map((t) => (descSet.has(t.id) ? { ...t, done: true } : t));
+			}
 		}
 		const update: { progress: number; done?: boolean } = { progress };
 		if (autoDone) update.done = true;
 		const { error } = await crud.updateTaskField(sb, id, update);
 		if (error) { tasks = oldTasks; return; }
 		if (autoDone) {
-			await sb.from('tasks').update({ done: true }).eq('parent_id', id);
+			const descendantIds = [...getDescendantIds(id)];
+			if (descendantIds.length > 0) {
+				await crud.bulkUpdateField(sb, descendantIds, { done: true });
+			}
 		}
 	}
 
@@ -667,27 +675,45 @@ export function createTaskStore() {
 		if (listErr || !newList) return -1;
 		lists = [...lists, newList as List];
 
-		// Top-Level Tasks kopieren
+		// Top-Level Tasks kopieren (alle relevanten Felder)
 		const idMap = new Map<string, string>();
 		for (const task of sourceTasks) {
-			const { data: newTask } = await crud.insertTask(sb, {
-				list_id: newList.id, user_id: userId, text: task.text, position: task.position
-			});
+			const { data: newTask } = await sb.from('tasks').insert({
+				list_id: newList.id, user_id: userId, text: task.text, position: task.position,
+				type: task.type, priority: task.priority, timeframe: task.timeframe,
+				progress: task.progress, emoji: task.emoji, note: task.note,
+				due_date: task.due_date, highlighted: task.highlighted, pinned: task.pinned,
+				assigned_to: task.assigned_to, done: task.done, divider_label: task.divider_label
+			}).select().single();
 			if (newTask) {
-				idMap.set(task.id, newTask.id);
+				idMap.set(task.id, (newTask as Task).id);
 				tasks = [...tasks, newTask as Task];
 			}
 		}
 
-		// Subtasks kopieren
-		for (const sub of sourceSubtasks) {
-			const newParentId = idMap.get(sub.parent_id!);
-			if (!newParentId) continue;
-			const { data: newSub } = await crud.insertTask(sb, {
-				list_id: newList.id, user_id: userId, text: sub.text, position: sub.position, parent_id: newParentId
-			});
-			if (newSub) {
-				tasks = [...tasks, newSub as Task];
+		// Subtasks kopieren (alle relevanten Felder, rekursiv via idMap)
+		// Sortiert nach Tiefe: zuerst direkte Kinder, dann Enkel usw.
+		const allSubtasks = tasks.filter(t => t.list_id === listId && t.parent_id !== null).sort((a, b) => a.position - b.position);
+		let remaining = [...allSubtasks];
+		while (remaining.length > 0) {
+			const batch = remaining.filter(s => idMap.has(s.parent_id!));
+			if (batch.length === 0) break; // Keine weiteren Parent-Mappings moeglich
+			remaining = remaining.filter(s => !idMap.has(s.parent_id!));
+			for (const sub of batch) {
+				const newParentId = idMap.get(sub.parent_id!);
+				if (!newParentId) continue;
+				const { data: newSub } = await sb.from('tasks').insert({
+					list_id: newList.id, user_id: userId, text: sub.text, position: sub.position,
+					parent_id: newParentId, type: sub.type, priority: sub.priority,
+					timeframe: sub.timeframe, progress: sub.progress, emoji: sub.emoji,
+					note: sub.note, due_date: sub.due_date, highlighted: sub.highlighted,
+					pinned: sub.pinned, assigned_to: sub.assigned_to, done: sub.done,
+					divider_label: sub.divider_label
+				}).select().single();
+				if (newSub) {
+					idMap.set(sub.id, (newSub as Task).id);
+					tasks = [...tasks, newSub as Task];
+				}
 			}
 		}
 
@@ -710,22 +736,58 @@ export function createTaskStore() {
 		}
 		lists = [...lists, newList as List];
 
-		// Subtasks als Top-Level-Tasks in die neue Liste einfuegen
+		// Subtasks als Top-Level-Tasks in die neue Liste einfuegen (alle Felder)
+		const subIdMap = new Map<string, string>();
 		for (let i = 0; i < subtasks.length; i++) {
 			const sub = subtasks[i];
-			const { data: newTask } = await crud.insertTask(sb, {
-				list_id: newList.id, user_id: userId, text: sub.text, position: i
-			});
+			const { data: newTask } = await sb.from('tasks').insert({
+				list_id: newList.id, user_id: userId, text: sub.text, position: i,
+				type: sub.type, priority: sub.priority, timeframe: sub.timeframe,
+				progress: sub.progress, emoji: sub.emoji, note: sub.note,
+				due_date: sub.due_date, highlighted: sub.highlighted, pinned: sub.pinned,
+				assigned_to: sub.assigned_to, done: sub.done, divider_label: sub.divider_label
+			}).select().single();
 			if (newTask) {
+				subIdMap.set(sub.id, (newTask as Task).id);
 				tasks = [...tasks, newTask as Task];
 			}
 		}
 
-		// Original-Task + Subtasks loeschen
-		const subtaskIds = subtasks.map(s => s.id);
+		// Enkel-Subtasks rekursiv uebernehmen (Kinder der direkten Subtasks)
+		let grandchildren = tasks.filter(t => t.list_id === task.list_id && subtasks.some(s => s.id === t.parent_id));
+		const allDescIdsToDelete = new Set<string>();
+		let remaining = [...grandchildren];
+		while (remaining.length > 0) {
+			const batch = remaining.filter(gc => subIdMap.has(gc.parent_id!));
+			if (batch.length === 0) break;
+			remaining = remaining.filter(gc => !subIdMap.has(gc.parent_id!));
+			for (const gc of batch) {
+				const newParentId = subIdMap.get(gc.parent_id!);
+				if (!newParentId) continue;
+				const { data: newGc } = await sb.from('tasks').insert({
+					list_id: newList.id, user_id: userId, text: gc.text, position: gc.position,
+					parent_id: newParentId, type: gc.type, priority: gc.priority,
+					timeframe: gc.timeframe, progress: gc.progress, emoji: gc.emoji,
+					note: gc.note, due_date: gc.due_date, highlighted: gc.highlighted,
+					pinned: gc.pinned, assigned_to: gc.assigned_to, done: gc.done,
+					divider_label: gc.divider_label
+				}).select().single();
+				if (newGc) {
+					subIdMap.set(gc.id, (newGc as Task).id);
+					tasks = [...tasks, newGc as Task];
+				}
+				allDescIdsToDelete.add(gc.id);
+			}
+			// Naechste Ebene: Kinder der gerade verarbeiteten Tasks
+			remaining = tasks.filter(t => t.list_id === task.list_id && batch.some(b => b.id === t.parent_id) && !allDescIdsToDelete.has(t.id));
+		}
+
+		// Original-Task + alle Subtasks + Enkel loeschen
+		const allOriginalIds = [taskId, ...subtasks.map(s => s.id), ...allDescIdsToDelete];
 		const oldTasks = tasks;
-		tasks = tasks.filter(t => t.id !== taskId && t.parent_id !== taskId);
-		const { error: delErr } = await crud.deleteTaskWithSubtasks(sb, taskId, subtaskIds);
+		tasks = tasks.filter(t => !allOriginalIds.includes(t.id));
+		const subtaskIds = subtasks.map(s => s.id);
+		const { error: delErr } = await crud.deleteTaskWithSubtasks(sb, taskId, [...subtaskIds, ...allDescIdsToDelete]);
 		if (delErr) {
 			tasks = oldTasks;
 			toasts.error('Fehler beim Löschen der Original-Aufgabe.');
