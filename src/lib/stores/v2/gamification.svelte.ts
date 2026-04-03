@@ -168,6 +168,15 @@ export function createGamificationStore() {
 			level = levelFromXP(xp);
 		}
 
+		// C1: totalSubtasksDone aus DB berechnen (kein eigenes Feld in gamification_profiles)
+		const { count: subtaskCount } = await sb
+			.from('tasks')
+			.select('*', { count: 'exact', head: true })
+			.eq('user_id', userId)
+			.not('parent_id', 'is', null)
+			.eq('done', true);
+		totalSubtasksDone = subtaskCount ?? 0;
+
 		// Load daily quests, generate if none exist
 		const today = todayStr();
 		const { data: quests } = await gCrud.getDailyQuests(sb, userId, today);
@@ -200,15 +209,29 @@ export function createGamificationStore() {
 		if (streakLastDate === today) return; // Already counted today
 
 		if (streakLastDate === yesterdayStr()) {
+			// Gestern aktiv gewesen — Streak normal erhoehen
 			streakDays += 1;
-		} else if (streakLastDate !== today) {
-			// Streak would break — use freeze token if available
-			if (freezeTokens > 0) {
-				freezeTokens -= 1;
-				// Streak bleibt erhalten, zaehlt aber nicht als neuer Tag
+		} else if (streakLastDate) {
+			// H2: Mehrtaegige Abwesenheit — Tage seit letztem Aktivitaetstag berechnen
+			const last = new Date(streakLastDate + 'T00:00:00');
+			const todayDate = new Date(today + 'T00:00:00');
+			const daysMissed = Math.round((todayDate.getTime() - last.getTime()) / (86400000)) - 1;
+
+			if (daysMissed > 0 && daysMissed <= freezeTokens) {
+				// Genug Freeze-Tokens — alle verbrauchten Tage abdecken
+				freezeTokens -= daysMissed;
+				streakDays += 1; // Heute zaehlt als neuer Tag
+			} else if (daysMissed > 0 && freezeTokens > 0) {
+				// Nicht genug Tokens — alle verbrauchen, Streak reset
+				freezeTokens = 0;
+				streakDays = 1;
 			} else {
-				streakDays = 1; // Reset streak
+				// Keine Tokens — Streak reset
+				streakDays = 1;
 			}
+		} else {
+			// Erster Tag ueberhaupt
+			streakDays = 1;
 		}
 		streakLastDate = today;
 		if (streakDays > bestStreak) bestStreak = streakDays;
@@ -235,6 +258,12 @@ export function createGamificationStore() {
 
 	// --- Quest generation ---
 	async function generateDailyQuests(date: string): Promise<DailyQuest[]> {
+		// H1: Race-Condition-Schutz — nochmal DB pruefen ob heute schon Quests existieren
+		const { data: existing } = await gCrud.getDailyQuests(sb, userId, date);
+		if (existing && existing.length > 0) {
+			return existing as DailyQuest[];
+		}
+
 		// Pick 2 random quests from the pool, ensuring different quest_types if possible
 		const shuffled = [...QUEST_POOL].sort(() => Math.random() - 0.5);
 		const picked: (typeof QUEST_POOL)[number][] = [];
@@ -407,9 +436,13 @@ export function createGamificationStore() {
 		return onTaskDone({ id: task.id, parent_id: 'subtask' });
 	}
 
-	async function onTaskUndone(_task: { id: string }) {
+	async function onTaskUndone(task: { id: string; parent_id?: string | null }) {
 		if (!initialized) return;
 		// Undo: reduce counter but don't take away XP (zu frustrierend)
+		const isSubtask = !!task.parent_id;
+		if (isSubtask) {
+			if (totalSubtasksDone > 0) totalSubtasksDone -= 1;
+		}
 		if (totalTasksDone > 0) totalTasksDone -= 1;
 		await gCrud.updateProfile(sb, userId, {
 			total_tasks_done: totalTasksDone

@@ -155,22 +155,24 @@
 			gStore.onTaskDone({ id: ev.taskId, parent_id: ev.parentId, priority: ev.priority ?? 'normal' }).then(async (result) => {
 				if (!result) return;
 
-				// Check achievements
-				const hasSharedList = false; // TODO: Pruefen ob list_shares existieren (Info nicht im listsStore verfuegbar)
-				const allDoneInList = Object.values(v2Events.navCounts).some(
-					(c) => c.total > 0 && c.done === c.total
-				);
-				const stats = {
-					totalTasksDone: gStore.totalTasksDone,
-					streakDays: gStore.streakDays,
-					listCount: $listsStore.length,
-					subtasksDone: gStore.totalSubtasksDone,
-					currentHour: new Date().getHours(),
-					speedCount: result.speedCount,
-					hasSharedList,
-					allDoneInList
-				};
-				await aStore.checkAchievements(stats);
+				// Check achievements (delayed to let navCounts update from page)
+				setTimeout(async () => {
+					const hasSharedList = false; // TODO: Pruefen ob list_shares existieren (Info nicht im listsStore verfuegbar)
+					const allDoneInList = Object.values(v2Events.navCounts).some(
+						(c) => c.total > 0 && c.done === c.total
+					);
+					const stats = {
+						totalTasksDone: gStore.totalTasksDone,
+						streakDays: gStore.streakDays,
+						listCount: $listsStore.length,
+						subtasksDone: gStore.totalSubtasksDone,
+						currentHour: new Date().getHours(),
+						speedCount: result.speedCount,
+						hasSharedList,
+						allDoneInList
+					};
+					await aStore.checkAchievements(stats);
+				}, 200);
 
 				// Fox reaction + LevelUp signal
 				if (result.leveledUp) {
