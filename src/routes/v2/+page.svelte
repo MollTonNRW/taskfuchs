@@ -134,8 +134,8 @@
 		explicitBulkMode = false;
 	}
 
-	// View mode: 'list' | 'kanban'
-	let viewMode = $state<'list' | 'kanban'>('list');
+	// View mode: 'list' | 'kanban' | 'scroll'
+	let viewMode = $state<'list' | 'kanban' | 'scroll'>('list');
 
 	// Sort menu position (computed from sort button)
 	let sortMenuPos = $state<{ left: number; top: number }>({ left: 0, top: 0 });
@@ -340,6 +340,20 @@
 				if (searchOpen) { searchOpen = false; return; }
 				if (bulkMode) { clearBulkSelection(); return; }
 			}
+			// Arrow keys: navigate lists (scroll mode scrolls into view)
+			if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+				if (visibleLists.length > 1) {
+					const dir = e.key === 'ArrowLeft' ? -1 : 1;
+					const newIdx = activeListIndex + dir;
+					if (newIdx >= 0 && newIdx < visibleLists.length) {
+						activeListIndex = newIdx;
+						if (viewMode === 'scroll') {
+							const col = document.querySelector(`[data-scroll-list-idx="${newIdx}"]`);
+							col?.scrollIntoView({ behavior: 'smooth', inline: 'start' });
+						}
+					}
+				}
+			}
 			// Delete: delete selected in bulk mode
 			if ((e.key === 'Delete' || e.key === 'Backspace') && bulkMode && !e.target) {
 				e.preventDefault();
@@ -394,7 +408,7 @@
 	$effect(() => {
 		const sig = v2Events.viewSignal;
 		if (sig.counter > lastViewSignal) {
-			if (sig.mode === 'list' || sig.mode === 'kanban') { viewMode = sig.mode; }
+			if (sig.mode === 'list' || sig.mode === 'kanban' || sig.mode === 'scroll') { viewMode = sig.mode; }
 		}
 		lastViewSignal = sig.counter;
 	});
@@ -634,8 +648,8 @@
 	onPin={(taskId) => { const t = tasks.find((x: Task) => x.id === taskId); if (t && !t.pinned) store.togglePin(taskId); }}
 />
 
-<!-- List Tabs (always visible, like v6 PoC) -->
-{#if visibleLists.length > 0}
+<!-- List Tabs (hidden in scroll view) -->
+{#if visibleLists.length > 0 && viewMode !== 'scroll'}
 	<div class="v2-list-tabs">
 		{#each visibleLists as list, i (list.id)}
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -663,8 +677,41 @@
 	</div>
 {/if}
 
-<!-- View: List or Kanban -->
-{#if viewMode === 'kanban' && visibleLists[activeListIndex]}
+<!-- View: List, Scroll, or Kanban -->
+{#if viewMode === 'scroll'}
+	<!-- Scroll View: All lists side by side -->
+	<div class="v2-scroll-view">
+		{#each visibleLists as list, i (list.id)}
+			<div class="v2-scroll-list-col" data-scroll-list-idx={i}>
+				<div class="v2-scroll-list-header">
+					<span>{list.icon}</span>
+					<span>{list.title}</span>
+					<button onclick={(e) => ctx.handleListContext(e, list)} class="v2-scroll-list-menu">⋮</button>
+				</div>
+				<ListPanel
+					{list}
+					tasks={sortFilter.tasksForList(list.id)}
+					colIndex={i}
+					isActive={i === activeListIndex}
+					forceSubtasksOpen={getForceSubtasksOpen(list.id)}
+					onQuickAdd={handleQuickAdd}
+					onToggleTask={handleToggleTask}
+					onEditTask={handleEditTask}
+					onToggleSubtask={handleToggleTask}
+					onEditSubtask={handleEditTask}
+					onContextMenu={handleContextMenu}
+					onTaskDblClick={handleTaskDblClick}
+					onListMenuClick={handleListMenuClick}
+					onReorderTask={(taskId, targetListId, newPos) => store.reorderTask(taskId, targetListId, newPos)}
+					onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
+					{bulkMode}
+					bulkSelectedIds={bulkSelectedIds}
+					onBulkToggle={toggleBulkSelect}
+				/>
+			</div>
+		{/each}
+	</div>
+{:else if viewMode === 'kanban' && visibleLists[activeListIndex]}
 	<!-- Kanban View -->
 	{@const activeList = visibleLists[activeListIndex]}
 	<div class="v2-kanban-view">

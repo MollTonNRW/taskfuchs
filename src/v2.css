@@ -1668,8 +1668,56 @@
 }
 
 /* =====================================================================
+   SCROLL VIEW (all lists side by side)
+   ===================================================================== */
+.v2-scroll-view {
+  display: flex;
+  gap: 12px;
+  padding: 0 16px 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--v2-border) transparent;
+}
+.v2-scroll-view::-webkit-scrollbar { height: 6px; }
+.v2-scroll-view::-webkit-scrollbar-track { background: transparent; }
+.v2-scroll-view::-webkit-scrollbar-thumb { background: var(--v2-border); border-radius: 3px; }
+.v2-scroll-list-col {
+  flex: 0 0 auto;
+  width: min(360px, 85vw);
+  min-width: min(300px, 80vw);
+  scroll-snap-align: start;
+}
+.v2-scroll-list-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--v2-text-secondary);
+  border-bottom: 1px solid var(--v2-border);
+  margin-bottom: 8px;
+}
+.v2-scroll-list-menu {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--v2-text-muted);
+  cursor: pointer;
+  font-size: .85rem;
+  padding: 2px 6px;
+  border-radius: var(--v2-radius);
+}
+.v2-scroll-list-menu:hover {
+  background: var(--v2-surface-hover);
+}
+
+/* =====================================================================
    KANBAN VIEW
    ===================================================================== */
+
 .v2-kanban-view {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

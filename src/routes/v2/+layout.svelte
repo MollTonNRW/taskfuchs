@@ -589,6 +589,10 @@
 							onclick={() => v2Events.setView('list')}
 						>&#x2261; Liste</button>
 						<button
+							class:active={v2Events.viewMode === 'scroll'}
+							onclick={() => v2Events.setView('scroll')}
+						>&#x2759;&#x2759; Alle</button>
+						<button
 							class:active={v2Events.viewMode === 'kanban'}
 							onclick={() => v2Events.setView('kanban')}
 						>&#x2593; Kanban</button>

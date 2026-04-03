@@ -34,7 +34,7 @@ function createEventBus() {
 	let openTaskCount = $state(0);
 
 	// Shared header state (Page -> Layout communication)
-	let viewMode = $state<'list' | 'kanban'>('list');
+	let viewMode = $state<'list' | 'kanban' | 'scroll'>('list');
 	let sortLabel = $state('Position');
 	let bulkModeActive = $state(false);
 
@@ -51,7 +51,7 @@ function createEventBus() {
 		get navCounts() { return navCounts; },
 		get openTaskCount() { return openTaskCount; },
 		get viewMode() { return viewMode; },
-		set viewMode(v: 'list' | 'kanban') { viewMode = v; },
+		set viewMode(v: 'list' | 'kanban' | 'scroll') { viewMode = v; },
 		get sortLabel() { return sortLabel; },
 		set sortLabel(v: string) { sortLabel = v; },
 		get bulkModeActive() { return bulkModeActive; },
