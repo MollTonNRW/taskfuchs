@@ -56,6 +56,19 @@ function streakMultiplier(streakDays: number): number {
 }
 
 // ==========================================
+// PRIORITY-BASED REWARDS
+// ==========================================
+
+const PRIORITY_REWARDS: Record<string, { xp: number; coins: number }> = {
+	low:    { xp: 5,  coins: 5 },
+	normal: { xp: 10, coins: 10 },
+	high:   { xp: 15, coins: 15 },
+	asap:   { xp: 20, coins: 20 }
+};
+
+const SUBTASK_REWARD = { xp: 3, coins: 2 };
+
+// ==========================================
 // DAILY QUEST TYPES
 // ==========================================
 
@@ -69,6 +82,19 @@ export interface DailyQuest {
 	completed: boolean;
 	date: string;
 }
+
+const QUEST_POOL = [
+	{ quest_type: 'complete_tasks', target: 3, reward_xp: 30, reward_coins: 15, label: '3 Tasks erledigen' },
+	{ quest_type: 'complete_tasks', target: 5, reward_xp: 50, reward_coins: 25, label: '5 Tasks erledigen' },
+	{ quest_type: 'complete_tasks', target: 10, reward_xp: 100, reward_coins: 50, label: '10 Tasks erledigen' },
+	{ quest_type: 'complete_subtasks', target: 3, reward_xp: 20, reward_coins: 10, label: '3 Subtasks erledigen' },
+	{ quest_type: 'complete_subtasks', target: 5, reward_xp: 40, reward_coins: 20, label: '5 Subtasks erledigen' },
+	{ quest_type: 'complete_tasks', target: 1, reward_xp: 15, reward_coins: 10, label: '1 Task erledigen' },
+	{ quest_type: 'complete_tasks', target: 7, reward_xp: 70, reward_coins: 35, label: '7 Tasks erledigen' },
+	{ quest_type: 'complete_subtasks', target: 10, reward_xp: 60, reward_coins: 30, label: '10 Subtasks erledigen' },
+	{ quest_type: 'complete_tasks', target: 2, reward_xp: 20, reward_coins: 10, label: '2 Tasks erledigen' },
+	{ quest_type: 'complete_subtasks', target: 1, reward_xp: 10, reward_coins: 5, label: '1 Subtask erledigen' },
+] as const;
 
 export interface WeeklyTaskEntry {
 	day: number; // 0=Mo, 6=So
@@ -91,6 +117,7 @@ export function createGamificationStore() {
 	let streakLastDate = $state<string | null>(null);
 	let bestStreak = $state(0);
 	let totalTasksDone = $state(0);
+	let totalSubtasksDone = $state(0);
 	let weeklyTasks = $state<WeeklyTaskEntry[]>([]);
 	let dailyQuests = $state<DailyQuest[]>([]);
 	let initialized = $state(false);
@@ -141,10 +168,14 @@ export function createGamificationStore() {
 			level = levelFromXP(xp);
 		}
 
-		// Load daily quests
+		// Load daily quests, generate if none exist
 		const today = todayStr();
 		const { data: quests } = await gCrud.getDailyQuests(sb, userId, today);
 		dailyQuests = (quests as DailyQuest[]) ?? [];
+
+		if (dailyQuests.length === 0) {
+			dailyQuests = await generateDailyQuests(today);
+		}
 
 		// H4: Reset rewarded set bei Tageswechsel
 		rewardedDate = today;
@@ -171,7 +202,13 @@ export function createGamificationStore() {
 		if (streakLastDate === yesterdayStr()) {
 			streakDays += 1;
 		} else if (streakLastDate !== today) {
-			streakDays = 1; // Reset streak
+			// Streak would break — use freeze token if available
+			if (freezeTokens > 0) {
+				freezeTokens -= 1;
+				// Streak bleibt erhalten, zaehlt aber nicht als neuer Tag
+			} else {
+				streakDays = 1; // Reset streak
+			}
 		}
 		streakLastDate = today;
 		if (streakDays > bestStreak) bestStreak = streakDays;
@@ -179,7 +216,8 @@ export function createGamificationStore() {
 		await gCrud.updateProfile(sb, userId, {
 			streak_days: streakDays,
 			streak_last_date: streakLastDate,
-			best_streak: bestStreak
+			best_streak: bestStreak,
+			freeze_tokens: freezeTokens
 		});
 	}
 
@@ -193,6 +231,44 @@ export function createGamificationStore() {
 		} else {
 			weeklyTasks = [...weeklyTasks, { day: dayOfWeek, count: 1 }];
 		}
+	}
+
+	// --- Quest generation ---
+	async function generateDailyQuests(date: string): Promise<DailyQuest[]> {
+		// Pick 2 random quests from the pool, ensuring different quest_types if possible
+		const shuffled = [...QUEST_POOL].sort(() => Math.random() - 0.5);
+		const picked: (typeof QUEST_POOL)[number][] = [];
+		const usedTypes = new Set<string>();
+
+		for (const quest of shuffled) {
+			if (picked.length >= 2) break;
+			if (picked.length === 0 || !usedTypes.has(quest.quest_type)) {
+				picked.push(quest);
+				usedTypes.add(quest.quest_type);
+			}
+		}
+		// Fallback: if only 1 picked, take another
+		if (picked.length < 2) {
+			for (const quest of shuffled) {
+				if (picked.length >= 2) break;
+				if (!picked.includes(quest)) picked.push(quest);
+			}
+		}
+
+		const results: DailyQuest[] = [];
+		for (const quest of picked) {
+			const { data, error } = await gCrud.insertDailyQuest(sb, userId, {
+				quest_type: quest.quest_type,
+				target: quest.target,
+				reward_xp: quest.reward_xp,
+				reward_coins: quest.reward_coins,
+				date
+			});
+			if (!error && data) {
+				results.push(data as DailyQuest);
+			}
+		}
+		return results;
 	}
 
 	// --- XP & Coins ---
@@ -287,7 +363,7 @@ export function createGamificationStore() {
 
 	// --- Public event handlers ---
 	// H4: XP-Exploit-Schutz — jede Task-ID wird nur einmal pro Tag belohnt
-	async function onTaskDone(task: { id: string; parent_id: string | null }) {
+	async function onTaskDone(task: { id: string; parent_id: string | null; priority?: string }) {
 		if (!initialized) return { xpGained: 0, coinsGained: 0, leveledUp: false, speedCount: 0 };
 
 		// H4: Tageswechsel-Reset
@@ -305,10 +381,14 @@ export function createGamificationStore() {
 		rewardedTaskIds = new Set([...rewardedTaskIds, task.id]);
 
 		const isSubtask = !!task.parent_id;
-		const xpAmount = isSubtask ? 5 : 10;
-		const coinAmount = isSubtask ? 1 : 2;
+		const reward = isSubtask
+			? SUBTASK_REWARD
+			: (PRIORITY_REWARDS[task.priority ?? 'normal'] ?? PRIORITY_REWARDS['normal']);
+		const xpAmount = reward.xp;
+		const coinAmount = reward.coins;
 
 		totalTasksDone += 1;
+		if (isSubtask) totalSubtasksDone += 1;
 		updateWeeklyTasks();
 		await updateStreak();
 
@@ -345,6 +425,7 @@ export function createGamificationStore() {
 		get streakLastDate() { return streakLastDate; },
 		get bestStreak() { return bestStreak; },
 		get totalTasksDone() { return totalTasksDone; },
+		get totalSubtasksDone() { return totalSubtasksDone; },
 		get weeklyTasks() { return weeklyTasks; },
 		get dailyQuests() { return dailyQuests; },
 		get initialized() { return initialized; },

@@ -8,6 +8,7 @@ export interface TaskEvent {
 	type: 'task_done' | 'subtask_done' | 'task_undone';
 	taskId: string;
 	parentId: string | null;
+	priority: string;
 	timestamp: number;
 }
 
@@ -17,12 +18,13 @@ function createEventBus() {
 	let lastEvent = $state<TaskEvent | null>(null);
 	let eventCounter = $state(0);
 
-	function emit(type: TaskEvent['type'], taskId: string, parentId: string | null = null) {
+	function emit(type: TaskEvent['type'], taskId: string, parentId: string | null = null, priority: string = 'normal') {
 		if (!browser) return;
 		lastEvent = {
 			type,
 			taskId,
 			parentId,
+			priority,
 			timestamp: Date.now()
 		};
 		eventCounter += 1;
@@ -44,6 +46,7 @@ function createEventBus() {
 	let bulkToggle = $state(0);
 	let viewSignal = $state<{ counter: number; mode: string }>({ counter: 0, mode: 'list' });
 	let addListSignal = $state(0);
+	let levelUpSignal = $state<{ counter: number; level: number; rank: string }>({ counter: 0, level: 0, rank: '' });
 
 	return {
 		get lastEvent() { return lastEvent; },
@@ -76,7 +79,9 @@ function createEventBus() {
 		toggleSort() { if (!browser) return; sortToggle++; },
 		toggleBulk() { if (!browser) return; bulkToggle++; },
 		setView(mode: string) { if (!browser) return; viewSignal = { counter: viewSignal.counter + 1, mode }; },
-		triggerAddList() { if (!browser) return; addListSignal++; }
+		triggerAddList() { if (!browser) return; addListSignal++; },
+		get levelUpSignal() { return levelUpSignal; },
+		triggerLevelUp(level: number, rank: string) { if (!browser) return; levelUpSignal = { counter: levelUpSignal.counter + 1, level, rank }; }
 	};
 }
 

@@ -119,6 +119,47 @@ export async function completeQuest(sb: Sb, questId: string) {
 		.eq('id', questId);
 }
 
+export async function insertDailyQuest(
+	sb: Sb,
+	userId: string,
+	quest: { quest_type: string; target: number; reward_xp: number; reward_coins: number; date: string }
+) {
+	return sb
+		.from('daily_quests')
+		.insert({
+			user_id: userId,
+			quest_type: quest.quest_type,
+			target: quest.target,
+			reward_xp: quest.reward_xp,
+			reward_coins: quest.reward_coins,
+			date: quest.date,
+			progress: 0,
+			completed: false
+		})
+		.select()
+		.single();
+}
+
+// ==========================================
+// LEADERBOARD
+// ==========================================
+
+export async function getLeaderboardProfiles(sb: Sb) {
+	return sb
+		.from('gamification_profiles')
+		.select('user_id, xp, coins, level, streak_days')
+		.order('xp', { ascending: false })
+		.limit(20);
+}
+
+export async function getProfileDisplayNames(sb: Sb, userIds: string[]) {
+	if (userIds.length === 0) return { data: [], error: null };
+	return sb
+		.from('profiles')
+		.select('id, display_name, username')
+		.in('id', userIds);
+}
+
 // ==========================================
 // COSMETICS
 // ==========================================

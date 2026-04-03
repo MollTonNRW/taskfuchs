@@ -20,6 +20,7 @@
 	} from '$lib/stores/filters';
 	import { onMount } from 'svelte';
 
+	import * as gCrud from '$lib/services/gamification-crud';
 	import FoxMascot from '$lib/components/v2/FoxMascot.svelte';
 	import StatsBar from '$lib/components/v2/StatsBar.svelte';
 	import Statusbar from '$lib/components/v2/Statusbar.svelte';
@@ -80,6 +81,34 @@
 	const gStore = createGamificationStore();
 	const aStore = createAchievementStore();
 
+	// Leaderboard
+	type Player = { id: string; name: string; avatar: string; level: number; coins: number; streak: number };
+	let leaderboardPlayers = $state<Player[]>([]);
+
+	async function loadLeaderboard() {
+		if (!data.supabase) return;
+		const { data: profiles, error } = await gCrud.getLeaderboardProfiles(data.supabase);
+		if (error || !profiles || profiles.length === 0) return;
+
+		const userIds = profiles.map((p: { user_id: string }) => p.user_id);
+		const { data: names } = await gCrud.getProfileDisplayNames(data.supabase, userIds);
+		const nameMap = new Map<string, string>();
+		if (names) {
+			for (const n of names) {
+				nameMap.set(n.id, n.display_name || n.username || 'User');
+			}
+		}
+
+		leaderboardPlayers = profiles.map((p: { user_id: string; level: number; coins: number; streak_days: number }) => ({
+			id: p.user_id,
+			name: nameMap.get(p.user_id) ?? 'User',
+			avatar: '\u{1F98A}',
+			level: p.level ?? 1,
+			coins: p.coins ?? 0,
+			streak: p.streak_days ?? 0
+		}));
+	}
+
 	// Init gamification on mount
 	onMount(() => {
 		// Boot sequence (once per browser session)
@@ -91,6 +120,7 @@
 		if (data.supabase && data.user) {
 			gStore.init(data.supabase, data.user.id);
 			aStore.init(data.supabase, data.user.id);
+			loadLeaderboard();
 		}
 
 		// Set contextual fox message
@@ -122,26 +152,31 @@
 		lastProcessedCounter = counter;
 
 		if (ev.type === 'task_done' || ev.type === 'subtask_done') {
-			gStore.onTaskDone({ id: ev.taskId, parent_id: ev.parentId }).then(async (result) => {
+			gStore.onTaskDone({ id: ev.taskId, parent_id: ev.parentId, priority: ev.priority ?? 'normal' }).then(async (result) => {
 				if (!result) return;
 
 				// Check achievements
+				const hasSharedList = false; // TODO: Pruefen ob list_shares existieren (Info nicht im listsStore verfuegbar)
+				const allDoneInList = Object.values(v2Events.navCounts).some(
+					(c) => c.total > 0 && c.done === c.total
+				);
 				const stats = {
 					totalTasksDone: gStore.totalTasksDone,
 					streakDays: gStore.streakDays,
 					listCount: $listsStore.length,
-					subtasksDone: ev.parentId ? gStore.totalTasksDone : 0,
+					subtasksDone: gStore.totalSubtasksDone,
 					currentHour: new Date().getHours(),
 					speedCount: result.speedCount,
-					hasSharedList: false,
-					allDoneInList: false
+					hasSharedList,
+					allDoneInList
 				};
 				await aStore.checkAchievements(stats);
 
-				// Fox reaction
+				// Fox reaction + LevelUp signal
 				if (result.leveledUp) {
 					foxMood = 'celebrating';
 					foxMessage = 'LEVEL UP!';
+					v2Events.triggerLevelUp(gStore.level, gStore.currentRank);
 				} else if (result.xpGained > 0) {
 					foxMood = 'happy';
 					foxMessage = `+${result.xpGained} XP`;
@@ -480,7 +515,7 @@
 				</button>
 				<div class="v2-section-body" class:collapsed={!teamOpen}>
 					<TeamStats
-						players={[{
+						players={leaderboardPlayers.length > 0 ? leaderboardPlayers : [{
 							id: data.user?.id ?? '',
 							name: data.user?.email?.split('@')[0] ?? 'User',
 							avatar: '\u{1F98A}',

@@ -66,6 +66,15 @@
 		}, 1000);
 	});
 
+	// Listen for LevelUp signal from Layout (via event bus)
+	let lastLevelUpCounter = 0;
+	$effect(() => {
+		const sig = v2Events.levelUpSignal;
+		if (sig.counter === lastLevelUpCounter) return;
+		lastLevelUpCounter = sig.counter;
+		levelUpData = { show: true, level: sig.level, rank: sig.rank };
+	});
+
 	// Initialize store in $effect (runs during hydration before onMount)
 	let storeReady = $state(false);
 	$effect(() => {
@@ -451,9 +460,9 @@
 			// Emit gamification events
 			if (newDone) {
 				if (task.parent_id) {
-					v2Events.emit('subtask_done', id, task.parent_id);
+					v2Events.emit('subtask_done', id, task.parent_id, task.priority ?? 'normal');
 				} else {
-					v2Events.emit('task_done', id, null);
+					v2Events.emit('task_done', id, null, task.priority ?? 'normal');
 				}
 			} else {
 				v2Events.emit('task_undone', id, task.parent_id);
@@ -615,7 +624,7 @@
 			for (const id of bulkSelectedIds) {
 				const task = tasks.find((t: Task) => t.id === id);
 				if (task) {
-					v2Events.emit(task.parent_id ? 'subtask_done' : 'task_done', id, task.parent_id);
+					v2Events.emit(task.parent_id ? 'subtask_done' : 'task_done', id, task.parent_id, task.priority ?? 'normal');
 				}
 			}
 		}
