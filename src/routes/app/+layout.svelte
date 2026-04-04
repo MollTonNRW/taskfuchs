@@ -668,6 +668,15 @@
 					</button>
 				{/each}
 			</div>
+
+			<!-- Logout -->
+			<button
+				class="v2-dark-toggle"
+				onclick={logout}
+				style="margin-top: 8px; color: var(--v2-red, #ef4444);"
+			>
+				&#x23FB; Abmelden
+			</button>
 		</div>
 	</aside>
 
