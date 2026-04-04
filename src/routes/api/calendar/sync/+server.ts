@@ -31,6 +31,7 @@ interface GoogleTokens {
 	access_token: string;
 	refresh_token: string;
 	expires_at: string;
+	reminder_minutes: number;
 }
 
 // Supabase Client ohne strenge Typisierung fuer noch nicht migrierte Tabellen/Spalten
@@ -43,7 +44,7 @@ async function getGoogleTokens(
 ): Promise<GoogleTokens | null> {
 	const { data, error } = await supabase
 		.from('user_google_tokens')
-		.select('access_token, refresh_token, expires_at')
+		.select('access_token, refresh_token, expires_at, reminder_minutes')
 		.eq('user_id', userId)
 		.single();
 
@@ -90,20 +91,23 @@ async function refreshAccessToken(
 	return data.access_token as string;
 }
 
-async function getValidAccessToken(
+async function getValidTokens(
 	supabase: UntypedSupabase,
 	userId: string
-): Promise<string | null> {
+): Promise<{ accessToken: string; reminderMinutes: number } | null> {
 	const tokens = await getGoogleTokens(supabase, userId);
 	if (!tokens) return null;
 
 	const isExpired = new Date(tokens.expires_at) <= new Date();
-	if (!isExpired) return tokens.access_token;
+	const accessToken = isExpired
+		? await refreshAccessToken(supabase, userId, tokens.refresh_token)
+		: tokens.access_token;
 
-	return refreshAccessToken(supabase, userId, tokens.refresh_token);
+	if (!accessToken) return null;
+	return { accessToken, reminderMinutes: tokens.reminder_minutes ?? 30 };
 }
 
-function buildEventBody(task: SyncTask) {
+function buildEventBody(task: SyncTask, reminderMinutes: number) {
 	const body: Record<string, unknown> = {
 		summary: task.text,
 		description: task.note || ''
@@ -140,10 +144,17 @@ function buildEventBody(task: SyncTask) {
 		body.end = { date: tomorrow };
 	}
 
-	body.reminders = {
-		useDefault: false,
-		overrides: [{ method: 'popup', minutes: 30 }]
-	};
+	if (reminderMinutes > 0) {
+		body.reminders = {
+			useDefault: false,
+			overrides: [{ method: 'popup', minutes: reminderMinutes }]
+		};
+	} else {
+		body.reminders = {
+			useDefault: false,
+			overrides: []
+		};
+	}
 
 	return body;
 }
@@ -151,9 +162,10 @@ function buildEventBody(task: SyncTask) {
 async function createEvent(
 	accessToken: string,
 	task: SyncTask,
-	supabase: UntypedSupabase
+	supabase: UntypedSupabase,
+	reminderMinutes: number
 ): Promise<Response> {
-	const eventBody = buildEventBody(task);
+	const eventBody = buildEventBody(task, reminderMinutes);
 
 	const res = await fetch(CALENDAR_API, {
 		method: 'POST',
@@ -180,12 +192,12 @@ async function createEvent(
 	return json({ success: true, calendar_event_id: event.id });
 }
 
-async function updateEvent(accessToken: string, task: SyncTask): Promise<Response> {
+async function updateEvent(accessToken: string, task: SyncTask, reminderMinutes: number): Promise<Response> {
 	if (!task.calendar_event_id) {
 		return json({ error: 'Kein calendar_event_id vorhanden' }, { status: 400 });
 	}
 
-	const eventBody = buildEventBody(task);
+	const eventBody = buildEventBody(task, reminderMinutes);
 
 	const res = await fetch(`${CALENDAR_API}/${task.calendar_event_id}`, {
 		method: 'PATCH',
@@ -262,17 +274,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Google Access Token holen
 	const supabase = locals.supabase as unknown as UntypedSupabase;
-	const accessToken = await getValidAccessToken(supabase, user.id);
-	if (!accessToken) {
+	const validTokens = await getValidTokens(supabase, user.id);
+	if (!validTokens) {
 		return json({ error: 'Calendar nicht verbunden' }, { status: 401 });
 	}
+
+	const { accessToken, reminderMinutes } = validTokens;
 
 	// Action ausfuehren
 	switch (action) {
 		case 'create':
-			return createEvent(accessToken, task, supabase);
+			return createEvent(accessToken, task, supabase, reminderMinutes);
 		case 'update':
-			return updateEvent(accessToken, task);
+			return updateEvent(accessToken, task, reminderMinutes);
 		case 'delete':
 			return deleteEvent(accessToken, task, supabase);
 	}

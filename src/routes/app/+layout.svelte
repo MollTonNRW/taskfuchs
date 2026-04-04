@@ -57,6 +57,14 @@
 
 	// Calendar sync state
 	let calendarSyncEnabled = $state<boolean | null>(null); // null = nicht verbunden
+	let reminderMinutes = $state(30);
+	const REMINDER_OPTIONS = [
+		{ label: 'Keine', value: 0 },
+		{ label: '10 min', value: 10 },
+		{ label: '30 min', value: 30 },
+		{ label: '1 Std', value: 60 },
+		{ label: '1 Tag', value: 1440 }
+	] as const;
 
 	// Fox state
 	let foxMood = $state<'idle' | 'celebrating' | 'sleeping' | 'happy' | 'encouraging'>('idle');
@@ -138,14 +146,17 @@
 					hasSharedList = (count ?? 0) > 0;
 				});
 
-			// Check calendar sync status
+			// Check calendar sync status + reminder setting
 			(data.supabase as any)
 				.from('user_google_tokens')
-				.select('sync_enabled')
+				.select('sync_enabled, reminder_minutes')
 				.eq('user_id', data.user.id)
 				.single()
-				.then(({ data: tokenData }: { data: { sync_enabled: boolean } | null }) => {
+				.then(({ data: tokenData }: { data: { sync_enabled: boolean; reminder_minutes: number } | null }) => {
 					calendarSyncEnabled = tokenData?.sync_enabled ?? null;
+					if (tokenData?.reminder_minutes != null) {
+						reminderMinutes = tokenData.reminder_minutes;
+					}
 				});
 		}
 
@@ -167,6 +178,19 @@
 		if (error) {
 			calendarSyncEnabled = !newVal;
 			toasts.error('Kalender-Sync konnte nicht umgeschaltet werden.');
+		}
+	}
+
+	async function handleReminderChange(minutes: number) {
+		const oldVal = reminderMinutes;
+		reminderMinutes = minutes;
+		const { error } = await (data.supabase as any)
+			.from('user_google_tokens')
+			.update({ reminder_minutes: minutes })
+			.eq('user_id', data.user!.id);
+		if (error) {
+			reminderMinutes = oldVal;
+			toasts.error('Erinnerung konnte nicht gespeichert werden.');
 		}
 	}
 
@@ -643,6 +667,25 @@
 					<div class="v2-toggle-switch" class:on={calendarSyncEnabled}></div>
 				{/if}
 			</button>
+
+			<!-- Calendar Reminder Picker -->
+			{#if calendarSyncEnabled === true}
+				<div class="v2-reminder-row">
+					<span class="v2-reminder-label">&#x23F0; Erinnerung</span>
+					<div class="v2-preset-row">
+						{#each REMINDER_OPTIONS as opt}
+							<button
+								class="v2-preset-btn"
+								class:active={reminderMinutes === opt.value}
+								onclick={() => handleReminderChange(opt.value)}
+								aria-label="Erinnerung: {opt.label}"
+							>
+								{opt.label}
+							</button>
+						{/each}
+					</div>
+				</div>
+			{/if}
 
 			<!-- Dark/Light Toggle -->
 			<button

@@ -772,6 +772,19 @@
 }
 .v2-dark-toggle:hover { border-color: var(--v2-accent); color: var(--v2-accent); }
 
+/* Calendar Reminder Row */
+.v2-reminder-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 10px;
+}
+.v2-reminder-label {
+  font-size: .55rem;
+  color: var(--v2-text-muted);
+  font-family: var(--v2-font);
+}
+
 /* Theme Preset Row (v6 style: single row) */
 .v2-preset-row { display: flex; gap: 4px; }
 .v2-preset-btn {
