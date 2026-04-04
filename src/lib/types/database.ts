@@ -58,6 +58,7 @@ export interface Database {
 					divider_label: string | null;
 					parent_id: string | null;
 					assigned_to: string | null;
+					calendar_event_id: string | null;
 					created_at: string;
 					updated_at: string;
 					version: number;
@@ -81,6 +82,7 @@ export interface Database {
 					divider_label?: string | null;
 					parent_id?: string | null;
 					assigned_to?: string | null;
+					calendar_event_id?: string | null;
 					created_at?: string;
 					updated_at?: string;
 					version?: number;
@@ -104,6 +106,7 @@ export interface Database {
 					divider_label?: string | null;
 					parent_id?: string | null;
 					assigned_to?: string | null;
+					calendar_event_id?: string | null;
 					updated_at?: string;
 					version?: number;
 				};

@@ -45,6 +45,25 @@ export function createTaskStore() {
 	}
 
 	// ==========================================
+	// CALENDAR SYNC (fire-and-forget)
+	// ==========================================
+	function syncTaskToCalendar(action: 'create' | 'update' | 'delete', task: { id: string; text: string; due_date: string | null; note?: string | null; priority?: string | null; calendar_event_id?: string | null }) {
+		fetch('/api/calendar/sync', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ action, task })
+		}).then(res => {
+			if (res.ok) return res.json();
+		}).then(data => {
+			if (data?.calendar_event_id) {
+				tasks = tasks.map(t => t.id === task.id ? { ...t, calendar_event_id: data.calendar_event_id } : t);
+			}
+		}).catch(e => {
+			console.warn('Calendar sync failed:', e);
+		});
+	}
+
+	// ==========================================
 	// LIST CRUD
 	// ==========================================
 	async function createList() {
@@ -113,7 +132,7 @@ export function createTaskStore() {
 			id: crypto.randomUUID(), list_id: listId, user_id: userId, parent_id: null,
 			text, type: 'task', divider_label: null, done: false, priority: 'normal',
 			timeframe: null, highlighted: false, pinned: false, emoji: null, note: null,
-			due_date: null, progress: 0, assigned_to: null, position,
+			due_date: null, progress: 0, assigned_to: null, calendar_event_id: null, position,
 			created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1
 		};
 		tasks = [...tasks, optimisticTask];
@@ -144,7 +163,7 @@ export function createTaskStore() {
 			id: crypto.randomUUID(), list_id: listId, user_id: userId, parent_id: null,
 			text, type: 'task', divider_label: null, done: false, priority: 'normal',
 			timeframe: null, highlighted: false, pinned: false, emoji: null, note: null,
-			due_date: null, progress: 0, assigned_to: null, position: newPosition,
+			due_date: null, progress: 0, assigned_to: null, calendar_event_id: null, position: newPosition,
 			created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1
 		};
 		tasks = tasks.map((t) => {
@@ -171,6 +190,7 @@ export function createTaskStore() {
 
 	async function toggleTask(id: string, done: boolean) {
 		const oldTasks = tasks;
+		const task = tasks.find(t => t.id === id);
 		tasks = tasks.map((t) => (t.id === id ? { ...t, done } : t));
 		if (done) {
 			const descendantIds = [...getDescendantIds(id)];
@@ -183,6 +203,10 @@ export function createTaskStore() {
 		}
 		const { error } = await crud.updateTaskField(sb, id, { done });
 		if (error) { tasks = oldTasks; return; }
+		// Calendar sync: Event löschen wenn erledigt (fire-and-forget)
+		if (done && task?.calendar_event_id) {
+			syncTaskToCalendar('delete', task);
+		}
 		if (done) {
 			toasts.undo('Aufgabe erledigt', () => {
 				toggleTask(id, false);
@@ -203,6 +227,10 @@ export function createTaskStore() {
 	async function deleteTask(id: string) {
 		if (!await confirmAction('Aufgabe wirklich löschen?')) return;
 		const deletedTask = tasks.find((t) => t.id === id);
+		// Calendar sync: Event löschen (fire-and-forget)
+		if (deletedTask?.calendar_event_id) {
+			syncTaskToCalendar('delete', deletedTask);
+		}
 		const deletedSubtasks = tasks.filter((t) => t.parent_id === id);
 		const subtaskIds = deletedSubtasks.map((t) => t.id);
 		tasks = tasks.filter((t) => t.id !== id && t.parent_id !== id);
@@ -350,9 +378,19 @@ export function createTaskStore() {
 
 	async function updateTaskDate(taskId: string, dueDate: string | null) {
 		const oldTasks = tasks;
+		const task = tasks.find(t => t.id === taskId);
 		tasks = tasks.map((t) => (t.id === taskId ? { ...t, due_date: dueDate } : t));
 		const { error } = await crud.updateTaskField(sb, taskId, { due_date: dueDate });
-		if (error) tasks = oldTasks;
+		if (error) { tasks = oldTasks; return; }
+		// Calendar sync (fire-and-forget)
+		if (task) {
+			const updatedTask = { ...task, due_date: dueDate };
+			if (dueDate) {
+				syncTaskToCalendar(task.calendar_event_id ? 'update' : 'create', updatedTask);
+			} else if (task.calendar_event_id) {
+				syncTaskToCalendar('delete', updatedTask);
+			}
+		}
 	}
 
 	// ==========================================
@@ -367,7 +405,7 @@ export function createTaskStore() {
 			id: crypto.randomUUID(), list_id: parentTask.list_id, user_id: userId, parent_id: parentId,
 			text, type: 'task', divider_label: null, done: false, priority: 'normal',
 			timeframe: null, highlighted: false, pinned: false, emoji: null, note: null,
-			due_date: null, progress: 0, assigned_to: null, position,
+			due_date: null, progress: 0, assigned_to: null, calendar_event_id: null, position,
 			created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1
 		};
 		tasks = [...tasks, optimisticSub];
@@ -876,6 +914,10 @@ export function createTaskStore() {
 	// Delete task without confirmation (for context menu inline delete)
 	async function deleteTaskDirect(id: string) {
 		const deletedTask = tasks.find((t) => t.id === id);
+		// Calendar sync: Event löschen (fire-and-forget)
+		if (deletedTask?.calendar_event_id) {
+			syncTaskToCalendar('delete', deletedTask);
+		}
 		const deletedSubtasks = tasks.filter((t) => t.parent_id === id);
 		const subtaskIds = deletedSubtasks.map((t) => t.id);
 		tasks = tasks.filter((t) => t.id !== id && t.parent_id !== id);

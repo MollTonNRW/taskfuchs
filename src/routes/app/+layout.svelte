@@ -55,6 +55,9 @@
 	// Shared list check for achievements
 	let hasSharedList = $state(false);
 
+	// Calendar sync state
+	let calendarSyncEnabled = $state<boolean | null>(null); // null = nicht verbunden
+
 	// Fox state
 	let foxMood = $state<'idle' | 'celebrating' | 'sleeping' | 'happy' | 'encouraging'>('idle');
 	let foxMessage = $state('');
@@ -134,11 +137,38 @@
 				.then(({ count }) => {
 					hasSharedList = (count ?? 0) > 0;
 				});
+
+			// Check calendar sync status
+			(data.supabase as any)
+				.from('user_google_tokens')
+				.select('sync_enabled')
+				.eq('user_id', data.user.id)
+				.single()
+				.then(({ data: tokenData }: { data: { sync_enabled: boolean } | null }) => {
+					calendarSyncEnabled = tokenData?.sync_enabled ?? null;
+				});
 		}
 
 		// Set contextual fox message
 		contextFoxMessage = getContextFoxMessage();
 	});
+
+	async function handleCalendarToggle() {
+		if (calendarSyncEnabled === null) {
+			toasts.show('Bitte mit Google einloggen für Kalender-Sync');
+			return;
+		}
+		const newVal = !calendarSyncEnabled;
+		calendarSyncEnabled = newVal;
+		const { error } = await (data.supabase as any)
+			.from('user_google_tokens')
+			.update({ sync_enabled: newVal })
+			.eq('user_id', data.user!.id);
+		if (error) {
+			calendarSyncEnabled = !newVal;
+			toasts.error('Kalender-Sync konnte nicht umgeschaltet werden.');
+		}
+	}
 
 	function handleBootComplete() {
 		bootDone = true;
@@ -599,6 +629,19 @@
 				<span>&#x1F3AE;</span>
 				<span>Gamification</span>
 				<div class="v2-toggle-switch" class:on={v2Theme.gamificationMode !== 'off'}></div>
+			</button>
+
+			<!-- Calendar Sync Toggle -->
+			<button
+				class="v2-gamification-toggle"
+				onclick={handleCalendarToggle}
+				aria-label="Kalender-Sync umschalten"
+			>
+				<span>&#x1F4C5;</span>
+				<span>Kalender-Sync {calendarSyncEnabled === null ? '' : calendarSyncEnabled ? 'aktiv' : 'inaktiv'}</span>
+				{#if calendarSyncEnabled !== null}
+					<div class="v2-toggle-switch" class:on={calendarSyncEnabled}></div>
+				{/if}
 			</button>
 
 			<!-- Dark/Light Toggle -->
