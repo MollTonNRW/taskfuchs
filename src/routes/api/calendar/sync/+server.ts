@@ -30,8 +30,9 @@ interface SyncRequest {
 interface GoogleTokens {
 	access_token: string;
 	refresh_token: string;
-	expires_at: string;
+	token_expires_at: string;
 	reminder_minutes: number;
+	sync_enabled: boolean;
 }
 
 // Supabase Client ohne strenge Typisierung fuer noch nicht migrierte Tabellen/Spalten
@@ -44,12 +45,14 @@ async function getGoogleTokens(
 ): Promise<GoogleTokens | null> {
 	const { data, error } = await supabase
 		.from('user_google_tokens')
-		.select('access_token, refresh_token, expires_at, reminder_minutes')
+		.select('access_token, refresh_token, token_expires_at, reminder_minutes, sync_enabled')
 		.eq('user_id', userId)
 		.single();
 
 	if (error || !data) return null;
-	return data as GoogleTokens;
+	const tokens = data as GoogleTokens;
+	if (tokens.sync_enabled === false) return null;
+	return tokens;
 }
 
 async function refreshAccessToken(
@@ -84,7 +87,7 @@ async function refreshAccessToken(
 		.from('user_google_tokens')
 		.update({
 			access_token: data.access_token,
-			expires_at: expiresAt
+			token_expires_at: expiresAt
 		})
 		.eq('user_id', userId);
 
@@ -98,7 +101,7 @@ async function getValidTokens(
 	const tokens = await getGoogleTokens(supabase, userId);
 	if (!tokens) return null;
 
-	const isExpired = new Date(tokens.expires_at) <= new Date();
+	const isExpired = new Date(tokens.token_expires_at) <= new Date();
 	const accessToken = isExpired
 		? await refreshAccessToken(supabase, userId, tokens.refresh_token)
 		: tokens.access_token;
@@ -274,6 +277,17 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Google Access Token holen
 	const supabase = locals.supabase as unknown as UntypedSupabase;
+
+	// Task-Ownership pruefen (RLS filtert automatisch fremde Tasks)
+	const { data: taskRow } = await supabase
+		.from('tasks')
+		.select('id')
+		.eq('id', task.id)
+		.single();
+	if (!taskRow) {
+		return json({ error: 'Task nicht gefunden oder kein Zugriff' }, { status: 403 });
+	}
+
 	const validTokens = await getValidTokens(supabase, user.id);
 	if (!validTokens) {
 		return json({ error: 'Calendar nicht verbunden' }, { status: 401 });

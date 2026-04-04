@@ -227,10 +227,6 @@ export function createTaskStore() {
 	async function deleteTask(id: string) {
 		if (!await confirmAction('Aufgabe wirklich löschen?')) return;
 		const deletedTask = tasks.find((t) => t.id === id);
-		// Calendar sync: Event löschen (fire-and-forget)
-		if (deletedTask?.calendar_event_id) {
-			syncTaskToCalendar('delete', deletedTask);
-		}
 		const deletedSubtasks = tasks.filter((t) => t.parent_id === id);
 		const subtaskIds = deletedSubtasks.map((t) => t.id);
 		tasks = tasks.filter((t) => t.id !== id && t.parent_id !== id);
@@ -238,6 +234,10 @@ export function createTaskStore() {
 		if (error) {
 			if (deletedTask) tasks = [...tasks, deletedTask, ...deletedSubtasks];
 			return;
+		}
+		// Calendar sync: Event löschen NACH erfolgreichem DB-Delete
+		if (deletedTask?.calendar_event_id) {
+			syncTaskToCalendar('delete', deletedTask);
 		}
 		if (deletedTask) {
 			toasts.undo('Aufgabe gelöscht', async () => {
@@ -914,10 +914,6 @@ export function createTaskStore() {
 	// Delete task without confirmation (for context menu inline delete)
 	async function deleteTaskDirect(id: string) {
 		const deletedTask = tasks.find((t) => t.id === id);
-		// Calendar sync: Event löschen (fire-and-forget)
-		if (deletedTask?.calendar_event_id) {
-			syncTaskToCalendar('delete', deletedTask);
-		}
 		const deletedSubtasks = tasks.filter((t) => t.parent_id === id);
 		const subtaskIds = deletedSubtasks.map((t) => t.id);
 		tasks = tasks.filter((t) => t.id !== id && t.parent_id !== id);
@@ -925,6 +921,10 @@ export function createTaskStore() {
 		if (error) {
 			if (deletedTask) tasks = [...tasks, deletedTask, ...deletedSubtasks];
 			return;
+		}
+		// Calendar sync: Event löschen NACH erfolgreichem DB-Delete
+		if (deletedTask?.calendar_event_id) {
+			syncTaskToCalendar('delete', deletedTask);
 		}
 		if (deletedTask) {
 			toasts.undo('Aufgabe gelöscht', async () => {
