@@ -1,0 +1,2333 @@
+/* =====================================================================
+   TASKFUCHS v2 — Terminal/Hacker Aesthetic Theme System
+   Based on PoC v6 (Tokyo Night dark + warm amber light)
+   ===================================================================== */
+
+/* =====================================================================
+   CSS CUSTOM PROPERTIES
+   ===================================================================== */
+.v2-root {
+  --v2-font: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
+  --v2-radius: 6px;
+  --v2-radius-lg: 10px;
+  --v2-transition: .2s ease;
+  --v2-bounce: cubic-bezier(.34,1.56,.64,1);
+  --v2-spring: cubic-bezier(.22,1.2,.36,1);
+  --v2-sidebar-w: 290px;
+}
+
+/* =====================================================================
+   TOKYO NIGHT DARK (Default)
+   ===================================================================== */
+.v2-root.v2-dark {
+  --v2-bg: #1a1b26;
+  --v2-surface: #24283b;
+  --v2-card: #292e42;
+  --v2-hover: #343b58;
+  --v2-border: #3b4261;
+  --v2-border-bright: #565f89;
+  --v2-text: #c0caf5;
+  --v2-text-secondary: #a9b1d6;
+  --v2-text-muted: #565f89;
+  --v2-accent: #7aa2f7;
+  --v2-accent-dim: #3d59a1;
+  --v2-accent-glow: rgba(122,162,247,.25);
+  --v2-green: #9ece6a;
+  --v2-red: #f7768e;
+  --v2-yellow: #e0af68;
+  --v2-orange: #ff9e64;
+  --v2-purple: #bb9af7;
+  --v2-cyan: #7dcfff;
+  --v2-pink: #ff007c;
+  --v2-glass: rgba(36,40,59,.75);
+  --v2-glass-border: rgba(122,162,247,.15);
+}
+
+/* =====================================================================
+   WARM AMBER LIGHT
+   ===================================================================== */
+.v2-root.v2-light {
+  --v2-bg: #faf8f5;
+  --v2-surface: #ffffff;
+  --v2-card: #ffffff;
+  --v2-hover: #f0ece6;
+  --v2-border: #e2ddd5;
+  --v2-border-bright: #c4bdb3;
+  --v2-text: #2d2a26;
+  --v2-text-secondary: #5c574f;
+  --v2-text-muted: #9c958b;
+  --v2-accent: #d97706;
+  --v2-accent-dim: #f59e0b;
+  --v2-accent-glow: rgba(217,119,6,.12);
+  --v2-green: #65a30d;
+  --v2-red: #dc2626;
+  --v2-yellow: #ca8a04;
+  --v2-orange: #ea580c;
+  --v2-purple: #9333ea;
+  --v2-cyan: #0891b2;
+  --v2-pink: #db2777;
+  --v2-glass: rgba(255,255,255,.85);
+  --v2-glass-border: rgba(217,119,6,.15);
+}
+
+/* =====================================================================
+   THEME PRESETS
+   ===================================================================== */
+
+/* Colorful Dark */
+.v2-root.v2-theme-colorful.v2-dark {
+  --v2-bg: #1e1e2e;
+  --v2-surface: #282840;
+  --v2-card: #2a2a45;
+  --v2-accent: #f5a623;
+  --v2-accent-dim: #e8961e;
+  --v2-accent-glow: rgba(245,166,35,.2);
+  --v2-glass-border: rgba(245,166,35,.15);
+}
+/* Colorful Light */
+.v2-root.v2-theme-colorful.v2-light {
+  --v2-bg: #fefcf8;
+  --v2-surface: #fff9f0;
+  --v2-card: #fff9f0;
+  --v2-accent: #e8961e;
+  --v2-accent-dim: #f5a623;
+  --v2-accent-glow: rgba(232,150,30,.12);
+}
+
+/* Neon (dark only) */
+.v2-root.v2-theme-neon {
+  --v2-bg: #0a0a1a;
+  --v2-surface: #0f0f2a;
+  --v2-card: #12123a;
+  --v2-hover: #1a1a4a;
+  --v2-border: #2a2a5a;
+  --v2-border-bright: #4040aa;
+  --v2-text: #e0e0ff;
+  --v2-text-secondary: #b0b0dd;
+  --v2-text-muted: #5050aa;
+  --v2-accent: #8b5cf6;
+  --v2-accent-dim: #6d28d9;
+  --v2-accent-glow: rgba(139,92,246,.3);
+  --v2-glass: rgba(15,15,42,.85);
+  --v2-glass-border: rgba(139,92,246,.2);
+  --v2-green: #22d3ee;
+  --v2-red: #f43f5e;
+  --v2-yellow: #fbbf24;
+  --v2-orange: #fb923c;
+  --v2-purple: #c084fc;
+  --v2-cyan: #22d3ee;
+}
+
+/* Aurora (dark only) */
+.v2-root.v2-theme-aurora {
+  --v2-bg: #0c1222;
+  --v2-surface: #111a30;
+  --v2-card: #15203a;
+  --v2-hover: #1a2848;
+  --v2-border: #253555;
+  --v2-border-bright: #3a5080;
+  --v2-text: #d0daf0;
+  --v2-text-secondary: #a0b0d0;
+  --v2-text-muted: #4a6090;
+  --v2-accent: #38bdf8;
+  --v2-accent-dim: #0284c7;
+  --v2-accent-glow: rgba(56,189,248,.2);
+  --v2-glass: rgba(17,26,48,.85);
+  --v2-glass-border: rgba(56,189,248,.15);
+  --v2-green: #34d399;
+  --v2-red: #fb7185;
+  --v2-yellow: #fcd34d;
+  --v2-orange: #fb923c;
+  --v2-purple: #a78bfa;
+  --v2-cyan: #22d3ee;
+}
+
+/* Colorful per-list accent borders */
+.v2-root.v2-theme-colorful [data-col="0"] .v2-task-card { border-left: 3px solid var(--v2-red); }
+.v2-root.v2-theme-colorful [data-col="1"] .v2-task-card { border-left: 3px solid var(--v2-accent); }
+.v2-root.v2-theme-colorful [data-col="2"] .v2-task-card { border-left: 3px solid var(--v2-green); }
+.v2-root.v2-theme-colorful [data-col="3"] .v2-task-card { border-left: 3px solid var(--v2-purple); }
+.v2-root.v2-theme-colorful [data-col="4"] .v2-task-card { border-left: 3px solid var(--v2-yellow); }
+
+/* Aurora per-list top borders */
+.v2-root.v2-theme-aurora [data-col="0"] { border-top: 2px solid var(--v2-accent); }
+.v2-root.v2-theme-aurora [data-col="1"] { border-top: 2px solid var(--v2-green); }
+.v2-root.v2-theme-aurora [data-col="2"] { border-top: 2px solid var(--v2-purple); }
+.v2-root.v2-theme-aurora [data-col="3"] { border-top: 2px solid var(--v2-yellow); }
+.v2-root.v2-theme-aurora [data-col="4"] { border-top: 2px solid var(--v2-red); }
+
+/* Neon glow effects */
+.v2-root.v2-theme-neon .v2-task-card { box-shadow: 0 0 8px rgba(139,92,246,.1); }
+.v2-root.v2-theme-neon .v2-task-card:hover { box-shadow: 0 0 20px rgba(139,92,246,.25); }
+
+/* =====================================================================
+   GAMIFICATION COLOR TOKENS
+   ===================================================================== */
+.v2-root {
+  --v2-coin: var(--v2-yellow);
+  --v2-streak: var(--v2-orange);
+  --v2-gold: #ffd700;
+  --v2-legendary: #ffd700;
+  --v2-rare: var(--v2-purple);
+  --v2-uncommon: var(--v2-accent);
+  --v2-common: var(--v2-green);
+}
+
+/* =====================================================================
+   BASE STYLES
+   ===================================================================== */
+.v2-root { font-size: 14px; }
+
+.v2-root {
+  font-family: var(--v2-font);
+  background: var(--v2-bg);
+  color: var(--v2-text);
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: background var(--v2-transition), color var(--v2-transition);
+  position: relative;
+}
+
+.v2-root button { font-family: var(--v2-font); cursor: pointer; }
+.v2-root input, .v2-root textarea { font-family: var(--v2-font); }
+
+.v2-root ::-webkit-scrollbar { width: 5px; }
+.v2-root ::-webkit-scrollbar-track { background: transparent; }
+.v2-root ::-webkit-scrollbar-thumb { background: var(--v2-border); border-radius: 3px; }
+.v2-root ::-webkit-scrollbar-thumb:hover { background: var(--v2-border-bright); }
+
+/* =====================================================================
+   LAYOUT
+   ===================================================================== */
+.v2-app { display: flex; flex: 1; min-height: 0; min-width: 0; max-width: 100%; overflow-x: hidden; position: relative; z-index: 1; }
+
+.v2-sidebar {
+  width: var(--v2-sidebar-w);
+  background: var(--v2-surface);
+  border-right: 1px dashed var(--v2-border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 100;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+}
+/* On desktop, sidebar can be toggled open/closed */
+@media (min-width: 769px) {
+  .v2-sidebar { transform: translateX(0); }
+  .v2-sidebar.collapsed { transform: translateX(-100%); }
+}
+/* On mobile, collapsed is handled by the mobile media query below */
+
+.v2-main {
+  flex: 1;
+  margin-left: var(--v2-sidebar-w);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  max-width: 100vw;
+  overflow-x: hidden;
+  transition: margin-left .3s cubic-bezier(.4,0,.2,1);
+  /* Create stacking context above AsciiParticles (z-index: 0) so all
+     children (header, content) are guaranteed to receive pointer events */
+  position: relative;
+  z-index: 1;
+}
+/* When sidebar is collapsed (desktop or mobile), remove left margin */
+.v2-main.sidebar-collapsed { margin-left: 0; }
+
+.v2-header {
+  background: var(--v2-surface);
+  border-bottom: 1px dashed var(--v2-border);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 10px 20px;
+  gap: 8px 14px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  max-width: 100%;
+  overflow: hidden;
+  /* Ensure header is always clickable above particles and other overlays */
+  isolation: isolate;
+}
+
+/* Header Logo (ASCII art, v6 style) */
+.v2-header-logo { line-height: 1; }
+.v2-header-logo pre {
+  margin: 0;
+  font-family: var(--v2-font);
+}
+
+/* Header Game Stats (Coins + Streak) */
+.v2-header-game-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .7rem;
+}
+.v2-header-coin {
+  color: var(--v2-coin, var(--v2-yellow));
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.v2-header-streak {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--v2-streak, var(--v2-orange));
+  font-weight: 700;
+}
+.v2-header-mult {
+  color: var(--v2-yellow);
+  font-size: .55rem;
+}
+.v2-header-freeze {
+  color: var(--v2-cyan, #7dcfff);
+  font-size: .65rem;
+}
+@media (max-width: 768px) { .v2-header-freeze { display: none; } }
+[data-gamification="minimal"] .v2-header-game-stats { display: none; }
+
+/* Header Actions */
+.v2-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+/* Header Inline Search (Desktop) */
+.v2-header-search {
+  position: relative;
+  width: 320px;
+}
+.v2-header-search input {
+  width: 100%;
+  background: var(--v2-bg);
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  padding: 5px 12px 5px 26px;
+  color: var(--v2-text);
+  font-size: .75rem;
+  font-family: var(--v2-font);
+  outline: none;
+  cursor: pointer;
+  transition: border-color .2s ease;
+}
+.v2-header-search input:hover,
+.v2-header-search input:focus {
+  border-color: var(--v2-accent);
+}
+.v2-header-search input::placeholder {
+  color: var(--v2-text-muted);
+}
+.v2-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--v2-text-muted);
+  font-size: .75rem;
+  pointer-events: none;
+}
+.v2-cursor-blink {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--v2-accent);
+  animation: v2-blink 1s step-end infinite;
+  font-size: .7rem;
+  pointer-events: none;
+}
+@keyframes v2-blink { 50% { opacity: 0; } }
+
+/* Mobile: hide inline search, show icon button */
+.v2-mobile-search-toggle {
+  display: none;
+  background: none;
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  color: var(--v2-text-muted);
+  font-size: .9rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 768px) {
+  .v2-header-search { display: none; }
+  .v2-mobile-search-toggle { display: flex; }
+  .v2-header-mult { display: none; }
+  .v2-header-logo pre { font-size: .45rem !important; }
+}
+
+.v2-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px 24px;
+  -webkit-overflow-scrolling: touch;
+  /* NOTE: content-visibility: auto was removed because it applies
+     contain: layout style paint, which breaks position: sticky on
+     child elements (.v2-list-tabs). This caused tabs to be unclickable
+     in real browsers while appearing fine in headless Playwright. */
+}
+
+/* =====================================================================
+   SIDEBAR TOPBAR (v6 style: title + close)
+   ===================================================================== */
+.v2-sidebar-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 6px;
+}
+.v2-sidebar-title {
+  font-size: .6rem;
+  color: var(--v2-text-muted);
+  letter-spacing: 1px;
+}
+.v2-sidebar-close {
+  background: none;
+  border: none;
+  color: var(--v2-text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+  border-radius: var(--v2-radius);
+  transition: color .2s ease;
+}
+.v2-sidebar-close:hover { color: var(--v2-text); }
+
+/* =====================================================================
+   SIDEBAR SECTIONS
+   ===================================================================== */
+.v2-sidebar-section {
+  padding: 10px 16px;
+  border-bottom: 1px dashed var(--v2-border);
+}
+
+.v2-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  background: none;
+  border: none;
+  width: 100%;
+  padding: 0;
+}
+.v2-section-header h3 {
+  font-size: .55rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--v2-text-muted);
+}
+.v2-section-toggle {
+  font-size: .6rem;
+  color: var(--v2-text-muted);
+  transition: transform .3s ease;
+}
+.v2-section-toggle.collapsed { transform: rotate(-90deg); }
+
+.v2-section-body {
+  max-height: 1000px;
+  overflow: hidden;
+  transition: max-height .4s ease, opacity .3s ease;
+  opacity: 1;
+  margin-top: 8px;
+}
+.v2-section-body.collapsed { max-height: 0; opacity: 0; margin: 0; padding-top: 0; padding-bottom: 0; }
+
+/* =====================================================================
+   SIDEBAR FOX AREA (v6 greeting style)
+   ===================================================================== */
+.v2-sidebar-fox-area {
+  padding: 18px 16px 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.v2-fox-greeting { min-width: 0; line-height: 1.3; }
+.v2-fox-greeting .v2-fox-name { font-size: .72rem; font-weight: 600; color: var(--v2-orange); }
+.v2-fox-greeting .v2-fox-rank { font-size: .6rem; color: var(--v2-purple, #bb9af7); font-weight: 500; margin-top: 1px; }
+.v2-fox-greeting .v2-fox-sub { font-size: .62rem; color: var(--v2-text-muted); margin-top: 2px; }
+.v2-fox-greeting .v2-fox-msg { font-size: .6rem; color: var(--v2-green); font-style: italic; margin-top: 3px; }
+
+/* =====================================================================
+   SIDEBAR STATS (v6 style: collapsible)
+   ===================================================================== */
+.v2-sidebar-stats { padding: 10px 16px; }
+.v2-best-week { color: var(--v2-gold, #ffd700); font-size: .5rem; font-weight: 700; margin-left: 6px; text-transform: none; letter-spacing: 0; }
+
+/* =====================================================================
+   SECTION BODY FLEX (for quests etc.)
+   ===================================================================== */
+.v2-section-body-flex {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 1000px;
+  overflow: hidden;
+  transition: max-height .4s ease, opacity .3s ease;
+  opacity: 1;
+}
+.v2-section-body-flex.collapsed { max-height: 0; opacity: 0; overflow: hidden; margin: 0; }
+
+/* =====================================================================
+   FILTER SECTION
+   ===================================================================== */
+.v2-filter-section {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 1000px;
+  overflow: hidden;
+  transition: max-height .4s ease, opacity .3s ease;
+  opacity: 1;
+}
+.v2-filter-section.collapsed { max-height: 0; opacity: 0; margin: 0; }
+.v2-filter-group-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--v2-radius);
+  font-size: .65rem;
+  color: var(--v2-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  min-height: 44px;
+}
+.v2-filter-group-btn .v2-section-toggle { font-size: .5rem; }
+.v2-filter-options {
+  margin-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 1000px;
+  overflow: hidden;
+  transition: max-height .4s ease, opacity .3s ease;
+  opacity: 1;
+}
+.v2-filter-options.collapsed { max-height: 0; opacity: 0; }
+.v2-filter-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .65rem;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: var(--v2-radius);
+  min-height: 44px;
+}
+.v2-filter-check input[type="checkbox"] { accent-color: var(--v2-accent); width: 13px; height: 13px; }
+.v2-filter-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.v2-filter-check-standalone {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .65rem;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  padding: 3px 8px;
+  margin-top: 4px;
+  min-height: 44px;
+}
+.v2-filter-check-standalone input[type="checkbox"] { accent-color: var(--v2-accent); width: 13px; height: 13px; }
+
+/* Subtask default toggle (radio-style buttons) */
+.v2-subtask-default-label {
+  font-size: .55rem;
+  color: var(--v2-text-muted);
+  padding: 6px 8px 2px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.v2-subtask-default-row {
+  display: flex;
+  gap: 4px;
+  padding: 2px 8px 4px;
+}
+.v2-subtask-default-btn {
+  flex: 1;
+  padding: 5px 4px;
+  font-size: .55rem;
+  font-family: var(--v2-font);
+  border: 1px dashed var(--v2-border);
+  border-radius: 4px;
+  color: var(--v2-text-secondary);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color .15s, color .15s, background .15s;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+}
+.v2-subtask-default-btn.active {
+  border-color: var(--v2-accent);
+  color: var(--v2-accent);
+  background: var(--v2-accent-glow);
+  border-style: solid;
+}
+.v2-subtask-default-btn:hover:not(.active) {
+  border-color: var(--v2-border-bright, var(--v2-border));
+}
+
+.v2-filter-reset {
+  font-size: .55rem;
+  color: var(--v2-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  text-align: left;
+  min-height: 44px;
+}
+.v2-active-badge {
+  font-size: .45rem;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--v2-accent-glow);
+  color: var(--v2-accent);
+  font-weight: 600;
+  margin-left: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.v2-quest-empty { font-size: .6rem; color: var(--v2-text-muted); font-style: italic; padding: 4px 0; }
+.v2-achievement-count { font-size: .55rem; color: var(--v2-accent); margin-left: 6px; text-transform: none; letter-spacing: 0; }
+
+/* Shop Level Gate */
+.v2-locked-badge { font-size: .55rem; margin-left: 4px; opacity: 0.6; }
+.v2-shop-locked {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	padding: 20px 12px;
+	text-align: center;
+	font-family: var(--v2-font, monospace);
+}
+.v2-shop-locked-icon { font-size: 1.4rem; opacity: 0.5; }
+.v2-shop-locked-text {
+	font-size: .65rem;
+	color: var(--v2-text-muted);
+	font-weight: 600;
+	letter-spacing: 1px;
+}
+.v2-shop-locked-hint {
+	font-size: .55rem;
+	color: var(--v2-text-muted);
+	opacity: 0.7;
+}
+.v2-shop-locked-progress {
+	font-size: .55rem;
+	color: var(--v2-accent);
+	font-weight: 600;
+}
+
+/* =====================================================================
+   NAV SECTION (Lists, v6 style)
+   ===================================================================== */
+.v2-nav-section { flex: 1; overflow-y: auto; }
+.v2-nav-list { display: flex; flex-direction: column; gap: 2px; }
+.v2-nav-item-icon { font-size: .9rem; flex-shrink: 0; }
+.v2-nav-item-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.v2-nav-item-count {
+  margin-left: auto;
+  font-size: .6rem;
+  color: var(--v2-text-muted);
+  background: var(--v2-bg);
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.v2-nav-add-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  font-size: .75rem;
+  color: var(--v2-accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  font-family: var(--v2-font);
+  transition: color .2s ease;
+}
+.v2-nav-add-list:hover { color: var(--v2-text); }
+.v2-nav-sub-header {
+  font-size: .6rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--v2-text-muted);
+  padding: 6px 8px;
+  margin-top: 10px;
+}
+.v2-nav-empty { font-size: .65rem; color: var(--v2-text-muted); font-style: italic; padding: 4px 0; }
+
+/* =====================================================================
+   SIDEBAR FOOTER — v6 style (Gamification toggle + Theme + Presets)
+   ===================================================================== */
+.v2-sidebar-footer {
+  border-top: 1px dashed var(--v2-border);
+  border-bottom: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px;
+}
+
+/* Gamification Toggle (v6 style: toggle switch) */
+.v2-gamification-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--v2-radius);
+  border: 1px dashed var(--v2-border);
+  background: transparent;
+  font-size: .72rem;
+  color: var(--v2-text-muted);
+  width: 100%;
+  cursor: pointer;
+  transition: all .2s ease;
+  font-family: var(--v2-font);
+}
+.v2-gamification-toggle:hover { border-color: var(--v2-accent); color: var(--v2-accent); }
+
+/* Toggle Switch (v6 style) */
+.v2-toggle-switch {
+  width: 28px;
+  height: 14px;
+  border-radius: 7px;
+  background: var(--v2-border);
+  position: relative;
+  margin-left: auto;
+  transition: background .3s ease;
+  flex-shrink: 0;
+}
+.v2-toggle-switch.on { background: var(--v2-green); }
+.v2-toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--v2-text);
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+}
+.v2-toggle-switch.on::after { transform: translateX(14px); }
+
+/* Dark/Light Toggle */
+.v2-dark-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--v2-radius);
+  border: 1px dashed var(--v2-border);
+  background: transparent;
+  color: var(--v2-text-muted);
+  font-size: .72rem;
+  cursor: pointer;
+  font-family: var(--v2-font);
+  transition: all .2s ease;
+}
+.v2-dark-toggle:hover { border-color: var(--v2-accent); color: var(--v2-accent); }
+
+/* Theme Preset Row (v6 style: single row) */
+.v2-preset-row { display: flex; gap: 4px; }
+.v2-preset-btn {
+  flex: 1;
+  padding: 4px 2px;
+  font-size: .5rem;
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  color: var(--v2-text-muted);
+  text-align: center;
+  transition: all .2s ease;
+  cursor: pointer;
+  background: transparent;
+  font-family: var(--v2-font);
+}
+.v2-preset-btn.active { border-color: var(--v2-accent); color: var(--v2-accent); background: var(--v2-accent-glow); }
+.v2-preset-btn:hover:not(.active) { border-color: var(--v2-border-bright, var(--v2-border)); }
+.v2-preset-btn .v2-preset-icon { font-family: var(--v2-font); }
+
+/* =====================================================================
+   NAV ITEMS (List Navigation, v6 style)
+   ===================================================================== */
+.v2-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--v2-radius);
+  cursor: pointer;
+  font-size: .75rem;
+  color: var(--v2-text-secondary);
+  transition: all var(--v2-transition);
+  border: 1px solid transparent;
+  background: transparent;
+  width: 100%;
+  font-family: var(--v2-font);
+  text-align: left;
+}
+.v2-nav-item:hover { background: var(--v2-hover); color: var(--v2-text); }
+.v2-nav-item.active {
+  background: var(--v2-accent-glow);
+  border-color: var(--v2-accent-dim);
+  color: var(--v2-accent);
+}
+
+/* =====================================================================
+   GLASS CARD (shared base for task cards, quest cards, etc.)
+   ===================================================================== */
+.v2-glass-card {
+  background: var(--v2-glass);
+  border: 1px solid var(--v2-glass-border);
+  border-radius: var(--v2-radius);
+  padding: 12px 14px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all var(--v2-transition);
+}
+.v2-glass-card:hover {
+  border-color: var(--v2-border-bright);
+  background: var(--v2-hover);
+}
+.v2-task-card:hover {
+  border-color: var(--v2-accent-dim);
+  box-shadow: 0 0 16px var(--v2-accent-glow);
+  transform: translateY(-1px);
+}
+.v2-task-card.completing {
+  animation: v2-task-glitch .4s ease;
+}
+
+/* =====================================================================
+   LIST PANEL (v6 aligned)
+   ===================================================================== */
+.v2-list-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+}
+.v2-list-icon { font-size: 1.1rem; }
+.v2-list-title { font-size: .85rem; font-weight: 700; color: var(--v2-text); flex: 1; }
+.v2-list-count { font-size: .55rem; color: var(--v2-text-muted); }
+.v2-list-menu-btn {
+  background: none; border: 1px dashed var(--v2-border); border-radius: var(--v2-radius);
+  color: var(--v2-text-muted); font-size: .6rem; padding: 3px 8px; cursor: pointer;
+  transition: all var(--v2-transition);
+}
+.v2-list-menu-btn:hover { border-color: var(--v2-accent); color: var(--v2-accent); }
+
+.v2-task-list { display: flex; flex-direction: column; gap: 10px; }
+
+.v2-task-divider {
+  display: flex; align-items: center; gap: 12px; padding: 8px 0; cursor: pointer;
+}
+.v2-task-divider-line { flex: 1; border-top: 1px dashed var(--v2-border-bright); }
+.v2-task-divider-label {
+  font-size: .55rem; text-transform: uppercase; letter-spacing: 2px;
+  color: var(--v2-text-muted); font-weight: 600; white-space: nowrap;
+}
+
+.v2-subtasks {
+  margin-top: 6px; padding-left: 4px;
+  border-left: 1px dashed var(--v2-border);
+  display: flex; flex-direction: column; gap: 3px;
+  overflow: hidden;
+  transition: max-height .3s ease, opacity .3s ease;
+}
+.v2-subtasks.collapsed { max-height: 0; opacity: 0; margin: 0; padding: 0; }
+.v2-subtask {
+  display: flex; align-items: center; gap: 6px; padding: 2px 6px;
+  font-size: .7rem; border-radius: 3px; transition: background var(--v2-transition);
+}
+.v2-subtask:hover { background: var(--v2-hover); }
+.v2-subtask.done .v2-subtask-text { text-decoration: line-through; color: var(--v2-text-muted); }
+.v2-subtask-text { flex: 1; min-width: 0; word-break: break-word; color: var(--v2-text); }
+
+.v2-done-section {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.v2-done-section .v2-task-card { opacity: .45; }
+.v2-done-section .v2-task-card:hover { opacity: .65; }
+
+/* =====================================================================
+   TASK CARD
+   ===================================================================== */
+.v2-task-card {
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+}
+.v2-task-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--v2-border);
+}
+.v2-task-card[data-priority="low"]::before { background: var(--v2-green); }
+.v2-task-card[data-priority="normal"]::before { background: var(--v2-yellow); }
+.v2-task-card[data-priority="high"]::before { background: var(--v2-red); }
+.v2-task-card[data-priority="asap"]::before { background: var(--v2-red); }
+.v2-task-card.done { opacity: .5; }
+.v2-task-card.done .v2-task-text { text-decoration: line-through; color: var(--v2-text-muted); }
+.v2-task-card.dragging { opacity: .4; transform: scale(.97); }
+.v2-task-card[draggable="true"] { cursor: grab; }
+.v2-task-card[draggable="true"]:active { cursor: grabbing; }
+
+/* Priority bar via ::before (see TASK CARD section above) */
+.v2-task-card[data-priority="asap"] { animation: v2-asap-pulse 2s ease-in-out infinite; }
+
+/* Checkbox */
+.v2-checkbox {
+  width: 18px; height: 18px;
+  border: 2px solid var(--v2-border-bright);
+  border-radius: 3px;
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .2s ease;
+  flex-shrink: 0;
+  background: transparent;
+  color: transparent;
+  font-size: .6rem;
+  font-weight: 700;
+}
+.v2-checkbox:hover { border-color: var(--v2-green); box-shadow: 0 0 8px rgba(158,206,106,.3); }
+.v2-checkbox.checked {
+  background: var(--v2-green);
+  border-color: var(--v2-green);
+  color: white;
+}
+.v2-checkbox.invite { animation: v2-checkbox-invite 1.5s ease-in-out infinite; }
+
+/* Task text */
+.v2-task-text {
+  flex: 1;
+  font-size: .78rem;
+  line-height: 1.4;
+  color: var(--v2-text);
+  min-width: 0;
+  word-break: break-word;
+}
+.v2-task-text.done {
+  text-decoration: line-through;
+  color: var(--v2-text-muted);
+}
+
+/* Task inline edit */
+.v2-task-input {
+  flex: 1;
+  background: var(--v2-bg);
+  border: 1px dashed var(--v2-accent);
+  border-radius: var(--v2-radius);
+  padding: 4px 8px;
+  font-size: .78rem;
+  color: var(--v2-text);
+  outline: none;
+  font-family: var(--v2-font);
+}
+
+/* Task emoji (before checkbox, like v6) */
+.v2-task-emoji { font-size: .9rem; flex-shrink: 0; margin-top: 1px; }
+
+/* Task body wrapper */
+.v2-task-body { flex: 1; min-width: 0; }
+
+/* Task meta row */
+.v2-task-meta {
+  display: flex; align-items: center; gap: 5px; margin-top: 5px; flex-wrap: wrap;
+}
+.v2-task-note-badge { font-size: .6rem; color: var(--v2-cyan); margin-left: 4px; }
+.v2-subtask-toggle { font-size: .65rem; color: var(--v2-text-muted); cursor: pointer; padding: 1px 4px; border-radius: 3px; transition: all var(--v2-transition); }
+.v2-subtask-toggle:hover { color: var(--v2-accent); background: var(--v2-accent-glow); }
+.v2-tag { font-size: .55rem; padding: 1px 6px; border-radius: 6px; letter-spacing: .5px; text-transform: uppercase; font-weight: 600; }
+.v2-tag-low { background: rgba(158,206,106,.15); color: var(--v2-green); }
+.v2-tag-normal { background: rgba(224,175,104,.15); color: var(--v2-yellow); }
+.v2-tag-high { background: rgba(247,118,142,.15); color: var(--v2-red); }
+.v2-tag-asap { background: rgba(247,118,142,.3); color: var(--v2-red); animation: v2-asap-pulse 2s infinite; }
+.v2-tag-timeframe { background: rgba(122,162,247,.12); color: var(--v2-accent); }
+.v2-tag-due { background: rgba(122,162,247,.1); color: var(--v2-cyan); font-size: .5rem; display: flex; align-items: center; gap: 3px; text-transform: none; }
+
+/* Progress bar on task (matches v6 .task-progress-bar) */
+.v2-task-progress-bar {
+  height: 5px;
+  background: var(--v2-bg, var(--v2-border));
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 6px;
+  position: relative;
+  border: 1px solid var(--v2-border);
+}
+.v2-task-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .4s var(--v2-spring);
+  position: relative;
+}
+.v2-task-progress-fill.blue { background: var(--v2-accent); }
+.v2-task-progress-fill.yellow { background: var(--v2-yellow); }
+.v2-task-progress-fill.green { background: var(--v2-green); }
+.v2-task-progress-fill.green.full::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent 30%, rgba(255,255,255,.4) 50%, transparent 70%);
+  animation: v2-progress-shimmer 1.5s ease infinite;
+}
+
+/* Highlighted task */
+.v2-highlighted { animation: v2-highlight-pulse 2s ease-in-out infinite; }
+
+/* Subtask input */
+.v2-subtask-input { font-size: .72rem; padding: 2px 6px; }
+
+/* Mini checkbox for subtasks (matches v6 .mini-check) */
+.v2-mini-check {
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid var(--v2-border-bright);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--v2-transition);
+  background: transparent;
+  padding: 0;
+}
+.v2-mini-check.checked { background: var(--v2-green); border-color: var(--v2-green); }
+.v2-mini-check.checked::after { content: '\2713'; font-size: .45rem; color: var(--v2-bg, #1a1b26); font-weight: 700; }
+
+/* 3-dot menu on task card */
+.v2-task-menu-btn {
+  position: absolute; top: 6px; right: 6px;
+  padding: 2px 6px; font-size: .9rem; color: var(--v2-text-muted);
+  border-radius: 3px; opacity: 0; transition: opacity .2s ease; z-index: 5;
+  line-height: 1; background: none; border: none;
+}
+.v2-task-menu-btn:hover { background: var(--v2-hover); color: var(--v2-text); }
+.v2-task-card:hover .v2-task-menu-btn { opacity: 1; }
+@media (max-width: 768px) { .v2-task-menu-btn { opacity: 1; } }
+
+/* Task meta badges */
+.v2-badge {
+  font-size: .5rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+
+/* Subtask counter */
+.v2-subtask-counter {
+  font-size: .6rem;
+  color: var(--v2-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Progress bar (inline) */
+.v2-progress {
+  width: 100%;
+  height: 5px;
+  background: var(--v2-bg, var(--v2-border));
+  border: 1px solid var(--v2-border);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.v2-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .4s var(--v2-spring);
+}
+.v2-progress-fill[data-level="1"] { background: var(--v2-accent); }
+.v2-progress-fill[data-level="2"] { background: var(--v2-yellow); }
+.v2-progress-fill[data-level="3"] { background: var(--v2-green); }
+.v2-progress-fill.shimmer { animation: v2-progress-shimmer 2s linear infinite; }
+.v2-progress-text { font-size: .45rem; color: var(--v2-text-muted); text-align: right; margin-top: 2px; }
+
+/* =====================================================================
+   QUICK ADD (v6 style: prompt prefix + add button)
+   ===================================================================== */
+.v2-add-task-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.v2-add-task-row input {
+  flex: 1;
+  background: var(--v2-bg);
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  padding: 8px 12px;
+  color: var(--v2-text);
+  font-size: .78rem;
+  outline: none;
+  transition: border-color var(--v2-transition);
+  font-family: var(--v2-font);
+}
+.v2-add-task-row input:focus { border-color: var(--v2-accent); }
+.v2-add-task-row input::placeholder { color: var(--v2-text-muted); }
+.v2-add-task-btn {
+  padding: 8px 14px;
+  background: var(--v2-accent-glow);
+  border: 1px dashed var(--v2-accent-dim);
+  border-radius: var(--v2-radius);
+  color: var(--v2-accent);
+  font-size: .75rem;
+  font-weight: 600;
+  transition: all var(--v2-transition);
+  cursor: pointer;
+  font-family: var(--v2-font);
+  white-space: nowrap;
+}
+.v2-add-task-btn:hover { background: var(--v2-accent-dim); color: #fff; }
+
+/* =====================================================================
+   DONE SECTION
+   ===================================================================== */
+/* Done toggle reuses v2-section-title but as a button */
+.v2-done-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  padding: 0;
+  margin-top: 18px;
+  user-select: none;
+  font-family: var(--v2-font);
+}
+.v2-done-toggle-icon {
+  font-size: .55rem;
+  color: var(--v2-text-muted);
+  transition: transform .3s ease;
+  margin-left: 4px;
+}
+.v2-done-toggle-icon.collapsed { transform: rotate(-90deg); }
+
+/* =====================================================================
+   PINBOARD
+   ===================================================================== */
+.v2-pinboard {
+  display: flex;
+  gap: 8px;
+  padding: 12px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.v2-pinboard::-webkit-scrollbar { display: none; }
+
+.v2-pin-card {
+  min-width: 224px;
+  max-width: 224px;
+  padding: 10px 12px;
+  animation: v2-pin-in .4s var(--v2-bounce);
+}
+.v2-pin-card .emoji { font-size: 1rem; margin-bottom: 4px; }
+.v2-pin-card .text {
+  font-size: .68rem;
+  color: var(--v2-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* =====================================================================
+   CONTEXT MENU
+   ===================================================================== */
+.v2-context-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--v2-surface);
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  padding: 4px 0;
+  min-width: 180px;
+  max-width: 240px;
+  max-height: 80vh;
+  overflow: visible;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  animation: v2-menu-in .15s ease;
+}
+.v2-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  font-size: .65rem;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  transition: all .15s ease;
+  background: none;
+  border: none;
+  font-family: var(--v2-font);
+}
+.v2-context-menu-item:hover {
+  background: var(--v2-accent-glow);
+  color: var(--v2-accent);
+}
+.v2-context-menu-item.danger {
+  color: var(--v2-red);
+}
+.v2-context-menu-item.danger:hover {
+  background: rgba(247,118,142,.15);
+  color: var(--v2-red);
+}
+.v2-context-menu-divider {
+  height: 1px;
+  background: var(--v2-border);
+  margin: 4px 0;
+}
+.v2-ctx-icon {
+  font-size: .75rem;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.v2-ctx-arrow {
+  font-size: .5rem;
+  color: var(--v2-text-muted);
+  margin-left: auto;
+}
+.v2-ctx-submenu-wrap {
+  position: relative;
+}
+.v2-context-submenu {
+  position: absolute;
+  left: 100%;
+  top: -1px;
+  z-index: 10001;
+  background: var(--v2-surface);
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  padding: 4px 0;
+  min-width: 160px;
+  max-width: 220px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  animation: v2-menu-in .1s ease;
+}
+.v2-context-submenu .v2-context-menu-item {
+  padding: 6px 12px;
+}
+.v2-ctx-submenu-active {
+  font-weight: 700;
+  color: var(--v2-accent);
+}
+.v2-ctx-asap-blink {
+  animation: v2-asap-blink 1s infinite;
+}
+@keyframes v2-asap-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .4; }
+}
+
+/* =====================================================================
+   FOCUS OVERLAY
+   ===================================================================== */
+.v2-focus-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: v2-overlay-in .25s ease;
+}
+.v2-focus-card {
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 24px;
+  animation: v2-dialog-in .35s var(--v2-bounce);
+}
+
+/* =====================================================================
+   SEARCH OVERLAY
+   ===================================================================== */
+.v2-search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+  background: rgba(0,0,0,.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.v2-search-box {
+  width: 90%;
+  max-width: 480px;
+  background: var(--v2-surface);
+  border: 1px dashed var(--v2-accent);
+  border-radius: var(--v2-radius-lg);
+  padding: 16px;
+  animation: v2-dialog-in .25s var(--v2-bounce);
+}
+.v2-search-input {
+  width: 100%;
+  background: var(--v2-bg);
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  padding: 10px 14px;
+  font-size: .8rem;
+  color: var(--v2-text);
+  outline: none;
+  font-family: var(--v2-font);
+}
+.v2-search-input:focus { border-color: var(--v2-accent); }
+.v2-search-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--v2-radius);
+  cursor: pointer;
+  font-size: .72rem;
+  color: var(--v2-text-secondary);
+  transition: all .15s ease;
+}
+.v2-search-result:hover {
+  background: var(--v2-accent-glow);
+  color: var(--v2-accent);
+}
+
+/* =====================================================================
+   BULK TOOLBAR
+   ===================================================================== */
+.v2-bulk-toolbar {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  background: var(--v2-surface);
+  border: 1px dashed var(--v2-accent);
+  border-radius: var(--v2-radius-lg);
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  animation: v2-slide-up .3s var(--v2-bounce);
+}
+.v2-bulk-btn {
+  padding: 6px 12px;
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  font-size: .65rem;
+  color: var(--v2-text-secondary);
+  background: transparent;
+  transition: all var(--v2-transition);
+}
+.v2-bulk-btn:hover {
+  border-color: var(--v2-accent);
+  color: var(--v2-accent);
+  background: var(--v2-accent-glow);
+}
+
+/* Bulk Checkbox (inside TaskCard when bulk mode is active) */
+.v2-bulk-checkbox {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  border: 2px dashed var(--v2-accent);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--v2-accent);
+  font-size: .7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--v2-transition);
+  padding: 0;
+  margin-right: 4px;
+}
+.v2-bulk-checkbox.checked {
+  background: var(--v2-accent);
+  color: var(--v2-bg);
+  border-style: solid;
+}
+.v2-bulk-checkbox:hover {
+  border-color: var(--v2-accent);
+  background: var(--v2-accent-glow);
+}
+.v2-task-card.v2-bulk-selected {
+  border-color: var(--v2-accent);
+  box-shadow: 0 0 8px var(--v2-accent-glow);
+}
+
+/* =====================================================================
+   TOAST
+   ===================================================================== */
+.v2-toast {
+  background: var(--v2-surface);
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  padding: 10px 14px;
+  font-size: .72rem;
+  color: var(--v2-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: v2-slide-up .3s var(--v2-bounce);
+}
+
+/* =====================================================================
+   SHARE DIALOG
+   ===================================================================== */
+.v2-share-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* =====================================================================
+   ANIMATIONS
+   ===================================================================== */
+
+/* Task enter */
+@keyframes v2-task-in {
+  0% { opacity: 0; transform: translateY(-12px) scale(.96); }
+  50% { opacity: 1; transform: translateY(3px) scale(1.01); }
+  100% { opacity: 1; transform: none; }
+}
+
+/* Task exit */
+@keyframes v2-task-out {
+  0% { opacity: 1; transform: translateX(0); max-height: 80px; }
+  100% { opacity: 0; transform: translateX(80px); max-height: 0; padding: 0; margin: 0; }
+}
+
+/* Check pop */
+@keyframes v2-check-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* Task check / uncheck */
+@keyframes v2-task-check {
+  0% { opacity: 1; transform: scale(1); }
+  30% { opacity: .8; transform: scale(.97); }
+  100% { opacity: .6; transform: scale(.98); }
+}
+
+/* ASAP pulse */
+@keyframes v2-asap-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(247,118,142,0); }
+  50% { box-shadow: 0 0 12px 2px rgba(247,118,142,.3); }
+}
+
+/* Checkbox invite */
+@keyframes v2-checkbox-invite {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(158,206,106,0); }
+  50% { box-shadow: 0 0 8px 2px rgba(158,206,106,.4); border-color: var(--v2-green); }
+}
+
+/* Highlight pulse */
+@keyframes v2-highlight-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,158,100,0); }
+  50% { box-shadow: 0 0 12px 2px rgba(255,158,100,.3); }
+}
+
+/* Pin card in */
+@keyframes v2-pin-in {
+  0% { opacity: 0; transform: scale(.8) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Progress shimmer */
+@keyframes v2-progress-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Menu in */
+@keyframes v2-menu-in {
+  0% { opacity: 0; transform: scale(.95) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Dialog in (bounce) */
+@keyframes v2-dialog-in {
+  0% { opacity: 0; transform: scale(.9) translateY(12px); }
+  60% { opacity: 1; transform: scale(1.02) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Overlay fade in */
+@keyframes v2-overlay-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Slide up */
+@keyframes v2-slide-up {
+  0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Coin float */
+@keyframes v2-coin-float {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(.6); }
+}
+
+/* XP shimmer */
+@keyframes v2-xp-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+/* Task glitch (completing animation) */
+@keyframes v2-task-glitch {
+  0% { transform: translateX(0); filter: none; }
+  20% { transform: translateX(-3px); filter: hue-rotate(90deg); }
+  40% { transform: translateX(3px); filter: hue-rotate(-90deg); }
+  60% { transform: translateX(-1px); filter: none; }
+  80% { transform: translateX(1px); opacity: .7; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+/* ASCII particles float */
+@keyframes v2-ascii-float {
+  0% { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+  10% { opacity: .12; }
+  90% { opacity: .12; }
+  100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+}
+
+/* Onboarding slide in */
+@keyframes v2-onboard-slide-in {
+  0% { opacity: 0; transform: translateY(20px) scale(.95); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* =====================================================================
+   DONE SECTION (opacity for completed tasks)
+   ===================================================================== */
+.v2-done-section .v2-task-card { opacity: .45; }
+.v2-done-section .v2-task-card:hover { opacity: .65; }
+
+/* =====================================================================
+   SECTION TITLE (with dashed line extending right)
+   ===================================================================== */
+.v2-section-title {
+  font-size: .65rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--v2-text-muted);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.v2-section-title::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed var(--v2-border);
+}
+
+/* =====================================================================
+   VIEW TOGGLE (List / Kanban)
+   ===================================================================== */
+.v2-view-toggle {
+  display: flex;
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  overflow: hidden;
+}
+.v2-view-toggle button {
+  padding: 5px 10px;
+  font-size: .7rem;
+  color: var(--v2-text-muted);
+  transition: all var(--v2-transition);
+  border-right: 1px dashed var(--v2-border);
+  background: transparent;
+  font-family: var(--v2-font);
+}
+.v2-view-toggle button:last-child { border-right: none; }
+.v2-view-toggle button.active { background: var(--v2-accent-glow); color: var(--v2-accent); }
+.v2-view-toggle button:hover:not(.active) { background: var(--v2-hover); }
+
+/* =====================================================================
+   SORT BUTTON + MENU
+   ===================================================================== */
+.v2-sort-dropdown-wrapper { position: relative; }
+.v2-sort-btn {
+  padding: 5px 10px;
+  font-size: .7rem;
+  color: var(--v2-text-muted);
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  transition: all var(--v2-transition);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  font-family: var(--v2-font);
+}
+.v2-sort-btn:hover { border-color: var(--v2-accent); color: var(--v2-accent); }
+.v2-sort-btn.active-sort { color: var(--v2-accent); border-color: var(--v2-accent-dim); }
+.v2-sort-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--v2-card);
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  min-width: 160px;
+  z-index: 200;
+  display: none;
+  overflow: hidden;
+}
+.v2-sort-menu.open { display: block; }
+.v2-sort-menu-item {
+  padding: 6px 12px;
+  font-size: .65rem;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  transition: all var(--v2-transition);
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font-family: var(--v2-font);
+}
+.v2-sort-menu-item:hover { background: var(--v2-hover); color: var(--v2-text); }
+.v2-sort-menu-item.active { color: var(--v2-accent); background: var(--v2-accent-glow); }
+
+/* =====================================================================
+   BULK MODE BUTTON (Header)
+   ===================================================================== */
+.v2-bulk-mode-btn {
+  padding: 5px 10px;
+  font-size: .65rem;
+  color: var(--v2-text-muted);
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  transition: all var(--v2-transition);
+  background: transparent;
+  font-family: var(--v2-font);
+}
+.v2-bulk-mode-btn:hover { border-color: var(--v2-accent); color: var(--v2-accent); }
+.v2-bulk-mode-btn.active { background: var(--v2-accent-glow); color: var(--v2-accent); border-color: var(--v2-accent); }
+
+/* =====================================================================
+   ASCII PARTICLES
+   ===================================================================== */
+.v2-ascii-particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.v2-ascii-particle {
+  position: absolute;
+  font-size: .7rem;
+  opacity: .12;
+  color: var(--v2-accent);
+  animation: v2-ascii-float linear infinite;
+}
+
+/* =====================================================================
+   SCROLL VIEW (all lists side by side)
+   ===================================================================== */
+.v2-scroll-view {
+  display: flex;
+  gap: 12px;
+  padding: 0 16px 16px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+  scrollbar-color: var(--v2-border) transparent;
+}
+.v2-scroll-view::-webkit-scrollbar { height: 6px; }
+.v2-scroll-view::-webkit-scrollbar-track { background: transparent; }
+.v2-scroll-view::-webkit-scrollbar-thumb { background: var(--v2-border); border-radius: 3px; }
+.v2-scroll-list-col {
+  flex: 0 0 auto;
+  width: min(360px, 85vw);
+  min-width: min(300px, 80vw);
+  scroll-snap-align: start;
+}
+.v2-scroll-list-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--v2-text-secondary);
+  border-bottom: 1px solid var(--v2-border);
+  margin-bottom: 8px;
+}
+.v2-scroll-list-menu {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--v2-text-muted);
+  cursor: pointer;
+  font-size: .85rem;
+  padding: 2px 6px;
+  border-radius: var(--v2-radius);
+}
+.v2-scroll-list-menu:hover {
+  background: var(--v2-surface-hover);
+}
+
+/* =====================================================================
+   KANBAN VIEW
+   ===================================================================== */
+
+.v2-kanban-view {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 0 16px 16px;
+}
+.v2-kanban-col {
+  background: var(--v2-surface);
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius-lg);
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+}
+.v2-kanban-header {
+  padding: 10px 12px;
+  border-bottom: 1px dashed var(--v2-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .75rem;
+  font-weight: 600;
+}
+.v2-kanban-header .dot { width: 8px; height: 8px; border-radius: 50%; }
+.v2-kanban-header .v2-kanban-count { margin-left: auto; font-size: .65rem; color: var(--v2-text-muted); }
+.v2-kanban-body {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+/* =====================================================================
+   ONBOARDING
+   ===================================================================== */
+.v2-onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 15000;
+  background: var(--v2-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity .6s ease;
+  padding: 20px;
+}
+.v2-onboarding-overlay.hidden { opacity: 0; pointer-events: none; }
+.v2-onboarding-card {
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  animation: v2-onboard-slide-in .5s var(--v2-bounce);
+}
+.v2-onboarding-fox-large {
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 24px;
+  position: relative;
+}
+.v2-onboarding-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--v2-orange);
+  margin-bottom: 8px;
+}
+.v2-onboarding-typewriter {
+  font-size: .78rem;
+  color: var(--v2-green);
+  min-height: 3em;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  font-style: italic;
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--v2-surface);
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+}
+.v2-onboarding-typewriter .cursor { animation: v2-blink 1s step-end infinite; }
+.v2-onboarding-steps {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.v2-onboarding-step-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--v2-border);
+  transition: all .3s ease;
+}
+.v2-onboarding-step-dot.active { background: var(--v2-accent); transform: scale(1.3); }
+.v2-onboarding-step-dot.done { background: var(--v2-green); }
+.v2-onboarding-input {
+  width: 100%;
+  background: var(--v2-bg);
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  padding: 10px 14px;
+  color: var(--v2-text);
+  font-size: .8rem;
+  outline: none;
+  font-family: var(--v2-font);
+  margin-bottom: 12px;
+  transition: border-color var(--v2-transition);
+}
+.v2-onboarding-input:focus { border-color: var(--v2-accent); }
+.v2-onboarding-input::placeholder { color: var(--v2-text-muted); }
+.v2-onboarding-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.v2-onboarding-btn {
+  padding: 10px 24px;
+  border-radius: var(--v2-radius);
+  font-size: .78rem;
+  font-weight: 600;
+  font-family: var(--v2-font);
+  transition: all var(--v2-transition);
+}
+.v2-onboarding-btn.primary {
+  background: var(--v2-accent-glow);
+  border: 1px dashed var(--v2-accent-dim);
+  color: var(--v2-accent);
+}
+.v2-onboarding-btn.primary:hover { background: var(--v2-accent-dim); color: #fff; }
+.v2-onboarding-btn.secondary {
+  border: 1px dashed var(--v2-border);
+  color: var(--v2-text-muted);
+  background: transparent;
+}
+.v2-onboarding-btn.secondary:hover { border-color: var(--v2-text-secondary); color: var(--v2-text-secondary); }
+.v2-onboarding-demo-task {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  background: var(--v2-glass);
+  border: 1px solid var(--v2-glass-border);
+  border-radius: var(--v2-radius);
+  text-align: left;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+.v2-onboarding-demo-task:hover { border-color: var(--v2-accent-dim); }
+.v2-onboarding-demo-task .checkbox { width: 20px; height: 20px; }
+.v2-onboarding-demo-task.completed .checkbox { background: var(--v2-green); border-color: var(--v2-green); }
+.v2-onboarding-demo-task.completed .checkbox::after { content: '\2713'; }
+.v2-onboarding-demo-task.completed .task-text { text-decoration: line-through; color: var(--v2-text-muted); }
+.v2-onboarding-gamification-reveal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 16px 0;
+}
+.v2-onboarding-reveal-card {
+  padding: 12px;
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  background: var(--v2-surface);
+  width: 120px;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all .4s var(--v2-bounce);
+}
+.v2-onboarding-reveal-card.show { opacity: 1; transform: translateY(0); }
+.v2-onboarding-reveal-card .icon { font-size: 1.4rem; margin-bottom: 4px; }
+.v2-onboarding-reveal-card .label { font-size: .6rem; color: var(--v2-text-muted); }
+
+/* =====================================================================
+   LEADERBOARD
+   ===================================================================== */
+.v2-leaderboard-section {
+  padding: 10px 16px;
+  border-top: 1px dashed var(--v2-border);
+}
+.v2-lb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: .68rem;
+  border-bottom: 1px dashed var(--v2-border);
+}
+.v2-lb-row:last-child { border-bottom: none; }
+.v2-lb-row.me {
+  background: var(--v2-accent-glow);
+  margin: 0 -4px;
+  padding: 5px 4px;
+  border-radius: var(--v2-radius);
+}
+.v2-lb-rank {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .55rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.v2-lb-rank.gold { background: rgba(224,175,104,.2); color: var(--v2-yellow); border: 1px solid var(--v2-yellow); }
+.v2-lb-rank.silver { background: rgba(192,202,245,.1); color: var(--v2-text-secondary); border: 1px solid var(--v2-border-bright); }
+.v2-lb-rank.bronze { background: rgba(255,158,100,.15); color: var(--v2-orange); border: 1px solid var(--v2-orange); }
+.v2-lb-avatar { font-size: .9rem; flex-shrink: 0; }
+.v2-lb-info { flex: 1; min-width: 0; }
+.v2-lb-name { font-weight: 600; font-size: .68rem; }
+.v2-lb-level { font-size: .5rem; color: var(--v2-purple); }
+.v2-lb-stats { text-align: right; font-size: .55rem; }
+.v2-lb-coins { font-weight: 700; color: var(--v2-coin); }
+.v2-lb-streak { color: var(--v2-streak); }
+
+/* =====================================================================
+   SHOP
+   ===================================================================== */
+.v2-shop-section {
+  padding: 10px 16px;
+  border-top: 1px dashed var(--v2-border);
+}
+.v2-shop-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.v2-shop-tab {
+  padding: 3px 8px;
+  font-size: .5rem;
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  color: var(--v2-text-muted);
+  background: transparent;
+  font-family: var(--v2-font);
+  transition: all var(--v2-transition);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.v2-shop-tab.active { border-color: var(--v2-accent); color: var(--v2-accent); background: var(--v2-accent-glow); }
+.v2-shop-tab:hover:not(.active) { border-color: var(--v2-border-bright); }
+.v2-shop-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px dashed var(--v2-border);
+  border-radius: var(--v2-radius);
+  margin-bottom: 4px;
+  font-size: .65rem;
+  cursor: pointer;
+  transition: all var(--v2-transition);
+  position: relative;
+}
+.v2-shop-item:last-child { margin-bottom: 0; }
+.v2-shop-item:hover { border-color: var(--v2-accent-dim); background: var(--v2-hover); }
+.v2-shop-item.owned { border-color: var(--v2-green); }
+.v2-shop-item.owned::after {
+  content: 'OWNED';
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: .4rem;
+  color: var(--v2-green);
+  font-weight: 700;
+  background: rgba(158,206,106,.15);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.v2-shop-item.affordable { border-color: var(--v2-coin); }
+.v2-shop-item.too-expensive { opacity: .5; }
+.v2-shop-item .v2-shop-icon { font-size: 1.1rem; }
+.v2-shop-item .v2-shop-info { flex: 1; }
+.v2-shop-item .v2-shop-name { font-weight: 600; font-size: .65rem; }
+.v2-shop-item .v2-shop-desc { font-size: .5rem; color: var(--v2-text-muted); }
+.v2-shop-price { color: var(--v2-coin); font-weight: 700; font-size: .6rem; white-space: nowrap; }
+.v2-shop-buy-btn {
+  padding: 3px 8px;
+  border: 1px dashed var(--v2-accent-dim);
+  border-radius: 3px;
+  font-size: .5rem;
+  color: var(--v2-accent);
+  background: transparent;
+  font-family: var(--v2-font);
+  transition: all var(--v2-transition);
+}
+.v2-shop-buy-btn:hover { background: var(--v2-accent-dim); color: #fff; }
+
+/* =====================================================================
+   MOBILE BOTTOM TABS (Tasks / Quests / Profil)
+   ===================================================================== */
+.v2-mobile-tabs {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--v2-surface);
+  border-top: 1px dashed var(--v2-border);
+  z-index: 200;
+  padding: 3px 6px env(safe-area-inset-bottom, 0);
+}
+.v2-mobile-tabs-inner {
+  display: flex;
+  justify-content: space-around;
+}
+.v2-mobile-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 8px;
+  font-size: .5rem;
+  color: var(--v2-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--v2-radius);
+  transition: all var(--v2-transition);
+  flex: 1;
+  font-family: var(--v2-font);
+}
+.v2-mobile-tab.active { color: var(--v2-accent); }
+.v2-mobile-tab .tab-icon { font-size: .9rem; }
+
+/* =====================================================================
+   ACCESSIBILITY
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .v2-root,
+  .v2-root * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =====================================================================
+   MOBILE
+   ===================================================================== */
+@media (max-width: 768px) {
+  .v2-root {
+    --v2-sidebar-w: 280px;
+  }
+  .v2-sidebar {
+    transform: translateX(-100%);
+    z-index: 200;
+  }
+  .v2-sidebar.open { transform: translateX(0); }
+  .v2-main { margin-left: 0 !important; width: 100vw; max-width: 100vw; }
+
+  .v2-content { padding: 14px; }
+
+  .v2-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 150;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s ease;
+  }
+  .v2-sidebar-overlay.active { opacity: 1; pointer-events: auto; }
+
+  /* Hide ASCII particles on mobile */
+  .v2-ascii-particles { display: none; }
+
+  /* Show mobile bottom tabs */
+  .v2-mobile-tabs { display: block; }
+
+  /* Kanban single column on mobile */
+  .v2-kanban-view { grid-template-columns: 1fr; }
+
+  /* Header: constrain to viewport width, wrap actions */
+  .v2-header {
+    padding: 8px 12px;
+    gap: 6px 10px;
+    max-width: 100vw;
+    box-sizing: border-box;
+  }
+  .v2-header-logo { display: none; }
+  .v2-header-game-stats { display: none; }
+  .v2-header-actions {
+    flex-wrap: wrap;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* View toggle smaller on mobile */
+  .v2-view-toggle button { padding: 4px 7px; font-size: .65rem; }
+  .v2-sort-btn { font-size: .6rem; padding: 4px 7px; }
+  .v2-sort-btn span { display: none; }
+  .v2-bulk-mode-btn { font-size: .6rem; padding: 4px 7px; }
+
+  /* Bottom padding for mobile tabs */
+  .v2-main { padding-bottom: 56px; }
+}
+
+/* =====================================================================
+   LIST TABS (always visible, v6 style)
+   ===================================================================== */
+.v2-list-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px dashed var(--v2-border);
+  background: var(--v2-surface);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 0 20px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  /* Ensure tabs are always above the Pinboard when sticky */
+  isolation: isolate;
+}
+.v2-list-tabs::-webkit-scrollbar { display: none; }
+.v2-list-tab {
+  padding: 8px 16px;
+  font-size: .72rem;
+  color: var(--v2-text-muted);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all var(--v2-transition);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  position: relative;
+  background: transparent;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+.v2-list-tab:hover { color: var(--v2-text); background: var(--v2-hover); }
+.v2-list-tab.active {
+  color: var(--v2-accent);
+  border-bottom-color: var(--v2-accent);
+  background: var(--v2-accent-glow);
+}
+.v2-tab-icon { font-size: .85rem; }
+
+/* List tab D&D indicators */
+.v2-list-tab.tab-drag-over-left {
+  box-shadow: inset 3px 0 0 0 var(--v2-accent, #f7a072);
+}
+.v2-list-tab.tab-drag-over-right {
+  box-shadow: inset -3px 0 0 0 var(--v2-accent, #f7a072);
+}
+
+/* Single list container (v6: one list at a time) */
+.v2-single-list-container {
+  max-width: none;
+  margin: 0 auto;
+  width: 100%;
+}
+.v2-single-list-container .v2-list-panel {
+  max-width: none;
+  min-width: 0;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .v2-list-tabs { padding: 0 12px; }
+  .v2-list-tab { padding: 6px 12px; font-size: .65rem; }
+
+  /* Content bottom padding for statusbar + iOS safe area */
+  .v2-content {
+    padding-bottom: calc(12px + 28px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* =====================================================================
+   TOUCH DRAG & DROP
+   ===================================================================== */
+.v2-task-drop-wrapper.touch-dragging-source {
+  opacity: .3;
+  transform: scale(.96);
+  transition: opacity .2s, transform .2s;
+}
+
+/* =====================================================================
+   TOUCH TARGETS — Minimum 44x44px
+   ===================================================================== */
+.v2-root .v2-task-card > .v2-checkbox {
+  /* Visual size stays 18x18 (matches PoC v6).
+     Touch target 44x44 via invisible ::before pseudo-element. */
+  position: relative;
+}
+.v2-root .v2-task-card > .v2-checkbox::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.v2-root .v2-list-tab {
+  min-height: 44px;
+}
+
+/* Context menu items intentionally exempt from 44px touch target —
+   compact sizing prevents overflow/scrolling on smaller viewports */
+
+.v2-root .v2-search-result {
+  min-height: 44px;
+}
+
+/* =====================================================================
+   PERFORMANCE — backdrop-filter fallback
+   ===================================================================== */
+@supports not (backdrop-filter: blur(1px)) {
+  .v2-glass-card {
+    background: var(--v2-surface);
+    border-color: var(--v2-border);
+  }
+  .v2-focus-overlay {
+    background: rgba(0,0,0,.85);
+  }
+  .v2-search-overlay {
+    background: rgba(0,0,0,.8);
+  }
+  .levelup-overlay {
+    background: rgba(0,0,0,.9);
+  }
+}
+
+/* will-change only on active animated elements */
+.v2-task-card[data-priority="asap"] {
+  will-change: box-shadow;
+}
+.v2-checkbox.invite {
+  will-change: box-shadow;
+}
+.stat-xp-fill.shimmer::after {
+  will-change: transform;
+}
+.v2-progress-fill.shimmer {
+  will-change: background-position;
+}
+.fox-tail {
+  will-change: transform;
+}
+
+/* =====================================================================
+   GAMIFICATION VISIBILITY MODES
+   ===================================================================== */
+/* Minimal: hide quests, shop, achievements, team, weekly */
+.v2-root[data-gamification="minimal"] .v2-gamification-full {
+  display: none !important;
+}
+
+/* Off: hide all gamification elements */
+.v2-root[data-gamification="off"] .v2-gamification-full,
+.v2-root[data-gamification="off"] .v2-gamification-minimal {
+  display: none !important;
+}
+
+/* =====================================================================
+   STATUSBAR — Desktop padding for sidebar
+   ===================================================================== */
+@media (min-width: 769px) {
+  .statusbar {
+    left: var(--v2-sidebar-w);
+  }
+}
+
+/* =====================================================================
+   ACCESSIBILITY — Focus visible
+   ===================================================================== */
+.v2-root *:focus-visible {
+  outline: 2px solid var(--v2-accent);
+  outline-offset: 2px;
+}

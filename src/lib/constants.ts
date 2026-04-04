@@ -38,6 +38,15 @@ export const progressColors = ['#9ca3af', '#3b82f6', '#f59e0b', '#22c55e'];
 
 export const priorityOrder: Priority[] = ['low', 'normal', 'high', 'asap'];
 
+export const timeframeLabels: Record<string, string> = {
+	akut: 'Akut',
+	zeitnah: 'Zeitnah',
+	mittelfristig: 'Mittelfristig',
+	langfristig: 'Langfristig'
+};
+
+export const timeframeOrder: Timeframe[] = ['akut', 'zeitnah', 'mittelfristig', 'langfristig'];
+
 export const sortLabels: Record<string, string> = {
 	position: 'Frei',
 	priority: 'Priorität',

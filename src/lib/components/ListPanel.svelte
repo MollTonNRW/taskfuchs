@@ -565,9 +565,9 @@
 				</button>
 
 				{#if showDone}
-					<div transition:slide|global={{ duration: 300 }} class="space-y-1 opacity-50">
+					<div transition:slide={{ duration: 300 }} class="space-y-1 opacity-50">
 						{#each doneTasks as task (task.id)}
-							<div transition:slide|global={{ duration: 250 }} class="group/done relative">
+							<div transition:slide={{ duration: 250 }} class="group/done relative">
 								<TaskItem
 									{task}
 									subtasks={getSubtasks(task.id)}

@@ -491,7 +491,7 @@
 			<div
 				data-subtask-area
 				bind:this={subtasksContainer}
-				transition:slide|global={{ duration: 200 }}
+				transition:slide={{ duration: 200 }}
 				class="mt-2 space-y-0.5 {subtaskContainerDragOver ? 'ring-1 ring-dashed ring-orange-400/50 rounded-lg' : ''}"
 				ondragover={handleSubtaskContainerDragOver}
 				ondragleave={handleSubtaskContainerDragLeave}
@@ -515,7 +515,7 @@
 
 		<!-- Add Subtask Input -->
 		{#if addingSubtask}
-			<div data-subtask-area bind:this={subtaskInputContainer} transition:slide|global={{ duration: 200 }} class="mt-2">
+			<div data-subtask-area bind:this={subtaskInputContainer} transition:slide={{ duration: 200 }} class="mt-2">
 				<div class="flex gap-1.5">
 					<!-- svelte-ignore a11y_autofocus -->
 					<input

@@ -163,6 +163,25 @@ TaskFuchs/
 └── CODE_REVIEW.md                  # Letztes Code Review (2026-03-16, 7/10)
 ```
 
+## v2 (AKTIVE VERSION)
+
+v2 ist die aktive Produktionsversion unter `/app`.
+
+| Eigenschaft | Wert |
+|---|---|
+| Route | `/app` |
+| Hauptseite | `src/routes/app/+page.svelte` |
+| Layout/Header | `src/routes/app/+layout.svelte` |
+| Komponenten | `src/lib/components/v2/` (28 Stueck) |
+| Composables | `src/lib/composables/v2/` |
+| Event-Bus | `src/lib/stores/v2/events.svelte.ts` |
+| Styles | `src/v2.css` (~2200 Zeilen) |
+
+### View-Modi (Header-Toggle in +layout.svelte)
+- `list` — Einzelne Liste mit Tab-Navigation (Default)
+- `kanban` — Kanban-Board (Offen/In Arbeit/Erledigt)
+- `scroll` — Alle Listen nebeneinander, horizontal scrollbar
+
 ## Komponenten-Uebersicht
 
 ### Seiten / Routes
