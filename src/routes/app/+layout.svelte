@@ -1,8 +1,13 @@
 <script lang="ts">
+	import '../../v2.css';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import { themePresets, themePreset, isDark, effectiveDark, themeClass, setPreset, toggleDark, type ThemePreset } from '$lib/stores/theme';
+	import { v2Theme, v2ThemePresets, type V2ThemePreset, type GamificationMode } from '$lib/stores/v2/theme.svelte';
+	import { v2Events } from '$lib/stores/v2/events.svelte';
+	import { createGamificationStore } from '$lib/stores/v2/gamification.svelte';
+	import { createAchievementStore, ACHIEVEMENTS } from '$lib/stores/v2/achievements.svelte';
 	import { listsStore } from '$lib/stores/lists';
+	import { toasts } from '$lib/stores/toast';
 	import { hiddenListIds, toggleListVisibility } from '$lib/stores/visibility';
 	import {
 		priorityFilters,
@@ -14,21 +19,244 @@
 		subtasksCollapsedByDefault,
 		toggleSubtasksDefault
 	} from '$lib/stores/filters';
+	import { onMount } from 'svelte';
+
+	import * as gCrud from '$lib/services/gamification-crud';
+	import FoxMascot from '$lib/components/v2/FoxMascot.svelte';
+	import StatsBar from '$lib/components/v2/StatsBar.svelte';
+	import Statusbar from '$lib/components/v2/Statusbar.svelte';
+	import BootSequence from '$lib/components/v2/BootSequence.svelte';
+	import WeeklyTracker from '$lib/components/v2/WeeklyTracker.svelte';
+	import QuestCard from '$lib/components/v2/QuestCard.svelte';
+	import AchievementsPanel from '$lib/components/v2/AchievementsPanel.svelte';
+	import ShopPanel from '$lib/components/v2/ShopPanel.svelte';
+	import AsciiParticles from '$lib/components/v2/AsciiParticles.svelte';
+	import TeamStats from '$lib/components/v2/TeamStats.svelte';
 
 	let { data, children } = $props();
-	let sidebarOpen = $state(false);
-	let filterOpen = $state(true);
+	let sidebarOpen = $state(browser && window.innerWidth >= 769);
+	let filterOpen = $state(false);
 	let prioFilterOpen = $state(false);
 	let viewFilterOpen = $state(false);
 
-	// Apply theme class to body
+	// Collapsible sidebar sections
+	let statsOpen = $state(true);
+	let weeklyOpen = $state(false);
+	let questsOpen = $state(false);
+	let achievementsOpen = $state(false);
+	let shopOpen = $state(false);
+	let teamOpen = $state(false);
+	let listenOpen = $state(true);
+
+	// Boot sequence
+	let showBoot = $state(false);
+	let bootDone = $state(true);
+
+	// Shared list check for achievements
+	let hasSharedList = $state(false);
+
+	// Fox state
+	let foxMood = $state<'idle' | 'celebrating' | 'sleeping' | 'happy' | 'encouraging'>('idle');
+	let foxMessage = $state('');
+
+	// Contextual fox messages (matching PoC v6)
+	const FOX_MESSAGES: Record<string, string[]> = {
+		morning: ['> guten morgen. was steht an?', '> kaffee geladen. tasks warten.', '> fruehschicht. let\'s go.'],
+		midday: ['> mittagspause? oder noch ein task?', '> halbzeit. laeuft bei dir.'],
+		evening: ['> feierabend bald? noch ein paar tasks?', '> abend-session. solide.'],
+		night: ['> nachtschicht? respekt.', '> die besten commits passieren nachts.'],
+		empty: ['> keine tasks. saubere sache.', '> leere liste. alles erledigt.'],
+		idle: ['> fox.status = idle...', '> ...warte auf input.']
+	};
+
+	function getContextFoxMessage(): string {
+		const h = new Date().getHours();
+		let pool: string[];
+		if (h >= 5 && h < 12) pool = FOX_MESSAGES.morning;
+		else if (h >= 12 && h < 17) pool = FOX_MESSAGES.midday;
+		else if (h >= 17 && h < 23) pool = FOX_MESSAGES.evening;
+		else pool = FOX_MESSAGES.night;
+		return pool[Math.floor(Math.random() * pool.length)];
+	}
+
+	let contextFoxMessage = $state('> bereit.');
+
+	// Gamification stores
+	const gStore = createGamificationStore();
+	const aStore = createAchievementStore();
+
+	// Leaderboard
+	type Player = { id: string; name: string; avatar: string; level: number; coins: number; streak: number };
+	let leaderboardPlayers = $state<Player[]>([]);
+
+	async function loadLeaderboard() {
+		if (!data.supabase) return;
+		const { data: profiles, error } = await gCrud.getLeaderboardProfiles(data.supabase);
+		if (error || !profiles || profiles.length === 0) return;
+
+		const userIds = profiles.map((p: { user_id: string }) => p.user_id);
+		const { data: names } = await gCrud.getProfileDisplayNames(data.supabase, userIds);
+		const nameMap = new Map<string, string>();
+		if (names) {
+			for (const n of names) {
+				nameMap.set(n.id, n.display_name || n.username || 'User');
+			}
+		}
+
+		leaderboardPlayers = profiles.map((p: { user_id: string; level: number; coins: number; streak_days: number }) => ({
+			id: p.user_id,
+			name: nameMap.get(p.user_id) ?? 'User',
+			avatar: '\u{1F98A}',
+			level: p.level ?? 1,
+			coins: p.coins ?? 0,
+			streak: p.streak_days ?? 0
+		}));
+	}
+
+	// Init gamification on mount
+	onMount(() => {
+		// Boot sequence (once per browser session)
+		if (browser && !localStorage.getItem('v2-booted')) {
+			showBoot = true;
+			bootDone = false;
+		}
+
+		if (data.supabase && data.user) {
+			gStore.init(data.supabase, data.user.id);
+			aStore.init(data.supabase, data.user.id);
+			loadLeaderboard();
+
+			// Check if user has any shared lists (for achievements)
+			data.supabase
+				.from('list_shares')
+				.select('id', { count: 'exact', head: true })
+				.eq('user_id', data.user.id)
+				.then(({ count }) => {
+					hasSharedList = (count ?? 0) > 0;
+				});
+		}
+
+		// Set contextual fox message
+		contextFoxMessage = getContextFoxMessage();
+	});
+
+	function handleBootComplete() {
+		bootDone = true;
+		showBoot = false;
+		if (browser) localStorage.setItem('v2-booted', '1');
+	}
+
+	// Apply DaisyUI data-theme for utility classes
 	$effect(() => {
 		if (browser) {
-			const cls = $themeClass;
-			document.body.className = cls;
-			document.body.setAttribute('data-tf-theme', '');
+			document.documentElement.setAttribute(
+				'data-theme',
+				v2Theme.effectiveDark ? 'dark' : 'light'
+			);
 		}
 	});
+
+	// Listen for task events from the page and drive gamification
+	let lastProcessedCounter = 0;
+	$effect(() => {
+		const counter = v2Events.eventCounter;
+		const ev = v2Events.lastEvent;
+		if (!ev || counter === lastProcessedCounter) return;
+		lastProcessedCounter = counter;
+
+		if (ev.type === 'task_done' || ev.type === 'subtask_done') {
+			gStore.onTaskDone({ id: ev.taskId, parent_id: ev.parentId, priority: ev.priority ?? 'normal' }).then(async (result) => {
+				if (!result) return;
+
+				// Check achievements (delayed to let navCounts update from page)
+				setTimeout(async () => {
+					const allDoneInList = Object.values(v2Events.navCounts).some(
+						(c) => c.total > 0 && c.done === c.total
+					);
+					const stats = {
+						totalTasksDone: gStore.totalTasksDone,
+						streakDays: gStore.streakDays,
+						listCount: $listsStore.length,
+						subtasksDone: gStore.totalSubtasksDone,
+						currentHour: new Date().getHours(),
+						speedCount: result.speedCount,
+						hasSharedList,
+						allDoneInList
+					};
+					await aStore.checkAchievements(stats);
+				}, 200);
+
+				// Fox reaction + LevelUp signal
+				if (result.leveledUp) {
+					foxMood = 'celebrating';
+					foxMessage = 'LEVEL UP!';
+					v2Events.triggerLevelUp(gStore.level, gStore.currentRank);
+				} else if (result.xpGained > 0) {
+					foxMood = 'happy';
+					foxMessage = `+${result.xpGained} XP`;
+				}
+				setTimeout(() => { foxMood = 'idle'; foxMessage = ''; }, 3000);
+			});
+		} else if (ev.type === 'task_undone') {
+			gStore.onTaskUndone({ id: ev.taskId });
+		}
+	});
+
+	// Weekly tracker data
+	const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+	let weekData = $derived(
+		DAY_LABELS.map((label, i) => {
+			const entry = gStore.weeklyTasks.find(w => w.day === i);
+			return {
+				day: label,
+				count: entry?.count ?? 0,
+				done: (entry?.count ?? 0) > 0
+			};
+		})
+	);
+	let totalWeek = $derived(gStore.weeklyTasks.reduce((sum, w) => sum + w.count, 0));
+
+	// Achievements data for panel
+	let achievementsList = $derived(
+		ACHIEVEMENTS.map(a => ({
+			id: a.id,
+			name: a.name,
+			desc: a.description,
+			icon: a.icon,
+			rarity: a.rarity,
+			earned: aStore.unlockedIds.has(a.id)
+		}))
+	);
+
+	// Shop placeholder items
+	const SHOP_ITEMS: { id: string; category: 'themes' | 'sounds' | 'titles' | 'effects'; name: string; desc: string; icon: string; price: number; owned: boolean }[] = [
+		// Themes
+		{ id: 'theme-hacker-green', category: 'themes', name: 'Hacker Green', desc: 'Gruener Terminal-Look', icon: '🟢', price: 50, owned: false },
+		{ id: 'theme-midnight-blue', category: 'themes', name: 'Midnight Blue', desc: 'Dunkles Blau', icon: '🔵', price: 50, owned: false },
+		{ id: 'theme-sunset-orange', category: 'themes', name: 'Sunset Orange', desc: 'Warme Abendfarben', icon: '🟠', price: 75, owned: false },
+		// Sounds
+		{ id: 'sound-typewriter', category: 'sounds', name: 'Typewriter Click', desc: 'Mechanisches Klicken', icon: '⌨️', price: 30, owned: false },
+		{ id: 'sound-retro-beep', category: 'sounds', name: 'Retro Beep', desc: '8-Bit Sounds', icon: '🕹️', price: 30, owned: false },
+		// Titel
+		{ id: 'title-taskmaster', category: 'titles', name: 'Taskmaster', desc: 'Zeigt neben deinem Namen', icon: '🏅', price: 100, owned: false },
+		{ id: 'title-ninja', category: 'titles', name: 'Productivity Ninja', desc: 'Fuer die Effizienten', icon: '🥷', price: 150, owned: false },
+		{ id: 'title-bughunter', category: 'titles', name: 'Bug Hunter', desc: 'Fuer die Perfektionisten', icon: '🐛', price: 200, owned: false },
+		// Effekte
+		{ id: 'effect-confetti', category: 'effects', name: 'Confetti Rain', desc: 'Konfetti bei Task-Completion', icon: '🎉', price: 80, owned: false },
+		{ id: 'effect-matrix', category: 'effects', name: 'Matrix Rain', desc: 'Falling Code Animation', icon: '💻', price: 120, owned: false },
+	];
+
+	function handleShopPurchase(_itemId: string) {
+		// TODO: Kauf-Logik implementieren
+		toasts.show('Coming Soon — Shop ist noch in Arbeit!', 'info');
+	}
+
+	// Gamification mode labels
+	const gamificationModes: { key: GamificationMode; label: string }[] = [
+		{ key: 'full', label: 'Full' },
+		{ key: 'minimal', label: 'Minimal' },
+		{ key: 'off', label: 'Aus' }
+	];
 
 	async function logout() {
 		await data.supabase.auth.signOut();
@@ -38,240 +266,492 @@
 	function closeSidebar() {
 		sidebarOpen = false;
 	}
+
+	// Keyboard shortcut for search
+	function handleKeydown(e: KeyboardEvent) {
+		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+			e.preventDefault();
+			v2Events.toggleSearch();
+		}
+	}
 </script>
 
-<!-- Sidebar Overlay (mobile) -->
-{#if sidebarOpen}
-	<div
-		class="sidebar-overlay active md:!opacity-0 md:!pointer-events-none"
-		onclick={closeSidebar}
-		role="presentation"
-	></div>
+<svelte:head>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+	<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</svelte:head>
+
+<svelte:window onkeydown={handleKeydown} />
+
+<!-- Boot Sequence -->
+{#if showBoot && !bootDone}
+	<BootSequence onComplete={handleBootComplete} />
 {/if}
 
-<!-- Sidebar -->
-<aside
-	class="sidebar tf-surface border-r tf-border {sidebarOpen ? 'open' : ''}"
-	style="background: var(--tf-surface);"
->
-	<div class="p-5">
-		<div class="flex items-center justify-between mb-6">
-			<div class="flex items-center gap-2">
-				<img src="/icons/icon-48x48.png" alt="TaskFuchs" class="w-7 h-7 rounded" />
-				<span class="text-lg font-bold bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">TaskFuchs</span>
-			</div>
-			<button onclick={closeSidebar} class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors" aria-label="Sidebar schließen">
-				<svg class="w-5 h-5 tf-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-			</button>
+<div class="v2-root {v2Theme.themeClass}" data-gamification={v2Theme.gamificationMode}>
+	{#if v2Theme.gamificationMode !== 'off'}
+		<AsciiParticles />
+	{/if}
+
+	<!-- Sidebar Overlay (mobile) -->
+	{#if sidebarOpen}
+		<div
+			class="v2-sidebar-overlay active"
+			onclick={closeSidebar}
+			role="presentation"
+		></div>
+	{/if}
+
+	<!-- Sidebar -->
+	<aside class="v2-sidebar" class:open={sidebarOpen} class:collapsed={!sidebarOpen}>
+		<!-- Sidebar Header (v6 style) -->
+		<div class="v2-sidebar-topbar">
+			<span class="v2-sidebar-title">TaskFuchs</span>
+			<button class="v2-sidebar-close" onclick={closeSidebar} aria-label="Sidebar schliessen">&times;</button>
 		</div>
 
-		<!-- Filter (aufklappbar) -->
-		<div class="mb-4">
-			<button
-				onclick={() => filterOpen = !filterOpen}
-				class="flex items-center justify-between w-full mb-2"
-			>
-				<h3 class="text-xs font-semibold uppercase tracking-wider tf-text-muted">Filter</h3>
-				<div class="flex items-center gap-2">
+		<!-- Fox + User Area (v6 greeting style) -->
+		<div class="v2-sidebar-section v2-sidebar-fox-area">
+			<div aria-hidden="true">
+				<FoxMascot mood={foxMood} message={foxMessage} />
+			</div>
+			<div class="v2-fox-greeting">
+				<div class="v2-fox-name">{data.user?.email?.split('@')[0] ?? 'User'}</div>
+				<div class="v2-fox-rank">~$ [Lvl {gStore.level}: {gStore.currentRank}]</div>
+				<div class="v2-fox-sub">{v2Events.openTaskCount > 0 ? `${v2Events.openTaskCount} offene Tasks` : 'Alles erledigt!'}</div>
+				<div class="v2-fox-msg">{contextFoxMessage}</div>
+			</div>
+		</div>
+
+		<!-- Stats (collapsible, v6 style) -->
+		{#if v2Theme.gamificationMode !== 'off'}
+			<div class="v2-sidebar-section v2-sidebar-stats">
+				<button class="v2-section-header" onclick={() => (statsOpen = !statsOpen)} aria-label="Stats ein-/ausklappen">
+					<h3>&#x250C;&#x2500; Stats</h3>
+					<span class="v2-section-toggle" class:collapsed={!statsOpen}>&#9660;</span>
+				</button>
+				<div class="v2-section-body" class:collapsed={!statsOpen}>
+					<StatsBar
+						level={gStore.level}
+						xp={gStore.xp}
+						xpMax={gStore.xpForNextLevel}
+						coins={gStore.coins}
+						streak={gStore.streakDays}
+						rank={gStore.currentRank}
+						streakMultiplier={gStore.currentStreakMultiplier}
+						streakFreezes={gStore.freezeTokens}
+					/>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Filter (collapsible, v6 order: after Stats) -->
+		<div class="v2-sidebar-section">
+			<button class="v2-section-header" onclick={() => (filterOpen = !filterOpen)} aria-label="Filter ein-/ausklappen">
+				<h3>
+					&#x250C;&#x2500; Filter
 					{#if $hasActiveFilter}
-						<span
-							onclick={(e) => { e.stopPropagation(); resetFilters(); }}
-							onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); resetFilters(); } }}
-							class="text-[10px] font-medium px-2 py-0.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
-							style="color: var(--tf-accent);"
-							role="button"
-							tabindex="0"
-						>
-							Zurücksetzen
-						</span>
+						<span class="v2-active-badge">aktiv</span>
 					{/if}
-					<svg class="w-3.5 h-3.5 tf-text-muted transition-transform duration-200 {filterOpen ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-				</div>
+				</h3>
+				<span class="v2-section-toggle" class:collapsed={!filterOpen}>&#9660;</span>
 			</button>
 
-			{#if filterOpen}
-				<!-- Priorität -->
-				<div class="mb-2">
-					<button
-						onclick={() => prioFilterOpen = !prioFilterOpen}
-						class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-					>
-						<svg class="w-3 h-3 tf-text-muted transition-transform duration-200 {prioFilterOpen ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-						<span class="text-xs font-medium tf-text-muted">Priorität</span>
-					</button>
-					{#if prioFilterOpen}
-						<div class="space-y-0.5 ml-2 mt-1">
-							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-								<input type="checkbox" checked={$priorityFilters.low} onchange={() => togglePriorityFilter('low')} class="accent-orange-500 w-3.5 h-3.5" />
-								<span class="w-2 h-2 rounded-full bg-green-500"></span> Niedrig
-							</label>
-							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-								<input type="checkbox" checked={$priorityFilters.normal} onchange={() => togglePriorityFilter('normal')} class="accent-orange-500 w-3.5 h-3.5" />
-								<span class="w-2 h-2 rounded-full bg-yellow-500"></span> Normal
-							</label>
-							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-								<input type="checkbox" checked={$priorityFilters.high} onchange={() => togglePriorityFilter('high')} class="accent-orange-500 w-3.5 h-3.5" />
-								<span class="w-2 h-2 rounded-full bg-red-500"></span> Hoch
-							</label>
-							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-								<input type="checkbox" checked={$priorityFilters.asap} onchange={() => togglePriorityFilter('asap')} class="accent-orange-500 w-3.5 h-3.5" />
-								<span class="w-2 h-2 rounded-full bg-red-500"></span> ASAP!
-							</label>
-						</div>
-					{/if}
-				</div>
-
-				<!-- Ansicht -->
-				<div class="mb-2">
-					<button
-						onclick={() => viewFilterOpen = !viewFilterOpen}
-						class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-					>
-						<svg class="w-3 h-3 tf-text-muted transition-transform duration-200 {viewFilterOpen ? 'rotate-90' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-						<span class="text-xs font-medium tf-text-muted">Ansicht</span>
-					</button>
-					{#if viewFilterOpen}
-						<div class="space-y-0.5 ml-2 mt-1">
-							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-								<input type="checkbox" checked={$viewFilters.highlighted} onchange={() => toggleViewFilter('highlighted')} class="accent-orange-500 w-3.5 h-3.5" />
-								<svg class="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
-								Nur Fixierte
-							</label>
-							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-								<input type="checkbox" checked={$viewFilters.withDate} onchange={() => toggleViewFilter('withDate')} class="accent-orange-500 w-3.5 h-3.5" />
-								<svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-								Mit Termin
-							</label>
-							<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-								<input type="checkbox" checked={$viewFilters.shared} onchange={() => toggleViewFilter('shared')} class="accent-orange-500 w-3.5 h-3.5" />
-								<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-								Geteilte Listen
-							</label>
-						</div>
-					{/if}
-				</div>
-			{/if}
-
-			<!-- Unteraufgaben -->
-			<div class="mb-2">
-				<label class="flex items-center gap-2.5 text-sm tf-text cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 px-3 py-1.5 rounded-lg transition-colors">
-					<input type="checkbox" checked={$subtasksCollapsedByDefault} onchange={toggleSubtasksDefault} class="accent-orange-500 w-3.5 h-3.5" />
-					<svg class="w-4 h-4 tf-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
-					Unteraufgaben eingeklappt
-				</label>
-			</div>
-		</div>
-
-		<div class="h-px mb-4" style="background: var(--tf-border);"></div>
-
-		<!-- Lists -->
-		<div class="mb-6">
-			<h3 class="text-xs font-semibold uppercase tracking-wider tf-text-muted mb-3">Listen</h3>
-			{#if $listsStore.length > 0}
-				<div class="space-y-0.5">
-					{#each $listsStore as list (list.id)}
-						<div class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors group">
-							<span class="text-base">{list.icon}</span>
-							<span class="flex-1 text-sm font-medium tf-text truncate">{list.title}</span>
-							<button
-								onclick={() => toggleListVisibility(list.id)}
-								class="w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-all"
-								title={$hiddenListIds.has(list.id) ? 'Einblenden' : 'Ausblenden'}
-							>
-								{#if $hiddenListIds.has(list.id)}
-									<svg class="w-4 h-4 tf-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.11 6.11m3.768 3.768L3 3m18 18l-6.12-6.12m0 0L21 21"/></svg>
-								{:else}
-									<svg class="w-4 h-4 tf-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-								{/if}
-							</button>
-						</div>
+			<div class="v2-filter-section" class:collapsed={!filterOpen}>
+				<!-- Priority Filter -->
+				<button
+					class="v2-filter-group-btn"
+					onclick={() => (prioFilterOpen = !prioFilterOpen)}
+					aria-label="Prioritaet-Filter ein-/ausklappen"
+				>
+					<span class="v2-section-toggle" class:collapsed={!prioFilterOpen}>&#9660;</span>
+					Prioritaet
+				</button>
+				<div class="v2-filter-options" class:collapsed={!prioFilterOpen}>
+					{#each [
+						{ key: 'low', label: 'Niedrig', color: 'var(--v2-green)' },
+						{ key: 'normal', label: 'Normal', color: 'var(--v2-yellow)' },
+						{ key: 'high', label: 'Hoch', color: 'var(--v2-red)' },
+						{ key: 'asap', label: 'ASAP!', color: 'var(--v2-red)' }
+					] as filter}
+						<label class="v2-filter-check">
+							<input
+								type="checkbox"
+								checked={$priorityFilters[filter.key as keyof typeof $priorityFilters]}
+								onchange={() => togglePriorityFilter(filter.key as any)}
+							/>
+							<span class="v2-filter-dot" style="background: {filter.color};"></span>
+							{filter.label}
+						</label>
 					{/each}
 				</div>
-			{:else}
-				<p class="text-sm tf-text-muted italic">Noch keine Listen</p>
-			{/if}
-		</div>
 
-		<div class="h-px mb-4" style="background: var(--tf-border);"></div>
-
-		<!-- Theme Preset -->
-		<div class="mb-4">
-			<h3 class="text-xs font-semibold uppercase tracking-wider tf-text-muted mb-3">Design</h3>
-			<div class="grid grid-cols-2 gap-1.5">
-				{#each themePresets as t}
-					<button
-						onclick={() => setPreset(t.id)}
-						class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors {$themePreset === t.id ? 'font-medium' : 'hover:bg-black/5 dark:hover:bg-white/5'}"
-						style={$themePreset === t.id ? 'background: var(--tf-accent); color: white;' : ''}
-					>
-						<span>{t.icon}</span>
-						<span>{t.name}</span>
-					</button>
-				{/each}
-			</div>
-		</div>
-
-		<div class="h-px mb-4" style="background: var(--tf-border);"></div>
-
-		<!-- User & Settings -->
-		<div class="space-y-2">
-			<div class="flex items-center gap-3 px-3 py-2 rounded-lg">
-				<div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white" style="background: var(--tf-accent);">
-					{data.user?.email?.charAt(0).toUpperCase() ?? '?'}
+				<!-- View Filter -->
+				<button
+					class="v2-filter-group-btn"
+					onclick={() => (viewFilterOpen = !viewFilterOpen)}
+					aria-label="Ansicht-Filter ein-/ausklappen"
+				>
+					<span class="v2-section-toggle" class:collapsed={!viewFilterOpen}>&#9660;</span>
+					Ansicht
+				</button>
+				<div class="v2-filter-options" class:collapsed={!viewFilterOpen}>
+					<label class="v2-filter-check">
+						<input type="checkbox" checked={$viewFilters.highlighted} onchange={() => toggleViewFilter('highlighted')} />
+						Nur Fixierte
+					</label>
+					<label class="v2-filter-check">
+						<input type="checkbox" checked={$viewFilters.withDate} onchange={() => toggleViewFilter('withDate')} />
+						Mit Termin
+					</label>
+					<label class="v2-filter-check">
+						<input type="checkbox" checked={$viewFilters.shared} onchange={() => toggleViewFilter('shared')} />
+						Geteilte Listen
+					</label>
 				</div>
-				<span class="text-sm font-medium truncate flex-1 tf-text">{data.user?.email ?? ''}</span>
-			</div>
 
-			<button onclick={logout} class="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-				</svg>
-				Abmelden
-			</button>
-		</div>
-	</div>
-</aside>
-
-<!-- Header -->
-<header class="tf-header sticky top-0 z-30 border-b px-4 py-3 transition-all duration-500">
-	<div class="max-w-7xl mx-auto flex items-center justify-between">
-		<div class="flex items-center gap-3">
-			<button onclick={() => (sidebarOpen = !sidebarOpen)} class="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-200" aria-label="Sidebar öffnen">
-				<svg class="w-5 h-5 tf-text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-				</svg>
-			</button>
-			<div class="flex items-center gap-2.5">
-				<img src="/icons/icon-48x48.png" alt="TaskFuchs" class="w-8 h-8 rounded" />
-				<h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent tf-header-text" style={$themePreset === 'colorful' ? 'color: white; background: none; -webkit-text-fill-color: white;' : ''}>TaskFuchs</h1>
-			</div>
-			{#if $hasActiveFilter}
-				<span class="text-[10px] font-medium px-2 py-0.5 rounded-full text-white" style="background: var(--tf-accent);">Filter aktiv</span>
-			{/if}
-		</div>
-		<div class="flex items-center gap-2">
-			<!-- Theme Preset Buttons -->
-			<div class="hidden sm:flex items-center bg-gray-100 dark:bg-gray-800 rounded-xl p-1 gap-0.5">
-				{#each themePresets as t}
+				<!-- Subtask default visibility -->
+				<div class="v2-subtask-default-label">Unteraufgaben bei Start</div>
+				<div class="v2-subtask-default-row">
 					<button
-						onclick={() => setPreset(t.id)}
-						class="theme-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300 {$themePreset === t.id ? 'bg-white dark:bg-gray-700 shadow-sm text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}"
+						class="v2-subtask-default-btn"
+						class:active={!$subtasksCollapsedByDefault}
+						onclick={() => { if ($subtasksCollapsedByDefault) toggleSubtasksDefault(); }}
 					>
-						{t.name}
+						&#x25BC; Ausgeklappt
+					</button>
+					<button
+						class="v2-subtask-default-btn"
+						class:active={$subtasksCollapsedByDefault}
+						onclick={() => { if (!$subtasksCollapsedByDefault) toggleSubtasksDefault(); }}
+					>
+						&#x25B6; Eingeklappt
+					</button>
+				</div>
+
+				{#if $hasActiveFilter}
+					<button
+						class="v2-filter-reset"
+						onclick={resetFilters}
+						aria-label="Filter zuruecksetzen"
+					>
+						Filter zuruecksetzen
+					</button>
+				{/if}
+			</div>
+		</div>
+
+		<!-- Weekly Tracker (collapsible) -->
+		{#if v2Theme.gamificationMode === 'full'}
+			<div class="v2-sidebar-section">
+				<button class="v2-section-header" onclick={() => (weeklyOpen = !weeklyOpen)} aria-label="Wochentracker ein-/ausklappen">
+					<h3>&#x250C;&#x2500; Wochenfortschritt {#if gStore.bestStreak > 0}<span class="v2-best-week">&#x1F3C6; Rekord: {gStore.bestStreak}</span>{/if}</h3>
+					<span class="v2-section-toggle" class:collapsed={!weeklyOpen}>&#9660;</span>
+				</button>
+				<div class="v2-section-body" class:collapsed={!weeklyOpen}>
+					<WeeklyTracker {weekData} {totalWeek} bestWeek={gStore.bestStreak > 0 ? totalWeek : 0} />
+				</div>
+			</div>
+		{/if}
+
+		<!-- Daily Quests (collapsible) -->
+		{#if v2Theme.gamificationMode === 'full'}
+			<div class="v2-sidebar-section">
+				<button class="v2-section-header" onclick={() => (questsOpen = !questsOpen)} aria-label="Quests ein-/ausklappen">
+					<h3>
+						&#x250C;&#x2500; Quests
+						{#if gStore.dailyQuests.filter(q => !q.completed).length > 0}
+							<span class="v2-active-badge">
+								{gStore.dailyQuests.filter(q => !q.completed).length}
+							</span>
+						{/if}
+					</h3>
+					<span class="v2-section-toggle" class:collapsed={!questsOpen}>&#9660;</span>
+				</button>
+				<div class="v2-section-body-flex" class:collapsed={!questsOpen}>
+					{#each gStore.dailyQuests.slice(0, 3) as quest (quest.id)}
+						<QuestCard
+							type="daily"
+							title={quest.quest_type.replace(/_/g, ' ')}
+							progress={quest.progress}
+							target={quest.target}
+							rewardXp={quest.reward_xp}
+							rewardCoins={quest.reward_coins}
+							completed={quest.completed}
+						/>
+					{:else}
+						<p class="v2-quest-empty">
+							Keine Quests heute
+						</p>
+					{/each}
+				</div>
+			</div>
+		{/if}
+
+		<!-- Achievements (collapsible) -->
+		{#if v2Theme.gamificationMode === 'full'}
+			<div class="v2-sidebar-section">
+				<button class="v2-section-header" onclick={() => (achievementsOpen = !achievementsOpen)} aria-label="Achievements ein-/ausklappen">
+					<h3>
+						&#x250C;&#x2500; Achievements
+						<span class="v2-achievement-count">
+							{aStore.unlockedCount}/{aStore.totalCount}
+						</span>
+					</h3>
+					<span class="v2-section-toggle" class:collapsed={!achievementsOpen}>&#9660;</span>
+				</button>
+				<div class="v2-section-body" class:collapsed={!achievementsOpen}>
+					<AchievementsPanel achievements={achievementsList} />
+				</div>
+			</div>
+		{/if}
+
+		<!-- Lists Navigation (collapsible, v6 style) -->
+		<div class="v2-sidebar-section v2-nav-section">
+			<button class="v2-section-header" onclick={() => (listenOpen = !listenOpen)} aria-label="Listen ein-/ausklappen">
+				<h3>&#x250C;&#x2500; Listen</h3>
+				<span class="v2-section-toggle" class:collapsed={!listenOpen}>&#9660;</span>
+			</button>
+			<div class="v2-section-body" class:collapsed={!listenOpen}>
+				{#if $listsStore.length > 0}
+					<div class="v2-nav-list">
+						{#each $listsStore as list, i (list.id)}
+							<button
+								class="v2-nav-item"
+								class:active={i === 0}
+								onclick={() => toggleListVisibility(list.id)}
+								aria-label="{list.title} {$hiddenListIds.has(list.id) ? 'einblenden' : 'ausblenden'}"
+							>
+								<span class="v2-nav-item-icon">{list.icon}</span>
+								<span class="v2-nav-item-title">{list.title}</span>
+								<span class="v2-nav-item-count">{v2Events.navCounts[list.id]?.done ?? 0}/{v2Events.navCounts[list.id]?.total ?? 0}</span>
+							</button>
+						{/each}
+					</div>
+				{:else}
+					<p class="v2-nav-empty">Noch keine Listen</p>
+				{/if}
+				<button class="v2-nav-add-list" onclick={() => v2Events.triggerAddList()} aria-label="Neue Liste">+ Neue Liste</button>
+
+				<!-- Ansichten sub-section (v6 style) -->
+				<h3 class="v2-nav-sub-header">&#x250C;&#x2500; Ansichten</h3>
+				<div class="v2-nav-item v2-nav-view-item" role="button" tabindex="0">
+					<span class="v2-nav-item-icon">&#x2593;</span>
+					<span class="v2-nav-item-title">Kanban Board</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Team Stats (collapsible, default collapsed) -->
+		{#if v2Theme.gamificationMode === 'full'}
+			<div class="v2-sidebar-section">
+				<button class="v2-section-header" onclick={() => (teamOpen = !teamOpen)} aria-label="Team Stats ein-/ausklappen">
+					<h3>&#x250C;&#x2500; Team Stats</h3>
+					<span class="v2-section-toggle" class:collapsed={!teamOpen}>&#9660;</span>
+				</button>
+				<div class="v2-section-body" class:collapsed={!teamOpen}>
+					<TeamStats
+						players={leaderboardPlayers.length > 0 ? leaderboardPlayers : [{
+							id: data.user?.id ?? '',
+							name: data.user?.email?.split('@')[0] ?? 'User',
+							avatar: '\u{1F98A}',
+							level: gStore.level,
+							coins: gStore.coins,
+							streak: gStore.streakDays
+						}]}
+						currentUserId={data.user?.id ?? ''}
+					/>
+				</div>
+			</div>
+		{/if}
+
+		<!-- Shop (collapsible, default collapsed, ab Level 3) -->
+		{#if v2Theme.gamificationMode === 'full'}
+			<div class="v2-sidebar-section">
+				<button class="v2-section-header" onclick={() => (shopOpen = !shopOpen)} aria-label="Shop ein-/ausklappen">
+					<h3>&#x250C;&#x2500; Shop {#if gStore.level < 3}<span class="v2-locked-badge">&#x1F512;</span>{/if}</h3>
+					<span class="v2-section-toggle" class:collapsed={!shopOpen}>&#9660;</span>
+				</button>
+				<div class="v2-section-body" class:collapsed={!shopOpen}>
+					{#if gStore.level >= 3}
+						<ShopPanel items={SHOP_ITEMS} coins={gStore.coins} onPurchase={handleShopPurchase} />
+					{:else}
+						<div class="v2-shop-locked">
+							<span class="v2-shop-locked-icon">&#x1F512;</span>
+							<span class="v2-shop-locked-text">&gt; shop --unlock</span>
+							<span class="v2-shop-locked-hint">Erreiche Level 3 zum Freischalten</span>
+							<span class="v2-shop-locked-progress">Aktuell: Lvl {gStore.level} / 3</span>
+						</div>
+					{/if}
+				</div>
+			</div>
+		{/if}
+
+		<!-- Footer (v6 style: Gamification toggle + Theme + Presets) -->
+		<div class="v2-sidebar-section v2-sidebar-footer">
+			<!-- Gamification Toggle (v6 style: toggle switch) -->
+			<button
+				class="v2-gamification-toggle"
+				onclick={() => v2Theme.setGamificationMode(v2Theme.gamificationMode === 'off' ? 'full' : 'off')}
+				aria-label="Gamification umschalten"
+			>
+				<span>&#x1F3AE;</span>
+				<span>Gamification</span>
+				<div class="v2-toggle-switch" class:on={v2Theme.gamificationMode !== 'off'}></div>
+			</button>
+
+			<!-- Dark/Light Toggle -->
+			<button
+				class="v2-dark-toggle"
+				onclick={() => v2Theme.toggleDark()}
+				disabled={v2Theme.preset === 'neon' || v2Theme.preset === 'aurora'}
+				aria-label={v2Theme.effectiveDark ? 'Zu Light Mode wechseln' : 'Zu Dark Mode wechseln'}
+			>
+				{v2Theme.effectiveDark ? '\u263E' : '\u2600'}
+				{v2Theme.effectiveDark ? 'Light Mode' : 'Dark Mode'}
+			</button>
+
+			<!-- Theme Preset Row (v6 style: single row) -->
+			<div class="v2-preset-row">
+				{#each v2ThemePresets as t}
+					<button
+						class="v2-preset-btn"
+						class:active={v2Theme.preset === t.id}
+						onclick={() => v2Theme.setPreset(t.id)}
+						aria-label="Theme: {t.name}"
+					>
+						<span class="v2-preset-icon">{t.icon}</span> {t.name}
 					</button>
 				{/each}
 			</div>
-			<!-- Dark/Light Toggle -->
-			<button onclick={toggleDark} class="tf-tooltip w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all duration-300" data-tip="Dark/Light Mode">
-				<span class="text-lg transition-transform duration-500" style={$effectiveDark ? 'transform: rotate(360deg)' : ''}>
-					{$effectiveDark ? '☀️' : '🌙'}
-				</span>
-			</button>
+		</div>
+	</aside>
+
+	<div class="v2-app">
+		<!-- Main area -->
+		<div class="v2-main" class:sidebar-collapsed={!sidebarOpen}>
+			<!-- Header -->
+			<header class="v2-header">
+				<button
+					onclick={() => (sidebarOpen = !sidebarOpen)}
+					style="background: none; border: none; color: var(--v2-text-secondary); font-size: 1.1rem; padding: 4px; cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;"
+					aria-label="Sidebar umschalten"
+				>
+					&#9776;
+				</button>
+
+				<!-- ASCII-Art Logo (v6 style) -->
+				<div class="v2-header-logo">
+					<pre style="font-size: .55rem; color: var(--v2-text-muted); white-space: pre; line-height: 1.05;">&#x2554;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2557;
+&#x2551; <span style="color: var(--v2-orange);">TaskFuchs</span> &#x2551;
+&#x255A;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D;</pre>
+				</div>
+
+				<!-- Game Stats: Coins + Streak (v6 style) -->
+				{#if v2Theme.gamificationMode !== 'off'}
+					<div class="v2-header-game-stats">
+						<span class="v2-header-coin">&#x1FA99; {gStore.coins}</span>
+						<span class="v2-header-streak">
+							&#x1F525; {gStore.streakDays}d
+							{#if gStore.currentStreakMultiplier > 1}
+								<span class="v2-header-mult">x{gStore.currentStreakMultiplier}</span>
+							{/if}
+						</span>
+						<span class="v2-header-freeze">&#x2744;&#xFE0F; {gStore.freezeTokens}</span>
+					</div>
+				{/if}
+
+				<div class="v2-header-actions">
+					<!-- View Toggle -->
+					<div class="v2-view-toggle">
+						<button
+							class:active={v2Events.viewMode === 'list'}
+							onclick={() => v2Events.setView('list')}
+						>&#x2261; Liste</button>
+						<button
+							class:active={v2Events.viewMode === 'scroll'}
+							onclick={() => v2Events.setView('scroll')}
+						>&#x2759;&#x2759; Alle</button>
+						<button
+							class:active={v2Events.viewMode === 'kanban'}
+							onclick={() => v2Events.setView('kanban')}
+						>&#x2593; Kanban</button>
+					</div>
+
+					<!-- Sort Button -->
+					<button class="v2-sort-btn" onclick={() => v2Events.toggleSort()}>
+						&#x21C5; <span>{v2Events.sortLabel}</span>
+					</button>
+
+					<!-- Bulk Mode -->
+					<button
+						class="v2-bulk-mode-btn"
+						class:active={v2Events.bulkModeActive}
+						onclick={() => v2Events.toggleBulk()}
+					>
+						{v2Events.bulkModeActive ? '\u2611 Auswaehlen' : '\u2610 Auswaehlen'}
+					</button>
+
+					<!-- Inline Search (Desktop: immer sichtbar, Mobile: nur Icon) -->
+					<div class="v2-header-search">
+						<span class="v2-search-icon">&#x26B2;</span>
+						<input
+							type="text"
+							placeholder="Ctrl+K"
+							readonly
+							onclick={() => v2Events.toggleSearch()}
+							aria-label="Suchen"
+						/>
+						<span class="v2-cursor-blink">&#x2588;</span>
+					</div>
+					<button
+						class="v2-mobile-search-toggle"
+						onclick={() => v2Events.toggleSearch()}
+						aria-label="Suche oeffnen"
+					>
+						&#x26B2;
+					</button>
+
+					<!-- Dark/Light Toggle -->
+					<button
+						onclick={() => v2Theme.toggleDark()}
+						style="background: none; border: none; color: var(--v2-text-secondary); font-size: .9rem; cursor: pointer; padding: 4px 8px; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;"
+						aria-label="Dark/Light Mode umschalten"
+					>
+						{v2Theme.effectiveDark ? '\u2600' : '\u263E'}
+					</button>
+				</div>
+			</header>
+
+			<!-- Page content -->
+			<div class="v2-content">
+				<svelte:boundary onerror={(e) => console.error('V2_BOUNDARY_ERROR:', e)}>
+					{@render children()}
+					{#snippet failed(error)}
+						<div style="padding: 40px; font-family: monospace; color: var(--v2-red, red);">
+							<h2>v2 Error</h2>
+							<pre style="white-space: pre-wrap; font-size: 12px; max-width: 100%; overflow-x: auto;">{(error as any)?.message ?? error}</pre>
+							<pre style="white-space: pre-wrap; font-size: 10px; color: var(--v2-text-muted, #888); margin-top: 8px;">{(error as any)?.stack ?? ''}</pre>
+						</div>
+					{/snippet}
+				</svelte:boundary>
+			</div>
 		</div>
 	</div>
-</header>
 
-<!-- Main Content -->
-<main class="main-content transition-all duration-350" class:shifted={sidebarOpen}>
-	{@render children()}
-</main>
+	<!-- Statusbar (fixed bottom) -->
+	{#if v2Theme.gamificationMode !== 'off'}
+		<Statusbar
+			level={gStore.level}
+			xp={gStore.xp}
+			xpMax={gStore.xpForNextLevel}
+			coins={gStore.coins}
+			streak={gStore.streakDays}
+			streakMultiplier={gStore.currentStreakMultiplier}
+			questsDone={gStore.dailyQuests.filter(q => q.completed).length}
+			questsTotal={gStore.dailyQuests.length || 5}
+			totalTasks={gStore.totalTasksDone}
+		/>
+	{/if}
+</div>

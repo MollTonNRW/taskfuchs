@@ -14,5 +14,5 @@
 {page.error.stack}
 		</pre>
 	{/if}
-	<a href="/v2" style="display: inline-block; margin-top: 16px; color: #7aa2f7; font-size: 13px;">Zurueck zur App</a>
+	<a href="/app" style="display: inline-block; margin-top: 16px; color: #7aa2f7; font-size: 13px;">Zurueck zur App</a>
 </div>
