@@ -64,6 +64,7 @@ Nach jedem abgeschlossenen Subtask (NICHT zeitbasiert):
 - **Homelab** — Homelab-Ops, Pi, n8n, HA, Netzwerk
 - **Persoenlich** — Privates, Firmenverwaltung (Moll GmbH, MollTonCreative)
 - **Network** — Monitoring + Bugfixing aller Netzwerkgeraete
+- **Sandbox** — Experimentelle Tools, Evaluierung, lokale LLM-Anbindung
 
 ## Netzwerk
 

@@ -8,20 +8,9 @@ type Sb = SupabaseClient<any>;
 // LEVEL SYSTEM
 // ==========================================
 
-const XP_THRESHOLDS = [
-	0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 11000, 15000, 20000,
-	27000, 36000, 50000
-];
+const XP_THRESHOLDS = [0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 11000, 15000, 20000, 27000, 36000, 50000];
 
-const RANKS = [
-	'Neuling',
-	'Anfaenger',
-	'Lehrling',
-	'Geselle',
-	'Meister',
-	'Grossmeister',
-	'Legende'
-] as const;
+const RANKS = ['Neuling', 'Anfaenger', 'Lehrling', 'Geselle', 'Meister', 'Grossmeister', 'Legende'] as const;
 
 export type Rank = (typeof RANKS)[number];
 
@@ -60,10 +49,10 @@ function streakMultiplier(streakDays: number): number {
 // ==========================================
 
 const PRIORITY_REWARDS: Record<string, { xp: number; coins: number }> = {
-	low:    { xp: 5,  coins: 5 },
+	low: { xp: 5, coins: 5 },
 	normal: { xp: 10, coins: 10 },
-	high:   { xp: 15, coins: 15 },
-	asap:   { xp: 20, coins: 20 }
+	high: { xp: 15, coins: 15 },
+	asap: { xp: 20, coins: 20 }
 };
 
 const SUBTASK_REWARD = { xp: 3, coins: 2 };
@@ -93,7 +82,7 @@ const QUEST_POOL = [
 	{ quest_type: 'complete_tasks', target: 7, reward_xp: 70, reward_coins: 35, label: '7 Tasks erledigen' },
 	{ quest_type: 'complete_subtasks', target: 10, reward_xp: 60, reward_coins: 30, label: '10 Subtasks erledigen' },
 	{ quest_type: 'complete_tasks', target: 2, reward_xp: 20, reward_coins: 10, label: '2 Tasks erledigen' },
-	{ quest_type: 'complete_subtasks', target: 1, reward_xp: 10, reward_coins: 5, label: '1 Subtask erledigen' },
+	{ quest_type: 'complete_subtasks', target: 1, reward_xp: 10, reward_coins: 5, label: '1 Subtask erledigen' }
 ] as const;
 
 export interface WeeklyTaskEntry {
@@ -130,12 +119,7 @@ export function createGamificationStore() {
 	const xpCurrentLevel = $derived(xpForLevel(level - 1));
 	const xpProgress = $derived(
 		xpForNextLevel > xpCurrentLevel
-			? Math.min(
-					100,
-					Math.round(
-						((xp - xpCurrentLevel) / (xpForNextLevel - xpCurrentLevel)) * 100
-					)
-				)
+			? Math.min(100, Math.round(((xp - xpCurrentLevel) / (xpForNextLevel - xpCurrentLevel)) * 100))
 			: 100
 	);
 	const currentRank = $derived(rankFromLevel(level));
@@ -215,7 +199,7 @@ export function createGamificationStore() {
 			// H2: Mehrtaegige Abwesenheit — Tage seit letztem Aktivitaetstag berechnen
 			const last = new Date(streakLastDate + 'T00:00:00');
 			const todayDate = new Date(today + 'T00:00:00');
-			const daysMissed = Math.round((todayDate.getTime() - last.getTime()) / (86400000)) - 1;
+			const daysMissed = Math.round((todayDate.getTime() - last.getTime()) / 86400000) - 1;
 
 			if (daysMissed > 0 && daysMissed <= freezeTokens) {
 				// Genug Freeze-Tokens — alle verbrauchten Tage abdecken
@@ -364,12 +348,17 @@ export function createGamificationStore() {
 					}
 					// Quest-Rewards atomar ueber RPC
 					const { data, error: rewardError } = await gCrud.grantRewards(
-						sb, userId, quest.reward_xp, quest.reward_coins
+						sb,
+						userId,
+						quest.reward_xp,
+						quest.reward_coins
 					);
 					if (!rewardError && data && data.length > 0) {
 						xp = data[0].new_xp;
 						coins = data[0].new_coins;
 						level = levelFromXP(xp);
+						// Level in DB persistieren (P2-Fix: fehlte hier)
+						await gCrud.updateProfile(sb, userId, { level });
 					} else if (rewardError) {
 						quest.completed = false;
 						quest.progress = oldProgress;
@@ -451,25 +440,59 @@ export function createGamificationStore() {
 
 	return {
 		// State (readonly getters)
-		get xp() { return xp; },
-		get coins() { return coins; },
-		get level() { return level; },
-		get streakDays() { return streakDays; },
-		get streakLastDate() { return streakLastDate; },
-		get bestStreak() { return bestStreak; },
-		get totalTasksDone() { return totalTasksDone; },
-		get totalSubtasksDone() { return totalSubtasksDone; },
-		get weeklyTasks() { return weeklyTasks; },
-		get dailyQuests() { return dailyQuests; },
-		get initialized() { return initialized; },
-		get freezeTokens() { return freezeTokens; },
+		get xp() {
+			return xp;
+		},
+		get coins() {
+			return coins;
+		},
+		get level() {
+			return level;
+		},
+		get streakDays() {
+			return streakDays;
+		},
+		get streakLastDate() {
+			return streakLastDate;
+		},
+		get bestStreak() {
+			return bestStreak;
+		},
+		get totalTasksDone() {
+			return totalTasksDone;
+		},
+		get totalSubtasksDone() {
+			return totalSubtasksDone;
+		},
+		get weeklyTasks() {
+			return weeklyTasks;
+		},
+		get dailyQuests() {
+			return dailyQuests;
+		},
+		get initialized() {
+			return initialized;
+		},
+		get freezeTokens() {
+			return freezeTokens;
+		},
 
 		// Derived
-		get xpForNextLevel() { return xpForNextLevel; },
-		get xpCurrentLevel() { return xpCurrentLevel; },
-		get xpProgress() { return xpProgress; },
-		get currentRank() { return currentRank; },
-		get currentStreakMultiplier() { return currentStreakMultiplier; },
+		get xpForNextLevel() {
+			return xpForNextLevel;
+		},
+		get xpCurrentLevel() {
+			return xpCurrentLevel;
+		},
+		get xpProgress() {
+			return xpProgress;
+		},
+		get currentRank() {
+			return currentRank;
+		},
+		get currentStreakMultiplier() {
+			return currentStreakMultiplier;
+		},
 
 		// Methods
 		init,
@@ -478,7 +501,9 @@ export function createGamificationStore() {
 		onTaskUndone,
 
 		// Helpers (for achievement checks)
-		get recentCompletionCount() { return recentCompletions.length; }
+		get recentCompletionCount() {
+			return recentCompletions.length;
+		}
 	};
 }
 
