@@ -59,18 +59,8 @@ export interface DailyQuest {
 	date: string;
 }
 
-const QUEST_POOL = [
-	{ quest_type: 'complete_tasks', target: 3, reward_xp: 30, reward_coins: 15, label: '3 Tasks erledigen' },
-	{ quest_type: 'complete_tasks', target: 5, reward_xp: 50, reward_coins: 25, label: '5 Tasks erledigen' },
-	{ quest_type: 'complete_tasks', target: 10, reward_xp: 100, reward_coins: 50, label: '10 Tasks erledigen' },
-	{ quest_type: 'complete_subtasks', target: 3, reward_xp: 20, reward_coins: 10, label: '3 Subtasks erledigen' },
-	{ quest_type: 'complete_subtasks', target: 5, reward_xp: 40, reward_coins: 20, label: '5 Subtasks erledigen' },
-	{ quest_type: 'complete_tasks', target: 1, reward_xp: 15, reward_coins: 10, label: '1 Task erledigen' },
-	{ quest_type: 'complete_tasks', target: 7, reward_xp: 70, reward_coins: 35, label: '7 Tasks erledigen' },
-	{ quest_type: 'complete_subtasks', target: 10, reward_xp: 60, reward_coins: 30, label: '10 Subtasks erledigen' },
-	{ quest_type: 'complete_tasks', target: 2, reward_xp: 20, reward_coins: 10, label: '2 Tasks erledigen' },
-	{ quest_type: 'complete_subtasks', target: 1, reward_xp: 10, reward_coins: 5, label: '1 Subtask erledigen' }
-] as const;
+// Migration 015: QUEST_POOL lebt jetzt serverseitig in generate_daily_quests RPC.
+// Client picked nicht mehr — INSERT/UPDATE/DELETE sind gesperrt.
 
 export interface WeeklyTaskEntry {
 	day: number; // 0=Mo, 6=So
@@ -148,13 +138,16 @@ export function createGamificationStore() {
 			.eq('done', true);
 		totalSubtasksDone = subtaskCount ?? 0;
 
-		// Load daily quests, generate if none exist
+		// Load daily quests, generate if none exist.
+		// Migration 015: generate_daily_quests ist idempotent — bei bestehenden Quests
+		// gibt die RPC die existierenden zurueck. Der SELECT hier spart aber bei aktiven
+		// Usern einen RPC-Roundtrip.
 		const today = todayStr();
 		const { data: quests } = await gCrud.getDailyQuests(sb, userId, today);
 		dailyQuests = (quests as DailyQuest[]) ?? [];
 
 		if (dailyQuests.length === 0) {
-			dailyQuests = await generateDailyQuests(today);
+			dailyQuests = await loadOrGenerateDailyQuests();
 		}
 
 		// H4: Reset rewarded set bei Tageswechsel
@@ -228,98 +221,51 @@ export function createGamificationStore() {
 	}
 
 	// --- Quest generation ---
-	async function generateDailyQuests(date: string): Promise<DailyQuest[]> {
-		// H1: Race-Condition-Schutz — nochmal DB pruefen ob heute schon Quests existieren
-		const { data: existing } = await gCrud.getDailyQuests(sb, userId, date);
-		if (existing && existing.length > 0) {
-			return existing as DailyQuest[];
+	// Migration 015: Alles serverseitig. RPC ist idempotent + race-safe —
+	// bei bestehenden Quests werden die zurueckgegeben, sonst werden 2 neue gepickt.
+	async function loadOrGenerateDailyQuests(): Promise<DailyQuest[]> {
+		const { data, error } = await gCrud.generateDailyQuests(sb);
+		if (error || !data) {
+			console.error('[gamification] generateDailyQuests failed:', error);
+			return [];
 		}
-
-		// Pick 2 random quests from the pool, ensuring different quest_types if possible
-		const shuffled = [...QUEST_POOL].sort(() => Math.random() - 0.5);
-		const picked: (typeof QUEST_POOL)[number][] = [];
-		const usedTypes = new Set<string>();
-
-		for (const quest of shuffled) {
-			if (picked.length >= 2) break;
-			if (picked.length === 0 || !usedTypes.has(quest.quest_type)) {
-				picked.push(quest);
-				usedTypes.add(quest.quest_type);
-			}
-		}
-		// Fallback: if only 1 picked, take another
-		if (picked.length < 2) {
-			for (const quest of shuffled) {
-				if (picked.length >= 2) break;
-				if (!picked.includes(quest)) picked.push(quest);
-			}
-		}
-
-		const results: DailyQuest[] = [];
-		for (let i = 0; i < picked.length; i++) {
-			const quest = picked[i];
-			const { data, error } = await gCrud.insertDailyQuest(
-				sb,
-				userId,
-				{
-					quest_type: quest.quest_type,
-					target: quest.target,
-					reward_xp: quest.reward_xp,
-					reward_coins: quest.reward_coins,
-					date
-				},
-				i // slot = 0 fuer ersten, 1 fuer zweiten Pick
-			);
-			if (!error && data) {
-				results.push(data as DailyQuest);
-			} else if (error) {
-				// Race Condition: UNIQUE (user_id, date, slot) verletzt —
-				// andere Session war schneller. Existierende Quests zurueckgeben.
-				const { data: existingNow } = await gCrud.getDailyQuests(sb, userId, date);
-				if (existingNow && existingNow.length > 0) {
-					return existingNow as DailyQuest[];
-				}
-			}
-		}
-		return results;
+		return data as DailyQuest[];
 	}
 
 	// --- Quest progress ---
-	// Migration 014: Quest-Progress bleibt client-seitig (trusted UPDATE auf daily_quests.progress),
-	// aber sobald newProgress >= target erreicht ist, geht es atomar ueber complete_quest_reward RPC.
-	// FOLLOW-UP: Progress-UPDATE auch serverseitig absichern (sonst Cheat-Vektor).
+	// Migration 015: Progress-Inkrement serverseitig via RPC, clamped auf target.
+	// Server liefert alle heutigen Quests zurueck — lokalen State uebernehmen,
+	// dann ueber jetzt-claimbare Quests iterieren und via completeQuestReward atomar claimen.
+	//
+	// Atomicity-Hinweis: increment_quest_progress + complete_quest_reward sind NICHT
+	// in einer Transaction. Bei Crash zwischen beiden: Quest bleibt bei progress=target,
+	// completed=false — naechster onTaskDone triggert den Claim erneut. Kein Drift.
 	async function progressQuests(questType: string, amount: number = 1) {
-		for (const quest of dailyQuests) {
-			if (quest.quest_type === questType && !quest.completed) {
-				const oldProgress = quest.progress;
-				const newProgress = Math.min(quest.progress + amount, quest.target);
-				quest.progress = newProgress;
+		const { data, error } = await gCrud.incrementQuestProgress(sb, questType, amount);
+		if (error || !data) {
+			return;
+		}
 
-				const { error: progressError } = await gCrud.updateQuestProgress(sb, quest.id, newProgress);
-				if (progressError) {
-					quest.progress = oldProgress;
+		dailyQuests = data as DailyQuest[];
+
+		// Quests die jetzt auf target sind, aber noch nicht completed — atomar claimen.
+		for (const quest of dailyQuests) {
+			if (!quest.completed && quest.progress >= quest.target) {
+				const { data: rewardData, error: rewardError } = await gCrud.completeQuestReward(sb, quest.id);
+				if (rewardError || !rewardData || rewardData.length === 0) {
+					// Server hat abgelehnt — Quest bleibt bei progress=target, completed=false.
+					// Wird beim naechsten Task-Complete erneut versucht.
 					continue;
 				}
-
-				if (newProgress >= quest.target) {
-					// Atomare RPC: Quest completen + Reward granten in einer Transaction.
-					const { data, error: rewardError } = await gCrud.completeQuestReward(sb, quest.id);
-					if (rewardError || !data || data.length === 0) {
-						// Server hat abgelehnt — lokalen State zuruecksetzen.
-						quest.progress = oldProgress;
-						quest.completed = false;
-						continue;
-					}
-					quest.completed = true;
-					xp = data[0].new_xp;
-					coins = data[0].new_coins;
-					level = levelFromXP(xp);
-					// Level in DB persistieren (RPC updated nur xp/coins).
-					await gCrud.updateProfile(sb, userId, { level });
-				}
+				quest.completed = true;
+				xp = rewardData[0].new_xp;
+				coins = rewardData[0].new_coins;
+				level = levelFromXP(xp);
+				// Level in DB persistieren (RPC updated nur xp/coins).
+				await gCrud.updateProfile(sb, userId, { level });
 			}
 		}
-		dailyQuests = [...dailyQuests]; // Trigger reactivity
+		dailyQuests = [...dailyQuests]; // Trigger reactivity nach lokalen Mutationen
 	}
 
 	// --- Track speed_demon ---

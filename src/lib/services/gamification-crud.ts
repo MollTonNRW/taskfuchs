@@ -74,31 +74,17 @@ export async function getDailyQuests(sb: Sb, userId: string, date: string) {
 	return sb.from('daily_quests').select('*').eq('user_id', userId).eq('date', date);
 }
 
-export async function updateQuestProgress(sb: Sb, questId: string, progress: number) {
-	return sb.from('daily_quests').update({ progress }).eq('id', questId);
+// Migration 015: Quest-Mutations serverseitig. Client hat nur noch SELECT-Recht
+// auf daily_quests. Generierung + Progress-Inkrement laufen ueber SECURITY DEFINER RPCs.
+export async function generateDailyQuests(sb: Sb) {
+	return sb.rpc('generate_daily_quests');
 }
 
-export async function insertDailyQuest(
-	sb: Sb,
-	userId: string,
-	quest: { quest_type: string; target: number; reward_xp: number; reward_coins: number; date: string },
-	slot: number
-) {
-	return sb
-		.from('daily_quests')
-		.insert({
-			user_id: userId,
-			quest_type: quest.quest_type,
-			target: quest.target,
-			reward_xp: quest.reward_xp,
-			reward_coins: quest.reward_coins,
-			date: quest.date,
-			slot,
-			progress: 0,
-			completed: false
-		})
-		.select()
-		.single();
+export async function incrementQuestProgress(sb: Sb, questType: string, amount: number = 1) {
+	return sb.rpc('increment_quest_progress', {
+		p_quest_type: questType,
+		p_amount: amount
+	});
 }
 
 // ==========================================
