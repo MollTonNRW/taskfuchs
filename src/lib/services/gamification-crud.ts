@@ -75,16 +75,11 @@ export async function getDailyQuests(sb: Sb, userId: string, date: string) {
 }
 
 // Migration 015: Quest-Mutations serverseitig. Client hat nur noch SELECT-Recht
-// auf daily_quests. Generierung + Progress-Inkrement laufen ueber SECURITY DEFINER RPCs.
+// auf daily_quests. Generierung laeuft ueber SECURITY DEFINER RPC.
+// Migration 016: Quest-Progress wird als Side-Effect von complete_task_reward
+// inkrementiert — eigene increment_quest_progress RPC existiert nicht mehr.
 export async function generateDailyQuests(sb: Sb) {
 	return sb.rpc('generate_daily_quests');
-}
-
-export async function incrementQuestProgress(sb: Sb, questType: string, amount: number = 1) {
-	return sb.rpc('increment_quest_progress', {
-		p_quest_type: questType,
-		p_amount: amount
-	});
 }
 
 // ==========================================

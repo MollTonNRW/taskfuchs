@@ -233,28 +233,27 @@ export function createGamificationStore() {
 	}
 
 	// --- Quest progress ---
-	// Migration 015: Progress-Inkrement serverseitig via RPC, clamped auf target.
-	// Server liefert alle heutigen Quests zurueck — lokalen State uebernehmen,
-	// dann ueber jetzt-claimbare Quests iterieren und via completeQuestReward atomar claimen.
+	// Migration 016: Quest-Progress wird serverseitig als Side-Effect von
+	// complete_task_reward inkrementiert (nur im "tatsaechlich belohnt"-Pfad,
+	// nicht bei already_rewarded). Der Client refresht danach den lokalen State
+	// via SELECT und iteriert ueber jetzt-claimbare Quests.
 	//
-	// Atomicity-Hinweis: increment_quest_progress + complete_quest_reward sind NICHT
-	// in einer Transaction. Bei Crash zwischen beiden: Quest bleibt bei progress=target,
-	// completed=false — naechster onTaskDone triggert den Claim erneut. Kein Drift.
-	async function progressQuests(questType: string, amount: number = 1) {
-		const { data, error } = await gCrud.incrementQuestProgress(sb, questType, amount);
-		if (error || !data) {
-			return;
-		}
+	// Atomicity-Hinweis: Der Server-Progress-Update ist Teil der complete_task_reward
+	// Transaction — Progress laeuft nie ohne echte Task-Belohnung. Der anschliessende
+	// completeQuestReward-Call ist separat: bei Crash zwischen Refresh und Claim
+	// bleibt Quest bei progress=target, completed=false, und der naechste Task-Complete
+	// triggert den Claim erneut (SELECT liefert die Quest wieder, Iteration claimt sie).
+	async function refreshAndClaimQuests() {
+		const { data: freshQuests } = await gCrud.getDailyQuests(sb, userId, todayStr());
+		if (!freshQuests) return;
+		dailyQuests = freshQuests as DailyQuest[];
 
-		dailyQuests = data as DailyQuest[];
-
-		// Quests die jetzt auf target sind, aber noch nicht completed — atomar claimen.
 		for (const quest of dailyQuests) {
 			if (!quest.completed && quest.progress >= quest.target) {
 				const { data: rewardData, error: rewardError } = await gCrud.completeQuestReward(sb, quest.id);
 				if (rewardError || !rewardData || rewardData.length === 0) {
 					// Server hat abgelehnt — Quest bleibt bei progress=target, completed=false.
-					// Wird beim naechsten Task-Complete erneut versucht.
+					// Naechster Task-Complete triggert erneut.
 					continue;
 				}
 				quest.completed = true;
@@ -344,9 +343,10 @@ export function createGamificationStore() {
 			weekly_tasks: weeklyTasks
 		});
 
-		// Progress quests (weiter client-seitig bis Follow-up)
-		await progressQuests('complete_tasks');
-		if (isSubtask) await progressQuests('complete_subtasks');
+		// Migration 016: Quest-Progress wurde bereits serverseitig durch
+		// complete_task_reward inkrementiert (quest_type anhand parent_id).
+		// Jetzt lokalen State refreshen und jetzt-claimbare Quests atomar claimen.
+		await refreshAndClaimQuests();
 
 		return {
 			xpGained: row.xp_gained,
