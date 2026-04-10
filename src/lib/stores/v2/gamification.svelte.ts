@@ -45,19 +45,6 @@ function streakMultiplier(streakDays: number): number {
 }
 
 // ==========================================
-// PRIORITY-BASED REWARDS
-// ==========================================
-
-const PRIORITY_REWARDS: Record<string, { xp: number; coins: number }> = {
-	low: { xp: 5, coins: 5 },
-	normal: { xp: 10, coins: 10 },
-	high: { xp: 15, coins: 15 },
-	asap: { xp: 20, coins: 20 }
-};
-
-const SUBTASK_REWARD = { xp: 3, coins: 2 };
-
-// ==========================================
 // DAILY QUEST TYPES
 // ==========================================
 
@@ -269,62 +256,38 @@ export function createGamificationStore() {
 		}
 
 		const results: DailyQuest[] = [];
-		for (const quest of picked) {
-			const { data, error } = await gCrud.insertDailyQuest(sb, userId, {
-				quest_type: quest.quest_type,
-				target: quest.target,
-				reward_xp: quest.reward_xp,
-				reward_coins: quest.reward_coins,
-				date
-			});
+		for (let i = 0; i < picked.length; i++) {
+			const quest = picked[i];
+			const { data, error } = await gCrud.insertDailyQuest(
+				sb,
+				userId,
+				{
+					quest_type: quest.quest_type,
+					target: quest.target,
+					reward_xp: quest.reward_xp,
+					reward_coins: quest.reward_coins,
+					date
+				},
+				i // slot = 0 fuer ersten, 1 fuer zweiten Pick
+			);
 			if (!error && data) {
 				results.push(data as DailyQuest);
+			} else if (error) {
+				// Race Condition: UNIQUE (user_id, date, slot) verletzt —
+				// andere Session war schneller. Existierende Quests zurueckgeben.
+				const { data: existingNow } = await gCrud.getDailyQuests(sb, userId, date);
+				if (existingNow && existingNow.length > 0) {
+					return existingNow as DailyQuest[];
+				}
 			}
 		}
 		return results;
 	}
 
-	// --- XP & Coins ---
-	// C1: Atomarer RPC statt Read-then-Write
-	async function grantRewards(xpAmount: number, coinAmount: number) {
-		const multiplier = currentStreakMultiplier;
-		const finalXP = Math.round(xpAmount * multiplier);
-
-		// Optimistic Update
-		xp += finalXP;
-		coins += coinAmount;
-		const newLevel = levelFromXP(xp);
-		const leveledUp = newLevel > level;
-		level = newLevel;
-
-		const { data, error } = await gCrud.grantRewards(sb, userId, finalXP, coinAmount);
-		if (error) {
-			// Rollback bei Fehler
-			xp -= finalXP;
-			coins -= coinAmount;
-			level = levelFromXP(xp);
-			return { xpGained: 0, coinsGained: 0, leveledUp: false };
-		}
-
-		// Server-Werte uebernehmen falls vorhanden
-		if (data && data.length > 0) {
-			xp = data[0].new_xp;
-			coins = data[0].new_coins;
-			level = levelFromXP(xp);
-		}
-
-		// Restliche Profil-Felder separat updaten
-		await gCrud.updateProfile(sb, userId, {
-			level,
-			total_tasks_done: totalTasksDone,
-			weekly_tasks: weeklyTasks
-		});
-
-		return { xpGained: finalXP, coinsGained: coinAmount, leveledUp };
-	}
-
 	// --- Quest progress ---
-	// H3: Error-Handling fuer Quest-Rewards
+	// Migration 014: Quest-Progress bleibt client-seitig (trusted UPDATE auf daily_quests.progress),
+	// aber sobald newProgress >= target erreicht ist, geht es atomar ueber complete_quest_reward RPC.
+	// FOLLOW-UP: Progress-UPDATE auch serverseitig absichern (sonst Cheat-Vektor).
 	async function progressQuests(questType: string, amount: number = 1) {
 		for (const quest of dailyQuests) {
 			if (quest.quest_type === questType && !quest.completed) {
@@ -339,30 +302,20 @@ export function createGamificationStore() {
 				}
 
 				if (newProgress >= quest.target) {
-					quest.completed = true;
-					const { error: completeError } = await gCrud.completeQuest(sb, quest.id);
-					if (completeError) {
-						quest.completed = false;
+					// Atomare RPC: Quest completen + Reward granten in einer Transaction.
+					const { data, error: rewardError } = await gCrud.completeQuestReward(sb, quest.id);
+					if (rewardError || !data || data.length === 0) {
+						// Server hat abgelehnt — lokalen State zuruecksetzen.
 						quest.progress = oldProgress;
+						quest.completed = false;
 						continue;
 					}
-					// Quest-Rewards atomar ueber RPC
-					const { data, error: rewardError } = await gCrud.grantRewards(
-						sb,
-						userId,
-						quest.reward_xp,
-						quest.reward_coins
-					);
-					if (!rewardError && data && data.length > 0) {
-						xp = data[0].new_xp;
-						coins = data[0].new_coins;
-						level = levelFromXP(xp);
-						// Level in DB persistieren (P2-Fix: fehlte hier)
-						await gCrud.updateProfile(sb, userId, { level });
-					} else if (rewardError) {
-						quest.completed = false;
-						quest.progress = oldProgress;
-					}
+					quest.completed = true;
+					xp = data[0].new_xp;
+					coins = data[0].new_coins;
+					level = levelFromXP(xp);
+					// Level in DB persistieren (RPC updated nur xp/coins).
+					await gCrud.updateProfile(sb, userId, { level });
 				}
 			}
 		}
@@ -380,45 +333,81 @@ export function createGamificationStore() {
 	}
 
 	// --- Public event handlers ---
-	// H4: XP-Exploit-Schutz — jede Task-ID wird nur einmal pro Tag belohnt
+	// Migration 014: Rewards werden komplett server-seitig berechnet.
+	// Client uebergibt nur die Task-ID, RPC checkt Ownership, done, type,
+	// Double-Submit (rewarded_tasks Tabelle) und liefert die tatsaechlichen Werte.
+	// rewardedTaskIds-Set bleibt als lokale Optimierung (spart RPC-Roundtrips),
+	// ist aber nicht mehr das Security-Gate.
 	async function onTaskDone(task: { id: string; parent_id: string | null; priority?: string }) {
 		if (!initialized) return { xpGained: 0, coinsGained: 0, leveledUp: false, speedCount: 0 };
 
-		// H4: Tageswechsel-Reset
+		// Tageswechsel-Reset des lokalen Caches
 		const today = todayStr();
 		if (rewardedDate !== today) {
 			rewardedTaskIds = new Set();
 			rewardedDate = today;
 		}
 
-		// H4: Bereits belohnte Task ignorieren
+		const speedCount = trackCompletion();
+
+		// Lokaler Cache: kein erneuter RPC-Roundtrip falls schon belohnt
 		if (rewardedTaskIds.has(task.id)) {
-			const speedCount = trackCompletion();
 			return { xpGained: 0, coinsGained: 0, leveledUp: false, speedCount };
 		}
+
+		// Server-seitige Reward-Berechnung
+		const { data, error } = await gCrud.completeTaskReward(sb, task.id);
+		if (error) {
+			// Server hat abgelehnt (nicht authentifiziert, nicht owner, nicht done, ...).
+			// Kein State-Update — Konsistenz zwischen Counter und Reward wahren.
+			console.error('[gamification] completeTaskReward failed:', error);
+			return { xpGained: 0, coinsGained: 0, leveledUp: false, speedCount };
+		}
+		if (!data || data.length === 0) {
+			return { xpGained: 0, coinsGained: 0, leveledUp: false, speedCount };
+		}
+
+		const row = data[0];
+
+		// Already rewarded (Double-Submit durch Server erkannt)
+		if (row.already_rewarded) {
+			rewardedTaskIds = new Set([...rewardedTaskIds, task.id]);
+			return { xpGained: 0, coinsGained: 0, leveledUp: false, speedCount };
+		}
+
+		// Server-Werte uebernehmen
+		const oldLevel = level;
+		xp = row.new_xp;
+		coins = row.new_coins;
+		level = levelFromXP(xp);
+		const leveledUp = level > oldLevel;
+
 		rewardedTaskIds = new Set([...rewardedTaskIds, task.id]);
 
+		// Lokale Counter nur hochzaehlen, wenn Server tatsaechlich belohnt hat
 		const isSubtask = !!task.parent_id;
-		const reward = isSubtask
-			? SUBTASK_REWARD
-			: (PRIORITY_REWARDS[task.priority ?? 'normal'] ?? PRIORITY_REWARDS['normal']);
-		const xpAmount = reward.xp;
-		const coinAmount = reward.coins;
-
 		totalTasksDone += 1;
 		if (isSubtask) totalSubtasksDone += 1;
 		updateWeeklyTasks();
 		await updateStreak();
 
-		const result = await grantRewards(xpAmount, coinAmount);
+		// Level + Counter persistieren (RPC updated nur xp/coins)
+		await gCrud.updateProfile(sb, userId, {
+			level,
+			total_tasks_done: totalTasksDone,
+			weekly_tasks: weeklyTasks
+		});
 
-		// Progress quests
+		// Progress quests (weiter client-seitig bis Follow-up)
 		await progressQuests('complete_tasks');
 		if (isSubtask) await progressQuests('complete_subtasks');
 
-		const speedCount = trackCompletion();
-
-		return { ...result, speedCount };
+		return {
+			xpGained: row.xp_gained,
+			coinsGained: row.coins_gained,
+			leveledUp,
+			speedCount
+		};
 	}
 
 	async function onSubtaskDone(task: { id: string }) {

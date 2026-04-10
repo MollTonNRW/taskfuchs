@@ -24,45 +24,30 @@ export interface GamificationProfileUpdate {
 // ==========================================
 
 export async function getOrCreateProfile(sb: Sb, userId: string) {
-	const { data, error } = await sb
-		.from('gamification_profiles')
-		.select('*')
-		.eq('user_id', userId)
-		.single();
+	const { data, error } = await sb.from('gamification_profiles').select('*').eq('user_id', userId).single();
 
 	if (error && error.code === 'PGRST116') {
 		// Not found — create
-		return sb
-			.from('gamification_profiles')
-			.insert({ user_id: userId })
-			.select()
-			.single();
+		return sb.from('gamification_profiles').insert({ user_id: userId }).select().single();
 	}
 	return { data, error };
 }
 
-export async function updateProfile(
-	sb: Sb,
-	userId: string,
-	changes: Partial<GamificationProfileUpdate>
-) {
+export async function updateProfile(sb: Sb, userId: string, changes: Partial<GamificationProfileUpdate>) {
 	return sb
 		.from('gamification_profiles')
 		.update({ ...changes, updated_at: new Date().toISOString() })
 		.eq('user_id', userId);
 }
 
-// C1: Atomare RPC-Funktionen statt Read-then-Write
-export async function addXP(sb: Sb, userId: string, amount: number) {
-	return sb.rpc('increment_xp', { p_user_id: userId, p_amount: amount });
+// Migration 014: Server-seitige Reward-Berechnung.
+// Client uebergibt nur noch die Task-/Quest-ID, alle Werte kommen vom Server.
+export async function completeTaskReward(sb: Sb, taskId: string) {
+	return sb.rpc('complete_task_reward', { p_task_id: taskId });
 }
 
-export async function addCoins(sb: Sb, userId: string, amount: number) {
-	return sb.rpc('increment_coins', { p_user_id: userId, p_amount: amount });
-}
-
-export async function grantRewards(sb: Sb, userId: string, xpAmount: number, coinAmount: number) {
-	return sb.rpc('grant_rewards', { p_user_id: userId, p_xp: xpAmount, p_coins: coinAmount });
+export async function completeQuestReward(sb: Sb, questId: string) {
+	return sb.rpc('complete_quest_reward', { p_quest_id: questId });
 }
 
 // ==========================================
@@ -70,24 +55,13 @@ export async function grantRewards(sb: Sb, userId: string, xpAmount: number, coi
 // ==========================================
 
 export async function getAchievements(sb: Sb, userId: string) {
-	return sb
-		.from('user_achievements')
-		.select('*')
-		.eq('user_id', userId)
-		.order('unlocked_at', { ascending: false });
+	return sb.from('user_achievements').select('*').eq('user_id', userId).order('unlocked_at', { ascending: false });
 }
 
-export async function unlockAchievement(
-	sb: Sb,
-	userId: string,
-	achievementId: string
-) {
+export async function unlockAchievement(sb: Sb, userId: string, achievementId: string) {
 	return sb
 		.from('user_achievements')
-		.upsert(
-			{ user_id: userId, achievement_id: achievementId },
-			{ onConflict: 'user_id,achievement_id' }
-		)
+		.upsert({ user_id: userId, achievement_id: achievementId }, { onConflict: 'user_id,achievement_id' })
 		.select()
 		.single();
 }
@@ -97,32 +71,18 @@ export async function unlockAchievement(
 // ==========================================
 
 export async function getDailyQuests(sb: Sb, userId: string, date: string) {
-	return sb
-		.from('daily_quests')
-		.select('*')
-		.eq('user_id', userId)
-		.eq('date', date);
+	return sb.from('daily_quests').select('*').eq('user_id', userId).eq('date', date);
 }
 
-export async function updateQuestProgress(
-	sb: Sb,
-	questId: string,
-	progress: number
-) {
+export async function updateQuestProgress(sb: Sb, questId: string, progress: number) {
 	return sb.from('daily_quests').update({ progress }).eq('id', questId);
-}
-
-export async function completeQuest(sb: Sb, questId: string) {
-	return sb
-		.from('daily_quests')
-		.update({ completed: true })
-		.eq('id', questId);
 }
 
 export async function insertDailyQuest(
 	sb: Sb,
 	userId: string,
-	quest: { quest_type: string; target: number; reward_xp: number; reward_coins: number; date: string }
+	quest: { quest_type: string; target: number; reward_xp: number; reward_coins: number; date: string },
+	slot: number
 ) {
 	return sb
 		.from('daily_quests')
@@ -133,6 +93,7 @@ export async function insertDailyQuest(
 			reward_xp: quest.reward_xp,
 			reward_coins: quest.reward_coins,
 			date: quest.date,
+			slot,
 			progress: 0,
 			completed: false
 		})
@@ -154,40 +115,21 @@ export async function getLeaderboardProfiles(sb: Sb) {
 
 export async function getProfileDisplayNames(sb: Sb, userIds: string[]) {
 	if (userIds.length === 0) return { data: [], error: null };
-	return sb
-		.from('profiles')
-		.select('id, display_name, username')
-		.in('id', userIds);
+	return sb.from('profiles').select('id, display_name, username').in('id', userIds);
 }
 
 // ==========================================
 // COSMETICS
 // ==========================================
 
-export async function purchaseCosmetic(
-	sb: Sb,
-	userId: string,
-	cosmeticId: string
-) {
-	return sb
-		.from('user_cosmetics')
-		.insert({ user_id: userId, cosmetic_id: cosmeticId })
-		.select()
-		.single();
+export async function purchaseCosmetic(sb: Sb, userId: string, cosmeticId: string) {
+	return sb.from('user_cosmetics').insert({ user_id: userId, cosmetic_id: cosmeticId }).select().single();
 }
 
-export async function setActiveCosmetic(
-	sb: Sb,
-	userId: string,
-	slot: string,
-	cosmeticId: string
-) {
+export async function setActiveCosmetic(sb: Sb, userId: string, slot: string, cosmeticId: string) {
 	return sb
 		.from('active_cosmetics')
-		.upsert(
-			{ user_id: userId, slot, cosmetic_id: cosmeticId },
-			{ onConflict: 'user_id,slot' }
-		)
+		.upsert({ user_id: userId, slot, cosmetic_id: cosmeticId }, { onConflict: 'user_id,slot' })
 		.select()
 		.single();
 }
