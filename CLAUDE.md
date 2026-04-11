@@ -26,10 +26,12 @@ Erkenntnisse oder offene Punkte schreibst du bewusst zusaetzlich dort hin.
 
 ## Session Start — IMMER ausfuehren
 
-1. Infrastruktur-Repo synchronisieren:
+1. Remote-Awareness (NICHT pullen — Hooks schreiben live in `memory/taskfuchs/YYYY-MM-DD.md`, Working Tree ist per Design dirty):
    ```bash
-   git -C ~/ClaudeProjects/infrastruktur pull --rebase
+   git -C ~/ClaudeProjects/infrastruktur fetch --quiet
+   git -C ~/ClaudeProjects/infrastruktur log --oneline HEAD..origin/main
    ```
+   Leere Ausgabe → nichts Neues. Nicht leer → kurz ueberfliegen, keine Sync-Aktion noetig. Der Session-Ende-Block pullt vor dem Push mit sauberem Working Tree (post-commit).
 2. `source ~/ClaudeProjects/infrastruktur/.env`
 3. `source ~/ClaudeProjects/infrastruktur/hosts.env`
 4. Lese: `~/ClaudeProjects/infrastruktur/shared-state.md` (Tier 1 — immer)
