@@ -15,6 +15,15 @@ App-Entwicklung TaskFuchs. Zustaendig fuer:
 - Host: agentingo (Mac mini M4, 16 GB)
 - Projekt: ~/ClaudeProjects/Taskfuchs/
 
+## Text > Brain (HARTE REGEL)
+
+Mental Notes ueberleben keine Compaction und keinen Session-Restart. Files tun das.
+Wenn du dir etwas merken willst — fuer dich oder fuer die naechste Session —
+**schreib es in ein File**. Niemals "ich merk mir das" sagen ohne es auch tatsaechlich
+ins Dateisystem zu schreiben. Der `session-status.sh` Hook loggt automatisch jeden
+User-Prompt + Write/Edit/Bash in die Tagesdatei — aber wichtige Entscheidungen,
+Erkenntnisse oder offene Punkte schreibst du bewusst zusaetzlich dort hin.
+
 ## Session Start — IMMER ausfuehren
 
 1. Infrastruktur-Repo synchronisieren:
@@ -24,18 +33,21 @@ App-Entwicklung TaskFuchs. Zustaendig fuer:
 2. `source ~/ClaudeProjects/infrastruktur/.env`
 3. `source ~/ClaudeProjects/infrastruktur/hosts.env`
 4. Lese: `~/ClaudeProjects/infrastruktur/shared-state.md` (Tier 1 — immer)
-5. Lese: `~/ClaudeProjects/infrastruktur/memory/taskfuchs-last.md` (Tier 2 — eigener Stand)
-6. Git-Status pruefen: `git -C ~/ClaudeProjects/infrastruktur status`
+5. Lese: `~/ClaudeProjects/infrastruktur/memory/taskfuchs-last.md` (Tier 2 — Index)
+6. Lese: `~/ClaudeProjects/infrastruktur/memory/taskfuchs/$(date +%F).md` (Tier 3 — heute)
+7. Lese: `~/ClaudeProjects/infrastruktur/memory/taskfuchs/$(date -v-1d +%F).md` (Tier 3 — gestern, falls vorhanden)
+8. Git-Status pruefen: `git -C ~/ClaudeProjects/infrastruktur status`
 
 ## Session Ende — IMMER ausfuehren
 
-1. `~/ClaudeProjects/infrastruktur/memory/taskfuchs-last.md` aktualisieren:
-   - Was wurde getan
-   - Was steht noch aus
-   - Fehlgeschlagene Versuche
-   - Temporaere Workarounds
-2. `~/ClaudeProjects/infrastruktur/shared-state.md` — eigene Zeile im Log anfuegen (append-only, neueste oben). Fremde Eintraege nie aendern.
-3. Commit + Push (mit pull --rebase vor Push um Konflikte zu vermeiden):
+1. `memory/taskfuchs/$(date +%F).md` um **manuelle Zusammenfassung** ergaenzen
+   (Hook hat Roh-Log bereits geschrieben):
+   - Was wurde entschieden
+   - Offene Punkte fuer naechste Session
+   - Erkenntnisse die fuer Wochen relevant sind
+2. `memory/taskfuchs-last.md` Index aktualisieren (max 30 Zeilen — "Zuletzt kritisch" + "Offene Cross-Session TODOs")
+3. `shared-state.md` — eigene Zeile im Log anfuegen (append-only, neueste oben). Fremde Eintraege nie aendern.
+4. Commit + Push:
    ```bash
    cd ~/ClaudeProjects/infrastruktur
    git add -A
@@ -46,9 +58,10 @@ App-Entwicklung TaskFuchs. Zustaendig fuer:
 
 ## Checkpoint bei laengerem Task
 
-Nach jedem abgeschlossenen Subtask (NICHT zeitbasiert):
-- memory/taskfuchs-last.md updaten
-- Commit wenn sinnvoller Zwischenstand erreicht
+**Hook-basiert (automatisch):** Jeder User-Prompt + jede Write/Edit/Bash wird vom
+`session-status.sh` Hook in `memory/taskfuchs/$(date +%F).md` geloggt. Signifikante
+Entscheidungen schreibst du zusaetzlich bewusst als `## HH:MM Entscheidung: ...`.
+Commit ist nicht pro Subtask noetig — am Session-Ende reicht.
 
 ## Konventionen
 
