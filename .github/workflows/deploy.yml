@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PUBLIC_SUPABASE_URL: https://kniflzaljtychimboqcp.supabase.co
-      PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaWZsemFsanR5Y2hpbWJvcWNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMzk2NTgsImV4cCI6MjA4ODcxNTY1OH0.FyYLbhwo5S8lKam2CdED003mwCS-Z6XAbTzqNQqeba0
+      PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.PUBLIC_SUPABASE_ANON_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
