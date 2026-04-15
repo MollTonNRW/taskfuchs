@@ -597,3 +597,13 @@ Das Agent-Tool ohne team_name ist VERBOTEN.
 Zentrale Agent-Definitionen: ~/ClaudeProjects/infrastruktur/shared-agents/
 18 Kategorien, ~190 Presets. README.md dort enthaelt Index.
 Archiviertes Wissen (HA-Entities, n8n-Incidents, Netzwerk): shared-agents/_memory/
+
+## Container-Ops Ownership (PFLICHT)
+
+**Vor jeder docker/systemd/launchctl-Operation** (start/stop/restart/rm/run/exec/cp/update/mount-edit) an produktiven Containern/Services pruefe die Ownership-Tabelle in `~/ClaudeProjects/infrastruktur/docs/policies/container-ops-ownership.md`.
+
+**Nicht-Owner:** Dispatch direkt an den Owner (nicht chain-dispatch ueber eine andere Nicht-Owner-Session).
+**Read-only** (`docker ps/logs/inspect`, `cat`, `grep`) ist von allen Sessions erlaubt.
+**"End-to-End verifiziert"** im shared-state: nur nach echtem Round-Trip-Test, nicht bei in-process-checks.
+
+Anlass: 2026-04-15 INC-2026-04-15-001 OpenClaw-Impersonation-Leak — Chain-Dispatch taskfuchs→network fuer Container-Ops verschleierte falschen All-Clear 90min vor Breach.
