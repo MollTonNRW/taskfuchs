@@ -360,6 +360,25 @@ export function createGamificationStore() {
 		return onTaskDone({ id: task.id, parent_id: 'subtask' });
 	}
 
+	// Tageswechsel-Refresh: wird aufgerufen bei visibilitychange (Tab sichtbar nach Schlaf)
+	// und per Midnight-Timer. Idempotent — macht nur was wenn sich der Tag tatsaechlich
+	// geaendert hat. `generate_daily_quests` ist serverseitig race-safe (Migration 015).
+	async function ensureTodayQuests() {
+		if (!initialized) return;
+		const today = todayStr();
+		const questDate = dailyQuests[0]?.date;
+		if (questDate === today) return;
+
+		const { data: quests } = await gCrud.getDailyQuests(sb, userId, today);
+		let fresh = (quests as DailyQuest[]) ?? [];
+		if (fresh.length === 0) {
+			fresh = await loadOrGenerateDailyQuests();
+		}
+		dailyQuests = fresh;
+		rewardedTaskIds = new Set();
+		rewardedDate = today;
+	}
+
 	async function onTaskUndone(task: { id: string; parent_id?: string | null }) {
 		if (!initialized) return;
 		// Undo: reduce counter but don't take away XP (zu frustrierend)
@@ -434,6 +453,7 @@ export function createGamificationStore() {
 		onTaskDone,
 		onSubtaskDone,
 		onTaskUndone,
+		ensureTodayQuests,
 
 		// Helpers (for achievement checks)
 		get recentCompletionCount() {

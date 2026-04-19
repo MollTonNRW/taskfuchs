@@ -162,6 +162,31 @@
 
 		// Set contextual fox message
 		contextFoxMessage = getContextFoxMessage();
+
+		// Tageswechsel-Refresh: visibilitychange (App kommt aus dem Hintergrund nach Mitternacht)
+		// + Timer bis naechste Mitternacht (+30s Puffer fuer Serverzeit-Drift). Rekursiv
+		// neu geplant, damit auch mehrere Tagesgrenzen bei lange offener Session abgedeckt sind.
+		let midnightTimer: ReturnType<typeof setTimeout> | null = null;
+		const handleVisibility = () => {
+			if (!document.hidden) gStore.ensureTodayQuests();
+		};
+		function scheduleMidnight() {
+			const now = new Date();
+			const next = new Date(now);
+			next.setHours(24, 0, 30, 0);
+			midnightTimer = setTimeout(async () => {
+				await gStore.ensureTodayQuests();
+				scheduleMidnight();
+			}, next.getTime() - now.getTime());
+		}
+		if (browser) {
+			document.addEventListener('visibilitychange', handleVisibility);
+			scheduleMidnight();
+		}
+		return () => {
+			if (browser) document.removeEventListener('visibilitychange', handleVisibility);
+			if (midnightTimer) clearTimeout(midnightTimer);
+		};
 	});
 
 	async function handleCalendarToggle() {
