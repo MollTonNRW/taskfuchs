@@ -1,0 +1,1293 @@
+<!doctype html>
+<html lang="de" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>Taskfuchs — Redesign Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ====================================================================
+       DESIGN TOKENS
+       ==================================================================== */
+    :root {
+      --bg-0: #0a0a0d;
+      --bg-1: #111218;
+      --bg-2: #16171f;
+      --surface-1: rgba(255, 255, 255, 0.035);
+      --surface-2: rgba(255, 255, 255, 0.055);
+      --surface-3: rgba(255, 255, 255, 0.08);
+      --border-soft: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.1);
+      --border-strong: rgba(255, 255, 255, 0.18);
+      --text-1: rgba(255, 255, 255, 0.96);
+      --text-2: rgba(255, 255, 255, 0.72);
+      --text-3: rgba(255, 255, 255, 0.48);
+      --text-4: rgba(255, 255, 255, 0.32);
+      --accent: #f97316;
+      --accent-2: #ec4899;
+      --accent-3: #8b5cf6;
+      --accent-grad: linear-gradient(135deg, #f97316 0%, #ec4899 50%, #8b5cf6 100%);
+      --accent-grad-soft: linear-gradient(135deg, rgba(249, 115, 22, 0.18), rgba(236, 72, 153, 0.18), rgba(139, 92, 246, 0.18));
+      --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.25), 0 8px 24px rgba(0, 0, 0, 0.35);
+      --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.3), 0 24px 56px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--border-strong);
+      --shadow-drag: 0 12px 24px rgba(0, 0, 0, 0.45), 0 48px 120px rgba(249, 115, 22, 0.25);
+      --radius-xs: 6px;
+      --radius-sm: 10px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-xl: 28px;
+      --blur: 16px;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    }
+
+    /* ====================================================================
+       RESET + BASE
+       ==================================================================== */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-0);
+      color: var(--text-1);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+      position: relative;
+    }
+    button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; padding: 0; }
+    input, textarea { font: inherit; color: inherit; background: none; border: none; outline: none; }
+
+    /* Font utilities */
+    .display { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* ====================================================================
+       ANIMATED BACKGROUND (mesh + noise)
+       ==================================================================== */
+    .bg-mesh {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      overflow: hidden;
+    }
+    .bg-mesh::before, .bg-mesh::after {
+      content: ''; position: absolute;
+      width: 60vw; height: 60vw;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.35;
+      will-change: transform;
+    }
+    .bg-mesh::before {
+      background: radial-gradient(circle at center, #f97316 0%, transparent 65%);
+      top: -20vw; left: -15vw;
+      animation: mesh-drift-1 32s ease-in-out infinite alternate;
+    }
+    .bg-mesh::after {
+      background: radial-gradient(circle at center, #8b5cf6 0%, transparent 65%);
+      bottom: -25vw; right: -15vw;
+      animation: mesh-drift-2 28s ease-in-out infinite alternate;
+    }
+    @keyframes mesh-drift-1 {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(30vw, 20vh) scale(1.2); }
+    }
+    @keyframes mesh-drift-2 {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(-25vw, -15vh) scale(1.15); }
+    }
+    .bg-noise {
+      position: fixed; inset: 0; pointer-events: none; z-index: 1;
+      opacity: 0.04; mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.8'/></svg>");
+    }
+
+    /* ====================================================================
+       APP LAYOUT
+       ==================================================================== */
+    .app {
+      position: relative; z-index: 2;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      grid-template-rows: 64px 1fr;
+      height: 100vh; width: 100vw;
+    }
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
+
+    /* ====================================================================
+       TOP BAR
+       ==================================================================== */
+    .topbar {
+      grid-column: 1 / -1;
+      display: flex; align-items: center;
+      padding: 0 20px; gap: 16px;
+      background: rgba(10, 10, 13, 0.6);
+      backdrop-filter: blur(var(--blur)) saturate(1.2);
+      -webkit-backdrop-filter: blur(var(--blur)) saturate(1.2);
+      border-bottom: 1px solid var(--border-soft);
+      z-index: 10;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 600; font-size: 16px;
+      letter-spacing: -0.01em;
+    }
+    .brand .logo {
+      width: 32px; height: 32px;
+      display: grid; place-items: center;
+      background: var(--accent-grad);
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35);
+      animation: logo-breathe 4s ease-in-out infinite;
+    }
+    @keyframes logo-breathe {
+      0%, 100% { transform: scale(1); box-shadow: 0 4px 16px rgba(249, 115, 22, 0.35); }
+      50% { transform: scale(1.04); box-shadow: 0 4px 20px rgba(236, 72, 153, 0.45); }
+    }
+
+    .board-switcher {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 12px 6px 8px;
+      background: var(--surface-1);
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      transition: background 0.2s var(--ease-out), border-color 0.2s var(--ease-out);
+      margin-left: 20px;
+    }
+    .board-switcher:hover { background: var(--surface-2); border-color: var(--border); }
+    .board-switcher .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent-grad);
+      box-shadow: 0 0 12px rgba(249, 115, 22, 0.6);
+    }
+    .board-switcher .name { font-weight: 500; font-size: 13px; }
+    .board-switcher .chev { opacity: 0.5; margin-left: 4px; }
+
+    .search {
+      flex: 1; max-width: 420px; margin-left: auto;
+      position: relative;
+    }
+    .search-input {
+      width: 100%;
+      padding: 8px 12px 8px 36px;
+      background: var(--surface-1);
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      font-size: 13px;
+      transition: border-color 0.25s var(--ease-out), background 0.25s var(--ease-out);
+    }
+    .search-input::placeholder { color: var(--text-3); }
+    .search-input:focus { border-color: transparent; background: var(--surface-2); }
+    .search::before {
+      content: ''; position: absolute; inset: -1px; border-radius: 11px;
+      padding: 1px;
+      background: conic-gradient(from 0deg, #f97316, #ec4899, #8b5cf6, #f97316);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0;
+      transition: opacity 0.3s var(--ease-out);
+      pointer-events: none;
+      animation: search-border-spin 4s linear infinite;
+    }
+    .search:focus-within::before { opacity: 1; }
+    @keyframes search-border-spin { to { transform: rotate(360deg); } }
+    .search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--text-3);
+      pointer-events: none;
+    }
+    .search-kbd {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: var(--text-3);
+      background: var(--surface-2);
+      padding: 2px 6px; border-radius: 4px;
+      border: 1px solid var(--border-soft);
+    }
+
+    .avatars {
+      display: flex; align-items: center;
+    }
+    .avatar {
+      width: 30px; height: 30px; border-radius: 50%;
+      display: grid; place-items: center;
+      font-weight: 600; font-size: 12px;
+      background: var(--surface-2);
+      border: 2px solid var(--bg-0);
+      margin-left: -6px;
+      color: var(--text-1);
+      position: relative;
+      transition: transform 0.25s var(--ease-spring);
+    }
+    .avatar:hover { transform: translateY(-2px) scale(1.1); z-index: 2; }
+    .avatar.fox { background: linear-gradient(135deg, #f97316, #dc2626); }
+    .avatar.pink { background: linear-gradient(135deg, #ec4899, #be185d); }
+    .avatar.violet { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+
+    .icon-btn {
+      width: 34px; height: 34px; border-radius: 10px;
+      display: grid; place-items: center;
+      background: var(--surface-1);
+      border: 1px solid var(--border-soft);
+      transition: background 0.2s var(--ease-out), border-color 0.2s var(--ease-out), transform 0.2s var(--ease-spring);
+      color: var(--text-2);
+    }
+    .icon-btn:hover { background: var(--surface-2); border-color: var(--border); color: var(--text-1); transform: translateY(-1px); }
+    .icon-btn:active { transform: translateY(0) scale(0.95); }
+
+    /* ====================================================================
+       SIDEBAR
+       ==================================================================== */
+    .sidebar {
+      padding: 20px 12px;
+      background: rgba(10, 10, 13, 0.5);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
+      border-right: 1px solid var(--border-soft);
+      overflow-y: auto;
+    }
+    .sidebar-section { margin-bottom: 24px; }
+    .sidebar-title {
+      padding: 0 12px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-3);
+    }
+    .board-list { display: flex; flex-direction: column; gap: 2px; }
+    .board-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      color: var(--text-2);
+      font-size: 13px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out);
+    }
+    .board-item:hover { background: var(--surface-1); color: var(--text-1); }
+    .board-item.active {
+      background: var(--surface-2);
+      color: var(--text-1);
+    }
+    .board-item.active::before {
+      content: ''; position: absolute; left: 0; top: 8px; bottom: 8px;
+      width: 3px; border-radius: 2px;
+      background: var(--accent-grad);
+      animation: active-pulse 2.4s ease-in-out infinite;
+    }
+    @keyframes active-pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 rgba(249, 115, 22, 0); }
+      50% { opacity: 0.8; box-shadow: 0 0 8px rgba(249, 115, 22, 0.6); }
+    }
+    .board-icon {
+      width: 22px; height: 22px; border-radius: 6px;
+      display: grid; place-items: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    .board-icon.fox { background: linear-gradient(135deg, #f97316, #ea580c); }
+    .board-icon.moll { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+    .board-icon.garten { background: linear-gradient(135deg, #10b981, #065f46); }
+    .board-icon.privat { background: linear-gradient(135deg, #3b82f6, #1e3a8a); }
+    .board-icon.einkauf { background: linear-gradient(135deg, #ec4899, #be185d); }
+    .board-count {
+      margin-left: auto;
+      font-size: 11px; font-family: 'JetBrains Mono', monospace;
+      color: var(--text-3);
+    }
+
+    .labels-row { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px; }
+    .label-chip {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .label-chip.bug { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+    .label-chip.feature { background: rgba(139, 92, 246, 0.18); color: #c4b5fd; }
+    .label-chip.chore { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+    .label-chip.db { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+    .label-chip.ux { background: rgba(236, 72, 153, 0.18); color: #f9a8d4; }
+
+    /* ====================================================================
+       BOARD (Kanban)
+       ==================================================================== */
+    .board {
+      overflow-x: auto; overflow-y: hidden;
+      padding: 20px;
+      position: relative;
+    }
+    .board::-webkit-scrollbar { height: 10px; }
+    .board::-webkit-scrollbar-track { background: transparent; }
+    .board::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 5px; }
+    .board::-webkit-scrollbar-thumb:hover { background: var(--surface-3); }
+
+    .board-header {
+      display: flex; align-items: baseline; gap: 16px;
+      margin-bottom: 16px;
+      padding: 0 4px;
+    }
+    .board-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 24px; font-weight: 600;
+      letter-spacing: -0.02em;
+      background: var(--accent-grad);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .board-meta { color: var(--text-3); font-size: 12px; }
+    .board-meta .mono { color: var(--text-2); }
+
+    .columns {
+      display: flex; gap: 14px;
+      align-items: flex-start;
+      min-height: calc(100vh - 64px - 40px - 64px);
+    }
+
+    /* ====================================================================
+       COLUMN
+       ==================================================================== */
+    .column {
+      flex: 0 0 300px;
+      background: var(--surface-1);
+      backdrop-filter: blur(var(--blur));
+      -webkit-backdrop-filter: blur(var(--blur));
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg);
+      padding: 12px;
+      max-height: calc(100vh - 64px - 40px - 24px);
+      display: flex; flex-direction: column;
+      animation: column-enter 0.5s var(--ease-out) both;
+    }
+    .column:nth-child(1) { animation-delay: 0ms; }
+    .column:nth-child(2) { animation-delay: 80ms; }
+    .column:nth-child(3) { animation-delay: 160ms; }
+    .column:nth-child(4) { animation-delay: 240ms; }
+    @keyframes column-enter {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .column-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 8px 12px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .column-indicator {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .column-indicator.backlog { background: #64748b; }
+    .column-indicator.progress { background: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.5); }
+    .column-indicator.review { background: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.5); }
+    .column-indicator.done { background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.5); }
+    .column-title { font-weight: 600; font-size: 13px; flex: 1; }
+    .column-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--text-3);
+      padding: 2px 6px;
+      background: var(--surface-2);
+      border-radius: 4px;
+    }
+    .column-menu {
+      width: 24px; height: 24px; border-radius: 6px;
+      display: grid; place-items: center;
+      color: var(--text-3);
+      transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out);
+    }
+    .column-menu:hover { background: var(--surface-2); color: var(--text-1); }
+
+    .cards {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 4px;
+      margin: 0 -4px;
+      display: flex; flex-direction: column;
+      gap: 8px;
+      min-height: 40px;
+      position: relative;
+    }
+    .cards::-webkit-scrollbar { width: 6px; }
+    .cards::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 3px; }
+
+    .cards.drag-over {
+      background: linear-gradient(180deg, transparent, rgba(249, 115, 22, 0.06), transparent);
+    }
+    .drop-placeholder {
+      height: 70px;
+      border: 1.5px dashed rgba(249, 115, 22, 0.5);
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(236, 72, 153, 0.08));
+      animation: placeholder-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes placeholder-pulse {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.005); }
+    }
+
+    .add-card-btn {
+      width: 100%;
+      padding: 8px 12px;
+      margin-top: 4px;
+      border-radius: var(--radius-md);
+      color: var(--text-3);
+      font-size: 13px;
+      text-align: left;
+      transition: background 0.2s var(--ease-out), color 0.2s var(--ease-out);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .add-card-btn:hover { background: var(--surface-2); color: var(--text-1); }
+
+    /* ====================================================================
+       CARD
+       ==================================================================== */
+    .card {
+      background: var(--surface-2);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-md);
+      padding: 10px 12px 12px;
+      cursor: grab;
+      box-shadow: var(--shadow-card);
+      position: relative;
+      transition:
+        transform 0.25s var(--ease-spring),
+        background 0.25s var(--ease-out),
+        border-color 0.25s var(--ease-out),
+        box-shadow 0.25s var(--ease-out);
+      will-change: transform;
+      overflow: hidden;
+      animation: card-enter 0.45s var(--ease-spring) both;
+    }
+    @keyframes card-enter {
+      from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .card::before {
+      content: ''; position: absolute; inset: -1px; border-radius: var(--radius-md);
+      padding: 1px;
+      background: var(--accent-grad);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0;
+      transition: opacity 0.3s var(--ease-out);
+      pointer-events: none;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      background: var(--surface-3);
+      border-color: transparent;
+      box-shadow: var(--shadow-lift);
+    }
+    .card:hover::before { opacity: 1; }
+    .card:active { cursor: grabbing; }
+
+    .card.dragging {
+      cursor: grabbing;
+      transform: rotate(3deg) scale(1.03);
+      box-shadow: var(--shadow-drag);
+      opacity: 0.95;
+      z-index: 999;
+    }
+    .card.ghost {
+      opacity: 0.35;
+      filter: grayscale(0.5);
+    }
+
+    .card-cover {
+      height: 8px;
+      margin: -10px -12px 10px;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+    .card-cover.grad-fox { background: linear-gradient(90deg, #f97316, #ec4899); }
+    .card-cover.grad-db { background: linear-gradient(90deg, #10b981, #3b82f6); }
+    .card-cover.grad-ux { background: linear-gradient(90deg, #ec4899, #8b5cf6); }
+    .card-cover.grad-bug { background: linear-gradient(90deg, #dc2626, #f59e0b); }
+    .card-cover.grad-feat { background: linear-gradient(90deg, #8b5cf6, #3b82f6); }
+
+    .card-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-1);
+      line-height: 1.4;
+      margin-bottom: 8px;
+    }
+
+    .card-meta {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 11px;
+      color: var(--text-3);
+    }
+    .card-meta .meta-item { display: flex; align-items: center; gap: 4px; }
+    .card-meta .meta-item svg { width: 12px; height: 12px; }
+    .card-meta .due-soon { color: #f59e0b; }
+    .card-meta .due-today { color: #ef4444; font-weight: 600; }
+    .card-meta .avatars-mini { margin-left: auto; display: flex; }
+    .card-meta .avatar-mini {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 1.5px solid var(--bg-2);
+      margin-left: -4px;
+      font-size: 10px; font-weight: 600;
+      display: grid; place-items: center;
+    }
+
+    /* Progress mini */
+    .card-progress {
+      margin-top: 8px; height: 3px;
+      background: var(--surface-3);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .card-progress-fill {
+      height: 100%;
+      background: var(--accent-grad);
+      border-radius: 3px;
+      transition: width 0.6s var(--ease-out);
+    }
+
+    /* Completed state */
+    .card.completed .card-title {
+      text-decoration: line-through;
+      color: var(--text-3);
+    }
+    .card.completed {
+      opacity: 0.7;
+    }
+    .card.completing {
+      animation: card-complete 0.6s var(--ease-spring) forwards;
+    }
+    @keyframes card-complete {
+      0% { transform: scale(1) translateX(0); opacity: 1; }
+      40% { transform: scale(1.06) translateX(0); opacity: 1; box-shadow: 0 0 30px rgba(16, 185, 129, 0.5); }
+      100% { transform: scale(0.95) translateX(60px); opacity: 0.3; }
+    }
+
+    /* Checkmark draw */
+    .checkbox {
+      width: 18px; height: 18px;
+      border: 1.5px solid var(--border-strong);
+      border-radius: 5px;
+      display: grid; place-items: center;
+      flex-shrink: 0;
+      transition: background 0.25s var(--ease-out), border-color 0.25s var(--ease-out);
+      cursor: pointer;
+    }
+    .checkbox:hover { border-color: var(--accent); }
+    .checkbox svg {
+      width: 12px; height: 12px;
+      stroke: var(--text-1);
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      stroke-dasharray: 20;
+      stroke-dashoffset: 20;
+      transition: stroke-dashoffset 0.3s var(--ease-out);
+    }
+    .checkbox.checked {
+      background: var(--accent-grad);
+      border-color: transparent;
+      animation: check-pop 0.4s var(--ease-spring);
+    }
+    .checkbox.checked svg { stroke-dashoffset: 0; }
+    @keyframes check-pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+
+    .card-head {
+      display: flex; align-items: flex-start; gap: 8px;
+    }
+    .card-head .checkbox { margin-top: 1px; }
+    .card-head .card-title { flex: 1; margin-bottom: 0; }
+
+    /* ====================================================================
+       CARD DETAIL OVERLAY
+       ==================================================================== */
+    .overlay-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s var(--ease-out);
+    }
+    .overlay-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .overlay {
+      position: fixed;
+      top: 50%; left: 50%;
+      width: min(640px, 92vw);
+      max-height: 86vh;
+      background: var(--bg-1);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-xl);
+      box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border-soft) inset;
+      z-index: 101;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      transform: translate(-50%, -45%) scale(0.94);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.38s var(--ease-spring), opacity 0.3s var(--ease-out);
+    }
+    .overlay.open {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .overlay-cover {
+      height: 100px;
+      background: var(--accent-grad);
+      position: relative;
+      overflow: hidden;
+    }
+    .overlay-cover::after {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.2), transparent 50%);
+    }
+    .overlay-close {
+      position: absolute; top: 12px; right: 12px;
+      width: 32px; height: 32px; border-radius: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(8px);
+      color: white;
+      display: grid; place-items: center;
+      transition: background 0.2s var(--ease-out), transform 0.2s var(--ease-spring);
+    }
+    .overlay-close:hover { background: rgba(0, 0, 0, 0.5); transform: rotate(90deg); }
+    .overlay-body {
+      padding: 24px 28px;
+      overflow-y: auto;
+    }
+    .overlay-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 22px; font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+      line-height: 1.25;
+    }
+    .overlay-subtitle {
+      font-size: 13px; color: var(--text-3);
+      margin-bottom: 20px;
+    }
+    .section-title {
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-3);
+      margin: 20px 0 10px;
+    }
+    .desc-box {
+      padding: 14px; border-radius: var(--radius-md);
+      background: var(--surface-1);
+      border: 1px solid var(--border-soft);
+      font-size: 13px; color: var(--text-2);
+      line-height: 1.6;
+    }
+    .checklist { display: flex; flex-direction: column; gap: 2px; }
+    .checklist-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 8px; border-radius: 8px;
+      font-size: 13px;
+      transition: background 0.2s var(--ease-out);
+    }
+    .checklist-item:hover { background: var(--surface-1); }
+    .checklist-item.done span { text-decoration: line-through; color: var(--text-3); }
+    .checklist-progress {
+      margin: 8px 0 4px; height: 4px;
+      background: var(--surface-2);
+      border-radius: 4px; overflow: hidden;
+    }
+    .checklist-progress-fill {
+      height: 100%;
+      background: var(--accent-grad);
+      border-radius: 4px;
+      transition: width 0.5s var(--ease-out);
+    }
+
+    /* ====================================================================
+       BOARD SWITCH TRANSITION
+       ==================================================================== */
+    .board-content.switching .card {
+      animation: card-exit 0.3s var(--ease-in-out) forwards;
+    }
+    .board-content.switching .card:nth-child(1) { animation-delay: 0ms; }
+    .board-content.switching .card:nth-child(2) { animation-delay: 40ms; }
+    .board-content.switching .card:nth-child(3) { animation-delay: 80ms; }
+    .board-content.switching .card:nth-child(4) { animation-delay: 120ms; }
+    .board-content.switching .card:nth-child(5) { animation-delay: 160ms; }
+    @keyframes card-exit {
+      to { opacity: 0; transform: translateY(12px) scale(0.96); }
+    }
+
+    /* ====================================================================
+       TOAST
+       ==================================================================== */
+    .toast {
+      position: fixed;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(120%);
+      background: var(--bg-1);
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 13px;
+      color: var(--text-1);
+      box-shadow: var(--shadow-lift);
+      z-index: 200;
+      transition: transform 0.4s var(--ease-spring);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast::before {
+      content: ''; width: 6px; height: 6px; border-radius: 50%;
+      background: #10b981; box-shadow: 0 0 8px #10b981;
+    }
+
+    /* ====================================================================
+       HELP HINT
+       ==================================================================== */
+    .hint {
+      position: fixed; bottom: 16px; right: 16px;
+      font-size: 11px; color: var(--text-4);
+      font-family: 'JetBrains Mono', monospace;
+      z-index: 50;
+    }
+    .hint kbd {
+      background: var(--surface-2);
+      border: 1px solid var(--border-soft);
+      padding: 1px 5px; border-radius: 3px;
+      color: var(--text-2);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+  <div class="bg-noise"></div>
+
+  <div class="app">
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 6l4-2 4 2 4-2 4 2"></path>
+            <path d="M4 6v5c0 4 4 7 8 7s8-3 8-7V6"></path>
+            <circle cx="9" cy="11" r="1" fill="white"></circle>
+            <circle cx="15" cy="11" r="1" fill="white"></circle>
+          </svg>
+        </div>
+        <span>taskfuchs</span>
+      </div>
+
+      <button class="board-switcher" id="boardSwitcher">
+        <span class="dot"></span>
+        <span class="name" id="boardName">Taskfuchs App</span>
+        <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+
+      <div class="search">
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+        <input class="search-input" placeholder="Suche in allen Boards…" id="search" />
+        <span class="search-kbd">⌘K</span>
+      </div>
+
+      <div class="avatars">
+        <div class="avatar fox" title="Frank">F</div>
+        <div class="avatar pink" title="Anna">A</div>
+        <div class="avatar violet" title="Leo">L</div>
+      </div>
+
+      <button class="icon-btn" title="Benachrichtigungen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg>
+      </button>
+      <button class="icon-btn" title="Einstellungen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.65 1.65 0 0 0-1.8-.3 1.65 1.65 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.65 1.65 0 0 0-1-1.5 1.65 1.65 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.65 1.65 0 0 0 .3-1.8 1.65 1.65 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.65 1.65 0 0 0 1.5-1 1.65 1.65 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.65 1.65 0 0 0 1.8.3h0a1.65 1.65 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.65 1.65 0 0 0 1 1.5h0a1.65 1.65 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.65 1.65 0 0 0-.3 1.8v0a1.65 1.65 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.65 1.65 0 0 0-1.5 1z"></path></svg>
+      </button>
+    </header>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">Workspaces</div>
+        <div class="board-list" id="boardList">
+          <div class="board-item active" data-board="fox"><div class="board-icon fox">🦊</div><span>Taskfuchs App</span><span class="board-count">18</span></div>
+          <div class="board-item" data-board="moll"><div class="board-icon moll">M</div><span>Moll GmbH</span><span class="board-count">7</span></div>
+          <div class="board-item" data-board="garten"><div class="board-icon garten">🌱</div><span>Garten</span><span class="board-count">4</span></div>
+          <div class="board-item" data-board="privat"><div class="board-icon privat">✦</div><span>Privat</span><span class="board-count">12</span></div>
+          <div class="board-item" data-board="einkauf"><div class="board-icon einkauf">🛒</div><span>Einkaufen</span><span class="board-count">9</span></div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Labels</div>
+        <div class="labels-row">
+          <span class="label-chip bug">Bug</span>
+          <span class="label-chip feature">Feature</span>
+          <span class="label-chip chore">Chore</span>
+          <span class="label-chip db">DB</span>
+          <span class="label-chip ux">UX</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Aktivitaet</div>
+        <div style="padding: 0 12px; font-size: 12px; color: var(--text-3); line-height: 1.8;">
+          <div><span class="mono" style="color: var(--text-2);">08:42</span> · Anna -> Review</div>
+          <div><span class="mono" style="color: var(--text-2);">Mo</span> · Leo hat 3 Cards erledigt</div>
+          <div><span class="mono" style="color: var(--text-2);">Mo</span> · Frank neue Spalte "Review"</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN BOARD -->
+    <main class="board" id="board">
+      <div class="board-header">
+        <h1 class="board-title" id="boardTitle">Taskfuchs App</h1>
+        <div class="board-meta">
+          <span class="mono">18</span> Cards ·
+          <span class="mono">4</span> Spalten ·
+          zuletzt <span class="mono">vor 2m</span>
+        </div>
+      </div>
+
+      <div class="columns" id="columns">
+        <!-- Spalten werden von JS befuellt -->
+      </div>
+    </main>
+  </div>
+
+  <!-- OVERLAY -->
+  <div class="overlay-backdrop" id="overlayBackdrop"></div>
+  <div class="overlay" id="overlay">
+    <div class="overlay-cover">
+      <button class="overlay-close" id="overlayClose">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+      </button>
+    </div>
+    <div class="overlay-body">
+      <h2 class="overlay-title" id="overlayTitle">God-Component /app/+page.svelte refactoren</h2>
+      <div class="overlay-subtitle">in <strong>Taskfuchs App</strong> · Spalte: <strong>In Arbeit</strong></div>
+
+      <div class="section-title">Beschreibung</div>
+      <div class="desc-box">
+        955 Zeilen in einer Svelte-Komponente. Split in Subkomponenten: TaskList, ListPanel, BulkActions, SearchOverlay. Stores migrieren zu Runes. Performance-Gewinn durch gezielte Reactivity-Boundaries.
+      </div>
+
+      <div class="section-title">Checkliste · <span class="mono" id="checkCounter">2/5</span></div>
+      <div class="checklist-progress"><div class="checklist-progress-fill" id="overlayProgress" style="width: 40%"></div></div>
+      <div class="checklist" id="checklist">
+        <label class="checklist-item done"><div class="checkbox checked"><svg viewBox="0 0 16 16"><polyline points="3 8 7 12 13 4"></polyline></svg></div><span>Komponenten-Grenzen definieren</span></label>
+        <label class="checklist-item done"><div class="checkbox checked"><svg viewBox="0 0 16 16"><polyline points="3 8 7 12 13 4"></polyline></svg></div><span>TaskList extrahieren</span></label>
+        <label class="checklist-item"><div class="checkbox"><svg viewBox="0 0 16 16"><polyline points="3 8 7 12 13 4"></polyline></svg></div><span>BulkActions extrahieren</span></label>
+        <label class="checklist-item"><div class="checkbox"><svg viewBox="0 0 16 16"><polyline points="3 8 7 12 13 4"></polyline></svg></div><span>SearchOverlay extrahieren</span></label>
+        <label class="checklist-item"><div class="checkbox"><svg viewBox="0 0 16 16"><polyline points="3 8 7 12 13 4"></polyline></svg></div><span>Store-Migration zu Runes</span></label>
+      </div>
+
+      <div class="section-title">Labels</div>
+      <div class="labels-row" style="padding: 0;">
+        <span class="label-chip chore">Chore</span>
+        <span class="label-chip feature">Feature</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast">Erledigt — gut gemacht.</div>
+
+  <!-- HINT -->
+  <div class="hint"><kbd>Drag</kbd> Cards · <kbd>Click</kbd> Details · <kbd>⌘K</kbd> Suche · Checkbox = done</div>
+
+  <script>
+    // ====================================================================
+    // DATA
+    // ====================================================================
+    const boards = {
+      fox: {
+        title: 'Taskfuchs App',
+        columns: [
+          { id: 'backlog', title: 'Backlog', indicator: 'backlog', cards: [
+            { id: 'c1', title: 'Offline-Cache mit Dexie.js', labels: ['feature'], cover: 'grad-feat', due: '14 Tage', members: ['F'], checklist: { done: 0, total: 8 } },
+            { id: 'c2', title: 'Volltextsuche ueber alle Tasks', labels: ['feature', 'ux'], cover: 'grad-ux', due: null, members: ['L'], checklist: null },
+            { id: 'c3', title: 'Wiederkehrende Aufgaben', labels: ['feature'], cover: 'grad-feat', due: null, members: ['F', 'A'], checklist: { done: 0, total: 5 } },
+            { id: 'c4', title: 'Push Notifications via Web Push', labels: ['feature', 'chore'], cover: 'grad-feat', due: null, members: ['L'], checklist: null },
+          ]},
+          { id: 'progress', title: 'In Arbeit', indicator: 'progress', cards: [
+            { id: 'c5', title: 'God-Component /app/+page.svelte refactoren', labels: ['chore', 'feature'], cover: 'grad-fox', due: 'heute', dueClass: 'due-today', members: ['F'], checklist: { done: 2, total: 5 } },
+            { id: 'c6', title: 'Tageswechsel-Refresh fuer Daily Quests', labels: ['bug'], cover: 'grad-bug', due: '2 Tage', dueClass: 'due-soon', members: ['F'], checklist: { done: 3, total: 3 } },
+            { id: 'c7', title: 'n8n delete + move Endpoints', labels: ['feature', 'db'], cover: 'grad-db', due: '3 Tage', dueClass: 'due-soon', members: ['A', 'F'], checklist: { done: 5, total: 6 } },
+          ]},
+          { id: 'review', title: 'Review', indicator: 'review', cards: [
+            { id: 'c8', title: 'Calendar Shared-Tasks Fix', labels: ['bug', 'db'], cover: 'grad-bug', due: null, members: ['A'], checklist: null },
+            { id: 'c9', title: 'Migration 016 — Rest-Cheat schliessen', labels: ['db'], cover: 'grad-db', due: null, members: ['F'], checklist: null },
+            { id: 'c10', title: 'Touch-D&D Ghost-Element glaetten', labels: ['ux'], cover: 'grad-ux', due: null, members: ['L'], checklist: { done: 2, total: 2 } },
+          ]},
+          { id: 'done', title: 'Fertig', indicator: 'done', cards: [
+            { id: 'c11', title: 'Container-Ops-Ownership Policy', labels: ['chore'], cover: 'grad-fox', due: null, members: ['F'], completed: true, checklist: null },
+            { id: 'c12', title: 'Supabase Anon Key -> GitHub Secret', labels: ['chore'], cover: 'grad-fox', due: null, members: ['F'], completed: true, checklist: null },
+            { id: 'c13', title: 'Session-Routine fetch statt pull', labels: ['chore'], cover: 'grad-fox', due: null, members: ['F'], completed: true, checklist: null },
+            { id: 'c14', title: 'Daily Quests serverseitig absichern', labels: ['db'], cover: 'grad-db', due: null, members: ['F'], completed: true, checklist: null },
+          ]},
+        ]
+      },
+      moll: {
+        title: 'Moll GmbH',
+        columns: [
+          { id: 'backlog', title: 'Backlog', indicator: 'backlog', cards: [
+            { id: 'm1', title: 'Steuererklaerung 2025 vorbereiten', labels: ['chore'], cover: 'grad-fox', due: '7 Tage', dueClass: 'due-soon', members: ['F'], checklist: { done: 0, total: 4 } },
+            { id: 'm2', title: 'Agent-Training fuer NKA-Prozess', labels: ['feature'], cover: 'grad-feat', due: null, members: ['F', 'A'], checklist: null },
+          ]},
+          { id: 'progress', title: 'In Arbeit', indicator: 'progress', cards: [
+            { id: 'm3', title: 'Demoprojekt 1 — Dokumentations-Agent', labels: ['feature', 'ux'], cover: 'grad-ux', due: '3 Tage', dueClass: 'due-soon', members: ['F'], checklist: { done: 4, total: 7 } },
+            { id: 'm4', title: 'Rechnungs-Automation mit n8n', labels: ['feature', 'db'], cover: 'grad-db', due: null, members: ['F'], checklist: { done: 1, total: 5 } },
+          ]},
+          { id: 'review', title: 'Review', indicator: 'review', cards: [
+            { id: 'm5', title: 'Vertragsoptimierung — Monats-Abo-Check', labels: ['feature'], cover: 'grad-feat', due: null, members: ['L'], checklist: null },
+          ]},
+          { id: 'done', title: 'Fertig', indicator: 'done', cards: [
+            { id: 'm6', title: 'Firmen-Website Relaunch', labels: ['ux'], cover: 'grad-ux', due: null, members: ['A'], completed: true, checklist: null },
+            { id: 'm7', title: 'PDF-Triage Pipeline', labels: ['feature'], cover: 'grad-feat', due: null, members: ['F'], completed: true, checklist: null },
+          ]},
+        ]
+      },
+      garten: {
+        title: 'Garten',
+        columns: [
+          { id: 'backlog', title: 'Ideen', indicator: 'backlog', cards: [
+            { id: 'g1', title: 'Hochbeet 2.0 bauen', labels: ['feature'], cover: 'grad-feat', due: null, members: ['F'], checklist: null },
+            { id: 'g2', title: 'Bewaesserungs-Automatik mit ESP32', labels: ['feature', 'chore'], cover: 'grad-feat', due: null, members: ['F'], checklist: { done: 0, total: 4 } },
+          ]},
+          { id: 'progress', title: 'In Arbeit', indicator: 'progress', cards: [
+            { id: 'g3', title: 'Tomaten einpflanzen', labels: ['chore'], cover: 'grad-fox', due: 'morgen', dueClass: 'due-soon', members: ['F', 'A'], checklist: { done: 1, total: 3 } },
+          ]},
+          { id: 'review', title: 'Warten', indicator: 'review', cards: [],
+          },
+          { id: 'done', title: 'Fertig', indicator: 'done', cards: [
+            { id: 'g4', title: 'Erde fuer Beete liefern lassen', labels: ['chore'], cover: 'grad-fox', due: null, members: ['F'], completed: true, checklist: null },
+          ]},
+        ]
+      },
+      privat: {
+        title: 'Privat',
+        columns: [
+          { id: 'backlog', title: 'Backlog', indicator: 'backlog', cards: [
+            { id: 'p1', title: 'Urlaub Italien planen', labels: ['feature'], cover: 'grad-feat', due: null, members: ['F', 'A'], checklist: { done: 0, total: 6 } },
+            { id: 'p2', title: 'Arzttermin Check-up', labels: ['chore'], cover: 'grad-fox', due: '10 Tage', members: ['F'], checklist: null },
+          ]},
+          { id: 'progress', title: 'Laeuft', indicator: 'progress', cards: [
+            { id: 'p3', title: 'Fotos 2025 backupen', labels: ['chore'], cover: 'grad-fox', due: null, members: ['F'], checklist: { done: 2, total: 4 } },
+          ]},
+          { id: 'review', title: 'Warten', indicator: 'review', cards: [
+            { id: 'p4', title: 'Antwort vom Vermieter', labels: ['bug'], cover: 'grad-bug', due: null, members: ['F'], checklist: null },
+          ]},
+          { id: 'done', title: 'Fertig', indicator: 'done', cards: [
+            { id: 'p5', title: 'Geburtstag Mama planen', labels: ['feature'], cover: 'grad-feat', due: null, members: ['A'], completed: true, checklist: null },
+            { id: 'p6', title: 'Kinokarten fuer Samstag', labels: ['chore'], cover: 'grad-fox', due: null, members: ['F'], completed: true, checklist: null },
+          ]},
+        ]
+      },
+      einkauf: {
+        title: 'Einkaufen',
+        columns: [
+          { id: 'backlog', title: 'Zu kaufen', indicator: 'backlog', cards: [
+            { id: 'e1', title: 'Milch, Butter, Joghurt', labels: ['chore'], cover: 'grad-fox', due: null, members: ['F'], checklist: null },
+            { id: 'e2', title: 'Tomaten, Gurken, Salat', labels: ['chore'], cover: 'grad-fox', due: null, members: ['F'], checklist: null },
+            { id: 'e3', title: 'Wein fuer Samstag', labels: ['feature'], cover: 'grad-feat', due: 'Sa', dueClass: 'due-soon', members: ['F'], checklist: null },
+          ]},
+          { id: 'progress', title: 'Unterwegs', indicator: 'progress', cards: [],
+          },
+          { id: 'review', title: 'Geholt', indicator: 'review', cards: [
+            { id: 'e4', title: 'Brot vom Baecker', labels: ['chore'], cover: 'grad-fox', due: null, members: ['A'], checklist: null },
+          ]},
+          { id: 'done', title: 'Verbraucht', indicator: 'done', cards: [
+            { id: 'e5', title: 'Kaffee', labels: ['chore'], cover: 'grad-fox', due: null, members: ['F'], completed: true, checklist: null },
+          ]},
+        ]
+      },
+    };
+
+    // ====================================================================
+    // RENDER
+    // ====================================================================
+    let currentBoard = 'fox';
+    const $columns = document.getElementById('columns');
+    const $boardTitle = document.getElementById('boardTitle');
+    const $boardName = document.getElementById('boardName');
+
+    function renderLabel(l) {
+      return `<span class="label-chip ${l}">${l === 'ux' ? 'UX' : l === 'db' ? 'DB' : l.charAt(0).toUpperCase() + l.slice(1)}</span>`;
+    }
+    function renderAvatar(initial) {
+      const colors = { F: 'fox', A: 'pink', L: 'violet' };
+      return `<div class="avatar-mini avatar ${colors[initial] || 'fox'}">${initial}</div>`;
+    }
+    function renderCard(card) {
+      const labels = (card.labels || []).map(renderLabel).join('');
+      const avatars = (card.members || []).map(renderAvatar).join('');
+      const dueClass = card.dueClass || '';
+      const dueHtml = card.due ? `<div class="meta-item ${dueClass}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>${card.due}</div>` : '';
+      const checkHtml = card.checklist ? `<div class="meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>${card.checklist.done}/${card.checklist.total}</div>` : '';
+      const progress = card.checklist ? Math.round((card.checklist.done / card.checklist.total) * 100) : 0;
+      const progressBar = card.checklist && !card.completed ? `<div class="card-progress"><div class="card-progress-fill" style="width: ${progress}%"></div></div>` : '';
+
+      return `
+        <div class="card ${card.completed ? 'completed' : ''}" draggable="true" data-id="${card.id}">
+          <div class="card-cover ${card.cover}"></div>
+          ${labels ? `<div class="card-labels">${labels}</div>` : ''}
+          <div class="card-head">
+            <div class="checkbox ${card.completed ? 'checked' : ''}" data-check><svg viewBox="0 0 16 16"><polyline points="3 8 7 12 13 4"></polyline></svg></div>
+            <div class="card-title">${card.title}</div>
+          </div>
+          <div class="card-meta">
+            ${dueHtml}${checkHtml}
+            <div class="avatars-mini">${avatars}</div>
+          </div>
+          ${progressBar}
+        </div>`;
+    }
+    function renderColumn(col) {
+      const count = col.cards.length;
+      const cardsHtml = col.cards.map(renderCard).join('');
+      return `
+        <div class="column" data-col="${col.id}">
+          <div class="column-header">
+            <div class="column-indicator ${col.indicator}"></div>
+            <div class="column-title">${col.title}</div>
+            <div class="column-count">${count}</div>
+            <button class="column-menu" title="Mehr">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1"></circle><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle></svg>
+            </button>
+          </div>
+          <div class="cards" data-drop="${col.id}">
+            ${cardsHtml}
+          </div>
+          <button class="add-card-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Neue Karte
+          </button>
+        </div>`;
+    }
+    function renderBoard(key) {
+      const b = boards[key];
+      $columns.innerHTML = b.columns.map(renderColumn).join('');
+      $boardTitle.textContent = b.title;
+      $boardName.textContent = b.title;
+      bindDnD();
+      bindCardInteractions();
+    }
+
+    // ====================================================================
+    // DRAG AND DROP
+    // ====================================================================
+    let dragEl = null;
+    let dragSourceCol = null;
+
+    function bindDnD() {
+      document.querySelectorAll('.card').forEach((card) => {
+        card.addEventListener('dragstart', (e) => {
+          dragEl = card;
+          dragSourceCol = card.closest('[data-drop]').dataset.drop;
+          card.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          try { e.dataTransfer.setData('text/plain', card.dataset.id); } catch {}
+        });
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+          document.querySelectorAll('.drop-placeholder').forEach((p) => p.remove());
+          document.querySelectorAll('.drag-over').forEach((el) => el.classList.remove('drag-over'));
+          dragEl = null;
+          dragSourceCol = null;
+        });
+      });
+
+      document.querySelectorAll('[data-drop]').forEach((zone) => {
+        zone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          zone.classList.add('drag-over');
+          const afterEl = getDragAfterElement(zone, e.clientY);
+          let ph = zone.querySelector('.drop-placeholder');
+          if (!ph) {
+            ph = document.createElement('div');
+            ph.className = 'drop-placeholder';
+          }
+          if (afterEl == null) {
+            zone.appendChild(ph);
+          } else {
+            zone.insertBefore(ph, afterEl);
+          }
+        });
+        zone.addEventListener('dragleave', (e) => {
+          if (!zone.contains(e.relatedTarget)) {
+            zone.classList.remove('drag-over');
+            const ph = zone.querySelector('.drop-placeholder');
+            if (ph) ph.remove();
+          }
+        });
+        zone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          zone.classList.remove('drag-over');
+          const ph = zone.querySelector('.drop-placeholder');
+          if (!dragEl) return;
+          if (ph) {
+            zone.insertBefore(dragEl, ph);
+            ph.remove();
+          } else {
+            zone.appendChild(dragEl);
+          }
+          // Update counts
+          updateColumnCounts();
+          showToast(`Verschoben: ${dragEl.querySelector('.card-title').textContent.slice(0, 32)}…`);
+        });
+      });
+    }
+
+    function getDragAfterElement(zone, y) {
+      const cards = [...zone.querySelectorAll('.card:not(.dragging)')];
+      return cards.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset, element: child };
+        }
+        return closest;
+      }, { offset: -Infinity, element: null }).element;
+    }
+
+    function updateColumnCounts() {
+      document.querySelectorAll('.column').forEach((col) => {
+        const count = col.querySelectorAll('.card').length;
+        col.querySelector('.column-count').textContent = count;
+      });
+    }
+
+    // ====================================================================
+    // CARD INTERACTIONS
+    // ====================================================================
+    function bindCardInteractions() {
+      document.querySelectorAll('.card').forEach((card) => {
+        // Checkbox toggle
+        const checkbox = card.querySelector('[data-check]');
+        checkbox.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isChecked = checkbox.classList.toggle('checked');
+          if (isChecked && !card.classList.contains('completed')) {
+            card.classList.add('completing');
+            setTimeout(() => {
+              card.classList.remove('completing');
+              card.classList.add('completed');
+              // Move to done column
+              const doneZone = document.querySelector('[data-drop="done"]');
+              if (doneZone && doneZone !== card.parentElement) {
+                doneZone.appendChild(card);
+                updateColumnCounts();
+              }
+              showToast('Erledigt.');
+            }, 600);
+          } else if (!isChecked) {
+            card.classList.remove('completed');
+          }
+        });
+
+        // Open detail
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('[data-check]')) return;
+          openOverlay(card);
+        });
+      });
+    }
+
+    // ====================================================================
+    // OVERLAY
+    // ====================================================================
+    const $overlay = document.getElementById('overlay');
+    const $backdrop = document.getElementById('overlayBackdrop');
+    const $overlayTitle = document.getElementById('overlayTitle');
+    function openOverlay(card) {
+      $overlayTitle.textContent = card.querySelector('.card-title').textContent;
+      $overlay.classList.add('open');
+      $backdrop.classList.add('open');
+    }
+    function closeOverlay() {
+      $overlay.classList.remove('open');
+      $backdrop.classList.remove('open');
+    }
+    document.getElementById('overlayClose').addEventListener('click', closeOverlay);
+    $backdrop.addEventListener('click', closeOverlay);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeOverlay();
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('search').focus();
+      }
+    });
+
+    // Overlay checklist
+    document.querySelectorAll('#checklist .checkbox').forEach((cb) => {
+      cb.addEventListener('click', () => {
+        cb.classList.toggle('checked');
+        const item = cb.closest('.checklist-item');
+        item.classList.toggle('done');
+        const total = document.querySelectorAll('#checklist .checkbox').length;
+        const done = document.querySelectorAll('#checklist .checkbox.checked').length;
+        document.getElementById('checkCounter').textContent = `${done}/${total}`;
+        document.getElementById('overlayProgress').style.width = `${(done / total) * 100}%`;
+      });
+    });
+
+    // ====================================================================
+    // BOARD SWITCH
+    // ====================================================================
+    document.querySelectorAll('.board-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        const boardKey = item.dataset.board;
+        if (boardKey === currentBoard) return;
+        document.querySelectorAll('.board-item').forEach((b) => b.classList.remove('active'));
+        item.classList.add('active');
+        $columns.classList.add('switching');
+        // Trigger card-exit animations (CSS :nth-child)
+        setTimeout(() => {
+          currentBoard = boardKey;
+          renderBoard(boardKey);
+          $columns.classList.remove('switching');
+        }, 260);
+      });
+    });
+
+    // ====================================================================
+    // TOAST
+    // ====================================================================
+    let toastTimer;
+    const $toast = document.getElementById('toast');
+    function showToast(msg) {
+      $toast.textContent = msg;
+      $toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => $toast.classList.remove('show'), 2200);
+    }
+
+    // ====================================================================
+    // INIT
+    // ====================================================================
+    renderBoard('fox');
+  </script>
+</body>
+</html>
