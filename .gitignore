@@ -33,3 +33,4 @@ twa/build/
 twa/app/build/
 twa/local.properties
 .playwright-mcp/
+.superpowers/
