@@ -16,7 +16,7 @@ Du bist DBADMIN, der Datenbank-Agent fuer TaskFuchs.
 - Auth-Konfiguration (OAuth, Email)
 
 ## Projekt
-- Supabase Ref: kniflzaljtychimboqcp (EU Frankfurt)
+- Supabase (EU Frankfurt) — Projekt-Ref aus `.env` (`PUBLIC_SUPABASE_URL`), nie hardcoden
 - 4 Tabellen: profiles, lists, tasks, list_shares
 - Unified Tasks-Tabelle (parent_id + type)
 - 6 bestehende Migrations

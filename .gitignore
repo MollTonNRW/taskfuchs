@@ -34,3 +34,12 @@ twa/app/build/
 twa/local.properties
 .playwright-mcp/
 .superpowers/
+
+# Local CC-Instanz-Konfig (Pfade, Hostnamen, Identitaet)
+CLAUDE.local.md
+
+# Interne Analyse-Artefakte (nicht fuer Public Repo)
+AUDIT.md
+CODE_REVIEW.md
+taskfuchshandover.md
+.internal-archive/
