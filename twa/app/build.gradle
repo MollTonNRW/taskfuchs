@@ -32,7 +32,7 @@ def twaManifest = [
     navigationColorDark: '#1A1A1A', // The color used for the dark navbar.
     navigationDividerColor: '#FFFFFF', // The navbar divider color.
     navigationDividerColorDark: '#1A1A1A', // The dark navbar divider color.
-    backgroundColor: '#FFFFFF', // The color used for the splash screen background.
+    backgroundColor: '#171A1F', // The color used for the splash screen background.
     enableNotifications: false, // Set to true to enable notification delegation.
     // Every shortcut must include the following fields:
     // - name: String that will show up in the shortcut.
@@ -57,8 +57,8 @@ android {
         applicationId "de.molltoncreative.taskfuchs"
         minSdkVersion 21
         targetSdkVersion 35
-        versionCode 4
-        versionName "1.1"
+        versionCode 5
+        versionName "1.2"
 
         // The name for the application
         resValue "string", "appName", twaManifest.name

@@ -10,7 +10,7 @@
   "navigationColorDark": "#1A1A1A",
   "navigationDividerColor": "#FFFFFF",
   "navigationDividerColorDark": "#1A1A1A",
-  "backgroundColor": "#FFFFFF",
+  "backgroundColor": "#171A1F",
   "enableNotifications": false,
   "startUrl": "/app",
   "iconUrl": "https://taskfuchs.molltoncreative.de/icons/icon-512x512.png",
@@ -40,7 +40,7 @@
   "fingerprints": [
     {
       "type": "sha256_cert",
-      "value": "91:18:2F:4A:89:DA:C8:DB:7F:1D:6E:6D:A7:F1:A7:C9:5B:DE:67:10:ED:DB:DC:67:40:C0:87:50:86:2A:80:D8"
+      "value": "D1:F5:BD:E4:1B:14:AA:23:78:4C:80:1F:3A:BB:FC:0E:A1:D3:AD:E2:38:95:68:3B:AB:BD:5D:E0:DC:FB:EE:6B"
     }
   ],
   "additionalTrustedOrigins": [],
