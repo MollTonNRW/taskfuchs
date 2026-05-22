@@ -225,14 +225,23 @@
 		if (browser) localStorage.setItem('v2-booted', '1');
 	}
 
-	// Apply DaisyUI data-theme for utility classes
+	// Apply DaisyUI data-theme + sync the browser/TWA status-bar color to the active theme
 	$effect(() => {
-		if (browser) {
-			document.documentElement.setAttribute(
-				'data-theme',
-				v2Theme.effectiveDark ? 'dark' : 'light'
-			);
+		if (!browser) return;
+		const dark = v2Theme.effectiveDark;
+		v2Theme.preset; // track preset so the status bar updates on preset change too
+		document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+
+		const root = document.querySelector('.v2-root');
+		const bg = root ? getComputedStyle(root).getPropertyValue('--v2-bg').trim() : '';
+		const color = bg || (dark ? '#1a1b26' : '#faf8f5');
+		let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+		if (!meta) {
+			meta = document.createElement('meta');
+			meta.name = 'theme-color';
+			document.head.appendChild(meta);
 		}
+		meta.content = color;
 	});
 
 	// Listen for task events from the page and drive gamification
