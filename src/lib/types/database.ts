@@ -49,6 +49,7 @@ export interface Database {
 					timeframe: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null;
 					highlighted: boolean;
 					pinned: boolean;
+					pinned_by: string | null;
 					emoji: string | null;
 					note: string | null;
 					due_date: string | null;
@@ -73,6 +74,7 @@ export interface Database {
 					timeframe?: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null;
 					highlighted?: boolean;
 					pinned?: boolean;
+					pinned_by?: string | null;
 					emoji?: string | null;
 					note?: string | null;
 					due_date?: string | null;
@@ -97,6 +99,7 @@ export interface Database {
 					timeframe?: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null;
 					highlighted?: boolean;
 					pinned?: boolean;
+					pinned_by?: string | null;
 					emoji?: string | null;
 					note?: string | null;
 					due_date?: string | null;

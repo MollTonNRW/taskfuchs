@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Database } from '$lib/types/database';
+	import { profileMap, getInitials } from '$lib/stores/profiles';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 	type List = Database['public']['Tables']['lists']['Row'];
@@ -7,6 +8,7 @@
 	let {
 		tasks,
 		lists = [],
+		currentUserId = '',
 		onUnpin,
 		onUnpinAll,
 		onTaskClick,
@@ -14,6 +16,7 @@
 	}: {
 		tasks: Task[];
 		lists?: List[];
+		currentUserId?: string;
 		onUnpin?: (id: string) => void;
 		onUnpinAll?: () => void;
 		onTaskClick?: (task: Task) => void;
@@ -128,6 +131,20 @@
 						<div class="pin-card-text">{task.text}</div>
 						{#if getListName(task.list_id)}
 							<div class="pin-card-list">{getListName(task.list_id)}</div>
+						{/if}
+						{#if task.pinned_by && task.pinned_by !== currentUserId}
+							{@const pinner = $profileMap.get(task.pinned_by)}
+							<div
+								class="pin-card-by"
+								title="Angepinnt von {pinner?.display_name ?? pinner?.username ?? 'einem geteilten Nutzer'}"
+							>
+								{#if pinner?.avatar_url}
+									<img class="pin-by-avatar" src={pinner.avatar_url} alt="" />
+								{:else}
+									<span class="pin-by-initials">{getInitials(pinner, '?')}</span>
+								{/if}
+								<span class="pin-by-name">{pinner?.display_name ?? pinner?.username ?? 'geteilt'}</span>
+							</div>
 						{/if}
 					</div>
 				{/each}
@@ -280,6 +297,48 @@
 		font-size: .48rem;
 		color: var(--v2-text-muted);
 		margin-top: 4px;
+	}
+
+	/* "Gepinnt von ..."-Badge -- nur bei fremden Pins (pinned_by != currentUserId) */
+	.pin-card-by {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		margin-top: 6px;
+		padding-top: 5px;
+		border-top: 1px dashed var(--v2-border);
+	}
+
+	.pin-by-avatar,
+	.pin-by-initials {
+		width: 14px;
+		height: 14px;
+		border-radius: 50%;
+		flex-shrink: 0;
+	}
+
+	.pin-by-avatar {
+		object-fit: cover;
+	}
+
+	.pin-by-initials {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--v2-accent-glow);
+		color: var(--v2-accent);
+		font-size: .4rem;
+		font-weight: 700;
+	}
+
+	.pin-by-name {
+		font-size: .46rem;
+		color: var(--v2-accent);
+		text-transform: uppercase;
+		letter-spacing: .5px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.pinboard.collapsed .pinboard-cards {

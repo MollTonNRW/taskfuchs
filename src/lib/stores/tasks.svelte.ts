@@ -131,7 +131,7 @@ export function createTaskStore() {
 		const optimisticTask: Task = {
 			id: crypto.randomUUID(), list_id: listId, user_id: userId, parent_id: null,
 			text, type: 'task', divider_label: null, done: false, priority: 'normal',
-			timeframe: null, highlighted: false, pinned: false, emoji: null, note: null,
+			timeframe: null, highlighted: false, pinned: false, pinned_by: null, emoji: null, note: null,
 			due_date: null, progress: 0, assigned_to: null, calendar_event_id: null, position,
 			created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1
 		};
@@ -162,7 +162,7 @@ export function createTaskStore() {
 		const optimisticTask: Task = {
 			id: crypto.randomUUID(), list_id: listId, user_id: userId, parent_id: null,
 			text, type: 'task', divider_label: null, done: false, priority: 'normal',
-			timeframe: null, highlighted: false, pinned: false, emoji: null, note: null,
+			timeframe: null, highlighted: false, pinned: false, pinned_by: null, emoji: null, note: null,
 			due_date: null, progress: 0, assigned_to: null, calendar_event_id: null, position: newPosition,
 			created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1
 		};
@@ -316,9 +316,12 @@ export function createTaskStore() {
 		const task = tasks.find((t) => t.id === id);
 		if (!task) return;
 		const pinned = !task.pinned;
+		// pinned_by haelt fest, WER gepinnt hat (fuer das "gepinnt von"-Badge);
+		// beim Entpinnen wieder leeren.
+		const pinned_by = pinned ? userId : null;
 		const oldTasks = tasks;
-		tasks = tasks.map((t) => (t.id === id ? { ...t, pinned } : t));
-		const { error } = await crud.updateTaskField(sb, id, { pinned });
+		tasks = tasks.map((t) => (t.id === id ? { ...t, pinned, pinned_by } : t));
+		const { error } = await crud.updateTaskField(sb, id, { pinned, pinned_by });
 		if (error) tasks = oldTasks;
 	}
 
@@ -326,8 +329,8 @@ export function createTaskStore() {
 		const pinnedIds = tasks.filter((t) => t.pinned).map((t) => t.id);
 		if (pinnedIds.length === 0) return;
 		const oldTasks = tasks;
-		tasks = tasks.map((t) => (t.pinned ? { ...t, pinned: false } : t));
-		const { error } = await crud.bulkUpdateField(sb, pinnedIds, { pinned: false });
+		tasks = tasks.map((t) => (t.pinned ? { ...t, pinned: false, pinned_by: null } : t));
+		const { error } = await crud.bulkUpdateField(sb, pinnedIds, { pinned: false, pinned_by: null });
 		if (error) tasks = oldTasks;
 	}
 
@@ -404,7 +407,7 @@ export function createTaskStore() {
 		const optimisticSub: Task = {
 			id: crypto.randomUUID(), list_id: parentTask.list_id, user_id: userId, parent_id: parentId,
 			text, type: 'task', divider_label: null, done: false, priority: 'normal',
-			timeframe: null, highlighted: false, pinned: false, emoji: null, note: null,
+			timeframe: null, highlighted: false, pinned: false, pinned_by: null, emoji: null, note: null,
 			due_date: null, progress: 0, assigned_to: null, calendar_event_id: null, position,
 			created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1
 		};

@@ -8,6 +8,8 @@
 	import type { Database } from '$lib/types/database';
 	import type { Priority } from '$lib/constants';
 	import { v2Events } from '$lib/stores/v2/events.svelte';
+	import { profilesStore } from '$lib/stores/profiles';
+	import { getProfilesByIds } from '$lib/services/supabase-crud';
 
 	import Pinboard from '$lib/components/v2/Pinboard.svelte';
 	import ListPanel from '$lib/components/v2/ListPanel.svelte';
@@ -171,6 +173,33 @@
 	let pinnedTasks = $derived(
 		tasks.filter((t: Task) => t.pinned && !t.done)
 	);
+
+	// Profile der Pinner (pinned_by) fuer das "gepinnt von"-Badge vorladen --
+	// nur fremde IDs, die noch nicht geladen wurden. Befuellt den globalen
+	// profilesStore, aus dem das Pinboard-Badge liest.
+	let loadedPinnerIds = new Set<string>();
+	$effect(() => {
+		const sb = data.supabase;
+		const me = data.user?.id;
+		if (!sb) return;
+		const missing = [
+			...new Set(
+				tasks
+					.map((t: Task) => t.pinned_by)
+					.filter((id): id is string => !!id && id !== me && !loadedPinnerIds.has(id))
+			)
+		];
+		if (missing.length === 0) return;
+		for (const id of missing) loadedPinnerIds.add(id);
+		getProfilesByIds(sb, missing).then(({ data: profiles }) => {
+			if (!profiles || profiles.length === 0) return;
+			profilesStore.update((existing) => {
+				const ids = new Set(existing.map((p) => p.id));
+				const added = profiles.filter((p) => !ids.has(p.id));
+				return added.length > 0 ? [...existing, ...added] : existing;
+			});
+		});
+	});
 
 	// Search overlay
 	let searchOpen = $state(false);
@@ -651,6 +680,7 @@
 <Pinboard
 	{tasks}
 	{lists}
+	currentUserId={data.user?.id ?? ''}
 	onUnpin={(id) => { store.togglePin(id); }}
 	onUnpinAll={() => { for (const t of pinnedTasks) store.togglePin(t.id); }}
 	onTaskClick={(task) => { popovers.openFocusMode(task.id); }}
