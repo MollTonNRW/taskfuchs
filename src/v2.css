@@ -1206,8 +1206,10 @@
   padding: 4px 0;
   min-width: 180px;
   max-width: 240px;
-  max-height: 80vh;
-  overflow: visible;
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 8px 32px rgba(0,0,0,.4);
   animation: v2-menu-in .15s ease;
 }
@@ -1256,9 +1258,7 @@
   position: relative;
 }
 .v2-context-submenu {
-  position: absolute;
-  left: 100%;
-  top: -1px;
+  position: fixed;
   z-index: 10001;
   background: var(--v2-surface);
   border: 1px dashed var(--v2-border);
@@ -1266,6 +1266,8 @@
   padding: 4px 0;
   min-width: 160px;
   max-width: 220px;
+  max-height: min(60vh, 400px);
+  overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0,0,0,.4);
   animation: v2-menu-in .1s ease;
 }
