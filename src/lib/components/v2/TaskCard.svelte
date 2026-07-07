@@ -238,10 +238,11 @@
 
 		<!-- Subtasks (inside task-body, collapsible, like v6) -->
 		{#if subtasks.length > 0}
-			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 			<div
 				class="v2-subtasks"
 				class:collapsed={!subtasksOpen}
+				onclick={(e) => e.stopPropagation()}
 				ondragover={(e) => { e.preventDefault(); e.stopPropagation(); }}
 				ondrop={handleSubDrop}
 			>
