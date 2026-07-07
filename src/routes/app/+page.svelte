@@ -918,7 +918,7 @@
 		onChangePriority={(id, p) => store.changeTaskPriority(id, p)}
 		onChangeTimeframe={(id, tf) => store.changeTaskTimeframe(id, tf)}
 		onUpdateNote={(id, note) => store.updateTaskNote(id, note)}
-		onUpdateEmoji={(id, emoji) => store.updateTaskEmoji(id, emoji)}
+		onOpenEmojiPicker={(taskId, x, y) => popovers.openEmojiPicker(taskId, x, y)}
 		onToggleSubtask={handleToggleTask}
 		onUpdateSubtask={handleEditTask}
 		onAddSubtask={(parentId, text) => store.addSubtask(parentId, text)}

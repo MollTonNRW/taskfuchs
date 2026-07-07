@@ -258,6 +258,7 @@
 							subtask={sub}
 							ontoggle={ontogglesubtask ?? (() => {})}
 							onedit={oneditsubtask ?? (() => {})}
+							oncontextmenu={oncontextmenu}
 							ondragstart={(e) => handleSubDragStart(e, sub)}
 							ondragend={handleSubDragEnd}
 						/>

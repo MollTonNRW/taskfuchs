@@ -14,7 +14,7 @@
 		onChangePriority,
 		onChangeTimeframe,
 		onUpdateNote,
-		onUpdateEmoji,
+		onOpenEmojiPicker,
 		onToggleSubtask,
 		onUpdateSubtask,
 		onAddSubtask
@@ -27,7 +27,7 @@
 		onChangePriority: (id: string, priority: 'low' | 'normal' | 'high' | 'asap') => void;
 		onChangeTimeframe: (id: string, timeframe: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null) => void;
 		onUpdateNote: (id: string, note: string) => void;
-		onUpdateEmoji: (id: string, emoji: string) => void;
+		onOpenEmojiPicker: (taskId: string, x: number, y: number) => void;
 		onToggleSubtask: (id: string) => void;
 		onUpdateSubtask: (id: string, text: string) => void;
 		onAddSubtask: (parentId: string, text: string) => void;
@@ -107,7 +107,7 @@
 		<!-- Emoji + Title -->
 		<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
 			<button
-				onclick={() => onUpdateEmoji(task.id, '')}
+				onclick={(e) => onOpenEmojiPicker(task.id, e.clientX, e.clientY)}
 				style="font-size: 1.5rem; background: none; border: 1px dashed var(--v2-border); border-radius: var(--v2-radius); padding: 4px 8px; cursor: pointer;"
 				title="Emoji ändern"
 			>
@@ -125,10 +125,10 @@
 					maxlength="500"
 				/>
 			{:else}
-				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 				<h2
 					style="font-size: .9rem; font-weight: 700; color: var(--v2-text); cursor: pointer; flex: 1;"
-					ondblclick={startEdit}
+					onclick={startEdit}
 				>
 					{task.text}
 				</h2>
