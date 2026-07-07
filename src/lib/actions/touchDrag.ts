@@ -47,7 +47,7 @@ function suppressNextClick() {
 		e.preventDefault();
 	};
 	window.addEventListener('click', blocker, { capture: true, once: true });
-	setTimeout(() => window.removeEventListener('click', blocker, { capture: true } as EventListenerOptions), 400);
+	setTimeout(() => window.removeEventListener('click', blocker, true), 400);
 }
 
 // ── Auto-scroll while dragging near edges ──────────────────────────
