@@ -301,11 +301,16 @@
 .v2-header-actions {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   margin-left: auto;
   min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.v2-header-actions::-webkit-scrollbar { display: none; }
+.v2-header-actions > * { flex-shrink: 0; }
 
 /* Header Inline Search (Desktop) */
 .v2-header-search {
@@ -2158,11 +2163,12 @@
     gap: 6px 10px;
     max-width: 100vw;
     box-sizing: border-box;
+    flex-wrap: nowrap;
   }
   .v2-header-logo { display: none; }
   .v2-header-game-stats { display: none; }
   .v2-header-actions {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 4px;
     flex: 1;
     min-width: 0;
@@ -2172,7 +2178,8 @@
   .v2-view-toggle button { padding: 4px 7px; font-size: .65rem; }
   .v2-sort-btn { font-size: .6rem; padding: 4px 7px; }
   .v2-sort-btn span { display: none; }
-  .v2-bulk-mode-btn { font-size: .6rem; padding: 4px 7px; }
+  /* Auswählen steckt mobil im Task-Menü — Header-Button nur Desktop */
+  .v2-bulk-mode-btn { font-size: .6rem; padding: 4px 7px; display: none; }
 
   /* Bottom padding for mobile tabs */
   .v2-main { padding-bottom: 56px; }
