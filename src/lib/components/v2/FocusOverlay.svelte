@@ -125,7 +125,7 @@
 					maxlength="500"
 				/>
 			{:else}
-				<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
+				<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
 				<h2
 					style="font-size: .9rem; font-weight: 700; color: var(--v2-text); cursor: pointer; flex: 1;"
 					onclick={startEdit}
