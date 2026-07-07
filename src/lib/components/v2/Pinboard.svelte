@@ -98,7 +98,7 @@
 				onclick={(e) => { e.stopPropagation(); onUnpinAll?.(); }}
 				onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onUnpinAll?.(); } }}
 			>
-				Alle loesen
+				Alle lösen
 			</span>
 		{/if}
 	</div>
@@ -124,7 +124,7 @@
 									tabindex="0"
 									onclick={(e) => { e.stopPropagation(); onUnpin?.(task.id); }}
 									onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); onUnpin?.(task.id); } }}
-									title="Loesen"
+									title="Lösen"
 								>&#x2715;</span>
 							{/if}
 						</div>

@@ -191,7 +191,7 @@
 			class="v2-bulk-checkbox"
 			class:checked={bulkSelected}
 			onclick={(e) => { e.stopPropagation(); onBulkToggle?.(task.id); }}
-			aria-label={bulkSelected ? 'Abwaehlen' : 'Auswaehlen'}
+			aria-label={bulkSelected ? 'Abw\u00e4hlen' : 'Ausw\u00e4hlen'}
 		>
 			{bulkSelected ? '\u2713' : ''}
 		</button>
@@ -208,7 +208,7 @@
 		class:checked={task.done}
 		class:invite={allSubtasksDone && subtaskCount > 0 && !task.done}
 		onclick={() => ontoggle(task.id)}
-		aria-label={task.done ? 'Aufgabe wieder oeffnen' : 'Aufgabe abhaken'}
+		aria-label={task.done ? 'Aufgabe wieder \u00f6ffnen' : 'Aufgabe abhaken'}
 	>
 		{task.done ? '\u2713' : ''}
 	</button>

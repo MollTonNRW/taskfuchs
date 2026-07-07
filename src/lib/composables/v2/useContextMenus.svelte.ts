@@ -80,8 +80,8 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				},
 				{ divider: true, label: '' },
 				{ label: 'Alle Aufgaben abhaken', icon: '\u2705', action: () => store.checkAllInList(list.id) },
-				{ label: 'Erledigte Eintraege loeschen', icon: '\uD83E\uDDF9', action: () => store.deleteDoneInList(list.id) },
-				{ label: 'Alle Unteraufgaben loeschen', icon: '\uD83D\uDDD1', action: () => store.deleteAllSubtasksInList(list.id) },
+				{ label: 'Erledigte Eintr\u00E4ge l\u00F6schen', icon: '\uD83E\uDDF9', action: () => store.deleteDoneInList(list.id) },
+				{ label: 'Alle Unteraufgaben l\u00F6schen', icon: '\uD83D\uDDD1', action: () => store.deleteAllSubtasksInList(list.id) },
 					{ divider: true, label: '' },
 				{
 					label: 'Unteraufgaben einklappen',
@@ -120,11 +120,11 @@ export function createContextMenus(deps: ContextMenuDeps) {
 					}
 				},
 				{
-					label: 'Icon aendern',
+					label: 'Icon \u00E4ndern',
 					icon: '\uD83C\uDFA8',
 					action: () => openListIconPicker(list.id, e.clientX, e.clientY)
 				},
-				{ label: 'Liste loeschen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteList(list.id), danger: true }
+				{ label: 'Liste l\u00F6schen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteList(list.id), danger: true }
 			]
 		};
 	}
@@ -146,7 +146,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 							if (newName?.trim()) store.updateTask(task.id, newName.trim());
 						}
 					},
-					{ label: 'Trenner loeschen', icon: '\uD83D\uDDD1', action: () => store.deleteTaskDirect(task.id), danger: true }
+					{ label: 'Trenner l\u00F6schen', icon: '\uD83D\uDDD1', action: () => store.deleteTaskDirect(task.id), danger: true }
 				]
 			};
 			return;
@@ -158,7 +158,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				show: true, x: e.clientX, y: e.clientY,
 				items: [
 					{
-						label: 'Prioritaet',
+						label: 'Priorit\u00E4t',
 						icon: '\uD83D\uDD34',
 						submenu: (['low', 'normal', 'high', 'asap'] as Priority[]).map((p) => ({
 							label: priorityLabels[p],
@@ -167,7 +167,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 							active: task.priority === p
 						}))
 					},
-					{ label: 'Unteraufgabe loeschen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteTaskDirect(task.id), danger: true }
+					{ label: 'Unteraufgabe l\u00F6schen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteTaskDirect(task.id), danger: true }
 				]
 			};
 			return;
@@ -180,7 +180,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 			{ label: 'Neue Aufgabe darunter', icon: '\u2795', action: () => store.addTaskAfter(task.id, 'Neue Aufgabe') },
 			{ label: 'Unteraufgabe erstellen', icon: '\u2795', action: () => store.addSubtask(task.id, 'Neue Unteraufgabe') },
 			...(taskSubtaskCount > 0 ? [{
-				label: `Unteraufgaben loeschen (${taskSubtaskCount})`,
+				label: `Unteraufgaben l\u00F6schen (${taskSubtaskCount})`,
 				icon: '\uD83D\uDDD1',
 				action: () => store.deleteAllSubtasksOfTask(task.id)
 			} as MenuItem] : []),
@@ -201,7 +201,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 					: [{ label: 'Keine weiteren Listen', action: () => {} }]
 			},
 			{
-				label: 'Prioritaet',
+				label: 'Priorit\u00E4t',
 				icon: '\uD83D\uDD34',
 				submenu: (['low', 'normal', 'high', 'asap'] as Priority[]).map((p) => ({
 					label: priorityLabels[p],
@@ -246,12 +246,12 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				action: () => store.toggleHighlight(task.id)
 			},
 			{
-				label: task.pinned ? 'Von Pinnwand loesen' : 'An Pinnwand pinnen',
+				label: task.pinned ? 'Von Pinnwand l\u00F6sen' : 'An Pinnwand pinnen',
 				icon: '\uD83D\uDCCD',
 				action: () => store.togglePin(task.id)
 			},
 			{
-				label: task.note ? 'Notiz bearbeiten' : 'Notiz hinzufuegen',
+				label: task.note ? 'Notiz bearbeiten' : 'Notiz hinzuf\u00FCgen',
 				icon: '\uD83D\uDCDD',
 				action: () => openNotePopover(task.id, contextMenu.x, contextMenu.y)
 			},
@@ -268,7 +268,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				}
 			},
 			{
-				label: task.emoji ? 'Symbol aendern' : 'Mit Symbol versehen',
+				label: task.emoji ? 'Symbol \u00E4ndern' : 'Mit Symbol versehen',
 				icon: '\uD83D\uDE00',
 				action: () => openEmojiPicker(task.id, contextMenu.x, contextMenu.y)
 			}
@@ -288,7 +288,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 
 		items.push({ divider: true, label: '' });
 		items.push({
-			label: 'Aufgabe loeschen',
+			label: 'Aufgabe l\u00F6schen',
 			icon: '\uD83D\uDDD1\uFE0F',
 			action: () => store.deleteTaskDirect(task.id),
 			danger: true

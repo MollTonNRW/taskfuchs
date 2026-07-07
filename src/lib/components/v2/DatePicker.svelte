@@ -42,7 +42,7 @@
 	class="v2-glass-card"
 	style="position: fixed; z-index: 71; left: {x}px; top: {y}px; padding: 12px; min-width: 220px;"
 >
-	<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); margin-bottom: 6px;">Faellig am</div>
+	<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); margin-bottom: 6px;">Fällig am</div>
 	<input
 		type="date"
 		bind:value={dateValue}

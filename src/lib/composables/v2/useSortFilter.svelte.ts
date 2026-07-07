@@ -9,9 +9,9 @@ export const validSortModes: SortMode[] = ['position', 'priority', 'name', 'date
 
 export const sortLabels: Record<SortMode, string> = {
 	position: 'Frei',
-	priority: 'Prioritaet',
+	priority: 'Priorität',
 	name: 'Name',
-	date: 'Faelligkeitsdatum',
+	date: 'Fälligkeitsdatum',
 	created: 'Erstelldatum',
 	progress: 'Fortschritt'
 };

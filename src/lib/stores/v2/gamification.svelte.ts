@@ -10,7 +10,7 @@ type Sb = SupabaseClient<any>;
 
 const XP_THRESHOLDS = [0, 100, 250, 500, 1000, 2000, 3500, 5500, 8000, 11000, 15000, 20000, 27000, 36000, 50000];
 
-const RANKS = ['Neuling', 'Anfaenger', 'Lehrling', 'Geselle', 'Meister', 'Grossmeister', 'Legende'] as const;
+const RANKS = ['Neuling', 'Anfänger', 'Lehrling', 'Geselle', 'Meister', 'Großmeister', 'Legende'] as const;
 
 export type Rank = (typeof RANKS)[number];
 
@@ -29,11 +29,11 @@ function xpForLevel(level: number): number {
 
 function rankFromLevel(level: number): Rank {
 	if (level <= 2) return 'Neuling';
-	if (level <= 4) return 'Anfaenger';
+	if (level <= 4) return 'Anfänger';
 	if (level <= 6) return 'Lehrling';
 	if (level <= 8) return 'Geselle';
 	if (level <= 10) return 'Meister';
-	if (level <= 13) return 'Grossmeister';
+	if (level <= 13) return 'Großmeister';
 	return 'Legende';
 }
 

@@ -99,7 +99,7 @@
 		<button
 			onclick={() => { saveNote(); onClose(); }}
 			style="position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--v2-text-muted); font-size: .8rem; cursor: pointer;"
-			aria-label="Schliessen"
+			aria-label="Schließen"
 		>
 			&#x2715;
 		</button>
@@ -109,7 +109,7 @@
 			<button
 				onclick={() => onUpdateEmoji(task.id, '')}
 				style="font-size: 1.5rem; background: none; border: 1px dashed var(--v2-border); border-radius: var(--v2-radius); padding: 4px 8px; cursor: pointer;"
-				title="Emoji aendern"
+				title="Emoji ändern"
 			>
 				{task.emoji || '...'}
 			</button>

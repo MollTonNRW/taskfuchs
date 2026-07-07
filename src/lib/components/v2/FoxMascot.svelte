@@ -6,7 +6,7 @@
 		'Auf gehts!',
 		'*wedelt*',
 		'Noch eine Aufgabe?',
-		'Fleissig heute!',
+		'Fleißig heute!',
 		'Lecker Coins!',
 		'Streak halten!',
 		'Focus Mode!'

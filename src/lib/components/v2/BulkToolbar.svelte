@@ -28,12 +28,12 @@
 
 {#if selectedCount > 0}
 	<div class="v2-bulk-toolbar">
-		<span style="font-size: .65rem; color: var(--v2-text);">{selectedCount} ausgewaehlt</span>
+		<span style="font-size: .65rem; color: var(--v2-text);">{selectedCount} ausgewählt</span>
 
 		<button class="v2-bulk-btn" onclick={() => onToggleDone(true)} title="Erledigt">&#x2713;</button>
 
 		<div style="position: relative;">
-			<button class="v2-bulk-btn" onclick={() => { prioOpen = !prioOpen; moveOpen = false; }} title="Prioritaet">&#x2691;</button>
+			<button class="v2-bulk-btn" onclick={() => { prioOpen = !prioOpen; moveOpen = false; }} title="Priorität">&#x2691;</button>
 			{#if prioOpen}
 				<div class="v2-context-menu" style="position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 8px;">
 					<button class="v2-context-menu-item" style="width: 100%;" onclick={() => { onChangePriority('low'); prioOpen = false; }}>Niedrig</button>
@@ -57,7 +57,7 @@
 			</div>
 		{/if}
 
-		<button class="v2-bulk-btn" style="color: var(--v2-red);" onclick={onDelete} title="Loeschen">&#x2715;</button>
+		<button class="v2-bulk-btn" style="color: var(--v2-red);" onclick={onDelete} title="Löschen">&#x2715;</button>
 		<button class="v2-bulk-btn" onclick={onCancel}>Abbrechen</button>
 	</div>
 {/if}

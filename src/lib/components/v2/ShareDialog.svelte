@@ -27,7 +27,7 @@
 	function handleSubmit() {
 		const trimmed = email.trim();
 		if (!trimmed || !trimmed.includes('@')) {
-			error = 'Bitte eine gueltige E-Mail eingeben';
+			error = 'Bitte eine gültige E-Mail eingeben';
 			return;
 		}
 		error = '';
@@ -73,7 +73,7 @@
 		<button
 			onclick={onClose}
 			style="background: none; border: 1px solid var(--v2-border); border-radius: var(--v2-radius); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: var(--v2-text-muted); cursor: pointer; font-size: .65rem;"
-			aria-label="Schliessen"
+			aria-label="Schließen"
 		>
 			&#x2715;
 		</button>

@@ -48,7 +48,7 @@
 		<button
 			onclick={handleSave}
 			style="background: none; border: none; color: var(--v2-text-muted); font-size: .6rem; cursor: pointer;"
-			aria-label="Speichern und schliessen"
+			aria-label="…schließen"
 		>
 			&#x2715;
 		</button>

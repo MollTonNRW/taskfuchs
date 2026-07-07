@@ -41,7 +41,7 @@
 					onclick={() => resolveConfirm(true)}
 					style="padding: 6px 16px; font-size: .65rem; color: var(--v2-accent); background: var(--v2-accent-glow); border: 1px dashed var(--v2-accent); border-radius: var(--v2-radius); cursor: pointer; font-family: var(--v2-font);"
 				>
-					Bestaetigen
+					Bestätigen
 				</button>
 			</div>
 		</div>
