@@ -2,7 +2,7 @@
 	import { createTaskStore } from '$lib/stores/tasks.svelte';
 	import { listsStore } from '$lib/stores/lists';
 	import { hiddenListIds } from '$lib/stores/visibility';
-	import { toasts } from '$lib/stores/toast';
+	import { toasts, showInputDialog } from '$lib/stores/toast';
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
 	import type { Database } from '$lib/types/database';
@@ -448,10 +448,10 @@
 		lastViewSignal = sig.counter;
 	});
 
-	let lastAddListSignal = 0;
+	let lastAddListSignal = v2Events.addListSignal;
 	$effect(() => {
 		const val = v2Events.addListSignal;
-		if (val > lastAddListSignal) { store.createList(); }
+		if (val > lastAddListSignal) { handleAddList(); }
 		lastAddListSignal = val;
 	});
 
@@ -504,17 +504,18 @@
 		ctx.handleTaskContext(e, task);
 	}
 
-	function handleListMenuClick(listId: string) {
-		const list = lists.find((l: List) => l.id === listId);
-		if (!list) return;
-		const btn = document.querySelector(`[data-list-menu="${listId}"]`) as HTMLElement;
-		const rect = btn?.getBoundingClientRect();
-		const syntheticEvent = new MouseEvent('contextmenu', {
-			clientX: rect ? rect.left : 200,
-			clientY: rect ? rect.bottom : 100,
-			bubbles: true
+	async function handleAddList() {
+		const idx = await store.createList();
+		if (idx < 0) return;
+		const newList = store.lists[idx];
+		if (!newList) return;
+		const vIdx = visibleLists.findIndex((l: List) => l.id === newList.id);
+		if (vIdx >= 0) activeListIndex = vIdx;
+		requestAnimationFrame(() => {
+			document.querySelector(`[data-tab-list-id="${newList.id}"]`)?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
 		});
-		ctx.handleListContext(syntheticEvent, list);
+		const name = await showInputDialog('Liste benennen', '', newList.title, 'Listenname');
+		if (name?.trim() && name.trim() !== newList.title) store.renameList(newList.id, name.trim());
 	}
 
 	function handleTaskOpen(task: Task) {
@@ -622,22 +623,41 @@
 
 	// Long-press on list tabs (mobile touch-and-hold, 300ms)
 	let tabLongPressTimer: ReturnType<typeof setTimeout> | null = null;
+	let tabLongPressFired = false;
+	let tabTouchStartX = 0;
+	let tabTouchStartY = 0;
+
 	function handleTabTouchStart(e: TouchEvent, list: List) {
 		const touch = e.touches[0];
-		const tx = touch.clientX;
-		const ty = touch.clientY;
+		tabTouchStartX = touch.clientX;
+		tabTouchStartY = touch.clientY;
+		tabLongPressFired = false;
 		tabLongPressTimer = setTimeout(() => {
 			tabLongPressTimer = null;
+			tabLongPressFired = true;
 			const syntheticEvent = new MouseEvent('contextmenu', {
-				clientX: tx,
-				clientY: ty,
+				clientX: tabTouchStartX,
+				clientY: tabTouchStartY,
 				bubbles: true
 			});
 			ctx.handleListContext(syntheticEvent, list);
 		}, 300);
 	}
-	function handleTabTouchEnd() {
+	function handleTabTouchMove(e: TouchEvent) {
+		if (!tabLongPressTimer) return;
+		const touch = e.touches[0];
+		// 10px-Toleranz statt Sofort-Abbruch — minimale Fingerbewegung killt den
+		// Long-Press nicht mehr
+		if (Math.abs(touch.clientX - tabTouchStartX) > 10 || Math.abs(touch.clientY - tabTouchStartY) > 10) {
+			clearTimeout(tabLongPressTimer);
+			tabLongPressTimer = null;
+		}
+	}
+	function handleTabTouchEnd(e: TouchEvent) {
 		if (tabLongPressTimer) { clearTimeout(tabLongPressTimer); tabLongPressTimer = null; }
+		// Nach gefeuertem Long-Press: emulierten Ghost-Click unterdrücken, der
+		// sonst das frisch geöffnete Menü über dessen Backdrop sofort schließt
+		if (tabLongPressFired) e.preventDefault();
 	}
 	function handleTabTouchCancel() {
 		if (tabLongPressTimer) { clearTimeout(tabLongPressTimer); tabLongPressTimer = null; }
@@ -695,21 +715,23 @@
 				class:tab-drag-over-left={tabDragOverIdx === i && draggingTabId && draggingTabId !== list.id}
 				class:tab-drag-over-right={tabDragOverIdx === i + 1 && draggingTabId && draggingTabId !== list.id}
 				onclick={() => (activeListIndex = i)}
-				oncontextmenu={(e) => ctx.handleListContext(e, list)}
+				oncontextmenu={(e) => { e.preventDefault(); if (!tabLongPressFired) ctx.handleListContext(e, list); }}
 				ontouchstart={(e) => handleTabTouchStart(e, list)}
 				ontouchend={handleTabTouchEnd}
-				ontouchmove={handleTabTouchCancel}
+				ontouchmove={handleTabTouchMove}
 				ontouchcancel={handleTabTouchCancel}
 				draggable="true"
 				ondragstart={(e) => handleTabDragStart(e, list, i)}
 				ondragend={handleTabDragEnd}
 				ondragover={(e) => handleTabDragOver(e, i)}
 				ondrop={handleTabDrop}
+				data-tab-list-id={list.id}
 			>
 				<span class="v2-tab-icon">{list.icon}</span>
 				{list.title}
 			</button>
 		{/each}
+		<button class="v2-list-tab v2-add-list-tab" onclick={handleAddList} aria-label="Neue Liste erstellen">+</button>
 	</div>
 {/if}
 
@@ -736,7 +758,6 @@
 					onEditSubtask={handleEditTask}
 					onContextMenu={handleContextMenu}
 					onTaskOpen={handleTaskOpen}
-					onListMenuClick={handleListMenuClick}
 					onReorderTask={(taskId, targetListId, newPos) => store.reorderTask(taskId, targetListId, newPos)}
 					onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
 					{bulkMode}
@@ -745,6 +766,7 @@
 				/>
 			</div>
 		{/each}
+		<button class="v2-scroll-add-list" onclick={handleAddList} aria-label="Neue Liste erstellen">+ Neue Liste</button>
 	</div>
 {:else if viewMode === 'kanban' && visibleLists[activeListIndex]}
 	<!-- Kanban View -->
@@ -857,7 +879,6 @@
 				onEditSubtask={handleEditTask}
 				onContextMenu={handleContextMenu}
 				onTaskOpen={handleTaskOpen}
-				onListMenuClick={handleListMenuClick}
 				onReorderTask={(taskId, targetListId, newPos) => store.reorderTask(taskId, targetListId, newPos)}
 				onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
 				{bulkMode}
@@ -898,7 +919,7 @@
 			Erstelle deine erste Liste um loszulegen.
 		</p>
 		<button
-			onclick={() => store.createList()}
+			onclick={handleAddList}
 			style="margin-top: 16px; padding: 10px 20px; border: 1px dashed var(--v2-accent); border-radius: var(--v2-radius); background: var(--v2-accent-glow); color: var(--v2-accent); font-size: .75rem; font-weight: 600; cursor: pointer; font-family: var(--v2-font); min-height: 44px;"
 			aria-label="Neue Liste erstellen"
 		>

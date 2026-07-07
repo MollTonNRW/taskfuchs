@@ -18,7 +18,6 @@
 		onEditSubtask,
 		onContextMenu,
 		onTaskOpen,
-		onListMenuClick,
 		onReorderTask,
 		onReorderSubtask,
 		bulkMode = false,
@@ -36,7 +35,6 @@
 		onEditSubtask: (id: string, text: string) => void;
 		onContextMenu?: (e: MouseEvent, task: Task) => void;
 		onTaskOpen?: (task: Task) => void;
-		onListMenuClick?: (listId: string) => void;
 		onReorderTask?: (taskId: string, targetListId: string, newPosition: number) => void;
 		onReorderSubtask?: (subtaskId: string, parentId: string, newPosition: number) => void;
 		bulkMode?: boolean;

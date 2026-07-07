@@ -616,7 +616,7 @@
 				{:else}
 					<p class="v2-nav-empty">Noch keine Listen</p>
 				{/if}
-				<button class="v2-nav-add-list" onclick={() => v2Events.triggerAddList()} aria-label="Neue Liste">+ Neue Liste</button>
+				<button class="v2-nav-add-list" onclick={() => { v2Events.triggerAddList(); if (window.innerWidth < 769) sidebarOpen = false; }} aria-label="Neue Liste">+ Neue Liste</button>
 
 				<!-- Ansichten sub-section (v6 style) -->
 				<h3 class="v2-nav-sub-header">&#x250C;&#x2500; Ansichten</h3>
