@@ -661,22 +661,10 @@ export function createTaskStore() {
 	// ==========================================
 	// TASK-LEVEL OPERATIONS
 	// ==========================================
-	async function deleteAllSubtasksOfTask(taskId: string) {
-		const subtaskIds = tasks.filter(t => t.parent_id === taskId).map(t => t.id);
-		if (subtaskIds.length === 0) return;
-		const oldTasks = tasks;
-		tasks = tasks.filter(t => t.parent_id !== taskId);
-		const { error } = await crud.bulkDeleteTasks(sb, subtaskIds);
-		if (error) tasks = oldTasks;
-	}
-
-	// ==========================================
-	// LIST-LEVEL OPERATIONS
-	// ==========================================
-	async function deleteAllSubtasksInList(listId: string) {
-		const deleted = tasks.filter(t => t.list_id === listId && t.parent_id !== null);
+	function deleteAllSubtasksOfTask(taskId: string) {
+		const deleted = tasks.filter(t => t.parent_id === taskId);
 		if (deleted.length === 0) return;
-		tasks = tasks.filter(t => !(t.list_id === listId && t.parent_id !== null));
+		tasks = tasks.filter(t => t.parent_id !== taskId);
 		undoableBulkDelete(deleted, `${deleted.length} Unteraufgaben gelöscht`);
 	}
 
@@ -970,7 +958,7 @@ export function createTaskStore() {
 		// Subtask operations
 		addSubtask, toggleSubtask, updateSubtask, deleteSubtask, deleteAllSubtasksOfTask,
 		// List-level operations
-		deleteAllSubtasksInList, deleteDoneInList, checkAllInList, duplicateList, convertTaskToList,
+		deleteDoneInList, checkAllInList, duplicateList, convertTaskToList,
 		// Bulk operations
 		bulkToggleDone, bulkChangePriority, bulkDelete, bulkMoveToList,
 		// Reorder

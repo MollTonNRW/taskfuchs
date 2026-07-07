@@ -20,7 +20,6 @@
 	import FocusOverlay from '$lib/components/v2/FocusOverlay.svelte';
 	import SearchOverlay from '$lib/components/v2/SearchOverlay.svelte';
 	import ContextMenu from '$lib/components/v2/ContextMenu.svelte';
-	import NotePopover from '$lib/components/v2/NotePopover.svelte';
 	import EmojiPicker from '$lib/components/v2/EmojiPicker.svelte';
 	import DatePicker from '$lib/components/v2/DatePicker.svelte';
 	import PriorityPicker from '$lib/components/v2/PriorityPicker.svelte';
@@ -277,18 +276,14 @@
 			createDivider: (listId: string, position: number, label: string) => store.createDivider(listId, position, label),
 			checkAllInList: (listId: string) => store.checkAllInList(listId),
 			deleteDoneInList: (listId: string) => store.deleteDoneInList(listId),
-			deleteAllSubtasksInList: (listId: string) => store.deleteAllSubtasksInList(listId),
 			deleteAllSubtasksOfTask: (taskId: string) => store.deleteAllSubtasksOfTask(taskId),
 			duplicateList: (listId: string) => store.duplicateList(listId),
 			renameList: (listId: string, name: string) => store.renameList(listId, name),
 			deleteList: (listId: string) => store.deleteList(listId),
-			toggleTask: (taskId: string, done: boolean) => store.toggleTask(taskId, done),
 			changeTaskPriority: (taskId: string, priority: Priority) => store.changeTaskPriority(taskId, priority),
 			changeTaskTimeframe: (taskId: string, timeframe: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null) => store.changeTaskTimeframe(taskId, timeframe),
-			toggleHighlight: (taskId: string) => store.toggleHighlight(taskId),
 			togglePin: (taskId: string) => store.togglePin(taskId),
 			updateTask: (taskId: string, text: string) => store.updateTask(taskId, text),
-			updateTaskNote: (taskId: string, note: string) => store.updateTaskNote(taskId, note),
 			updateTaskEmoji: (taskId: string, emoji: string) => store.updateTaskEmoji(taskId, emoji),
 			assignTask: (taskId: string, userId: string | null) => store.assignTask(taskId, userId),
 			moveTaskToList: (taskId: string, listId: string) => store.moveTaskToList(taskId, listId),
@@ -307,7 +302,10 @@
 		get profileMap() { return profileMap; },
 		get userId() { return data.user?.id; },
 		get userEmail() { return data.user?.email; },
-		openNotePopover: (taskId: string, x: number, y: number) => popovers.openNotePopover(taskId, x, y),
+		startBulkSelect: (taskId: string) => {
+			explicitBulkMode = true;
+			bulkSelectedIds = new Set([...bulkSelectedIds, taskId]);
+		},
 		openDatePicker: (taskId: string, x: number, y: number) => popovers.openDatePicker(taskId, x, y),
 		openEmojiPicker: (taskId: string, x: number, y: number) => popovers.openEmojiPicker(taskId, x, y),
 		openShareDialog: (list: List) => share.openShareDialog(list),
@@ -369,7 +367,6 @@
 				if (levelUpData.show) { levelUpData = { show: false, level: 1, rank: '' }; return; }
 				if (ctx.contextMenu.show) { ctx.close(); return; }
 				if (popovers.focusMode.show) { popovers.focusMode = { show: false, taskId: '' }; return; }
-				if (popovers.notePopover.show) { popovers.notePopover = { show: false, taskId: '', note: '', x: 0, y: 0 }; return; }
 				if (popovers.emojiPicker.show) { popovers.emojiPicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
 				if (listIconPicker.show) { listIconPicker = { show: false, listId: '', x: 0, y: 0 }; return; }
 				if (popovers.datePicker.show) { popovers.datePicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
@@ -950,17 +947,6 @@
 		x={ctx.contextMenu.x}
 		y={ctx.contextMenu.y}
 		onclose={() => { ctx.close(); }}
-	/>
-{/if}
-
-<!-- Note Popover -->
-{#if popovers.notePopover.show}
-	<NotePopover
-		note={popovers.notePopover.note}
-		x={popovers.notePopover.x}
-		y={popovers.notePopover.y}
-		onSave={(text) => { popovers.handleNoteSave(text); }}
-		onClose={() => { popovers.notePopover = { show: false, taskId: '', note: '', x: 0, y: 0 }; }}
 	/>
 {/if}
 
