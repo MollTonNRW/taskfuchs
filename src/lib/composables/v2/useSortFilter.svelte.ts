@@ -43,11 +43,7 @@ export function createSortFilter(
 
 	function sortTasks(taskList: Task[], _listId?: string): Task[] {
 		if (sortMode === 'position') {
-			return [...taskList].sort((a, b) => {
-				if (a.highlighted && !b.highlighted) return -1;
-				if (!a.highlighted && b.highlighted) return 1;
-				return a.position - b.position;
-			});
+			return [...taskList].sort((a, b) => a.position - b.position);
 		}
 		return [...taskList].sort((a, b) => {
 			if (a.type === 'divider' || b.type === 'divider') return a.position - b.position;

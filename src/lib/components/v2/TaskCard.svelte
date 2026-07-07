@@ -176,7 +176,6 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="v2-glass-card v2-task-card"
-	class:v2-highlighted={task.highlighted}
 	class:v2-bulk-selected={bulkSelected}
 	data-priority={task.priority}
 	oncontextmenu={handleContext}

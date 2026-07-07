@@ -486,10 +486,6 @@
 				</button>
 				<div class="v2-filter-options" class:collapsed={!viewFilterOpen}>
 					<label class="v2-filter-check">
-						<input type="checkbox" checked={$viewFilters.highlighted} onchange={() => toggleViewFilter('highlighted')} />
-						Nur Fixierte
-					</label>
-					<label class="v2-filter-check">
 						<input type="checkbox" checked={$viewFilters.withDate} onchange={() => toggleViewFilter('withDate')} />
 						Mit Termin
 					</label>

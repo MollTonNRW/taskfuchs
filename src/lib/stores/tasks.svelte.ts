@@ -302,16 +302,6 @@ export function createTaskStore() {
 		}
 	}
 
-	async function toggleHighlight(id: string) {
-		const task = tasks.find((t) => t.id === id);
-		if (!task) return;
-		const highlighted = !task.highlighted;
-		const oldTasks = tasks;
-		tasks = tasks.map((t) => (t.id === id ? { ...t, highlighted } : t));
-		const { error } = await crud.updateTaskField(sb, id, { highlighted });
-		if (error) tasks = oldTasks;
-	}
-
 	async function togglePin(id: string) {
 		const task = tasks.find((t) => t.id === id);
 		if (!task) return;
@@ -514,12 +504,8 @@ export function createTaskStore() {
 		const sourceListId = task.list_id;
 		const isMoving = sourceListId !== targetListId;
 
-		// Visuelle Sortierung (gleich wie activeTasks in ListPanel): highlighted zuerst, dann position
-		const visualSort = (a: Task, b: Task) => {
-			if (a.highlighted && !b.highlighted) return -1;
-			if (!a.highlighted && b.highlighted) return 1;
-			return a.position - b.position;
-		};
+		// Visuelle Sortierung (gleich wie activeTasks in ListPanel): nach position
+		const visualSort = (a: Task, b: Task) => a.position - b.position;
 
 		// 1. Off-by-one Fix: Bei Same-List-Moves den visuellen Ursprungsindex ermitteln
 		let adjustedPos = newPosition;
@@ -952,7 +938,7 @@ export function createTaskStore() {
 		// Task operations
 		addTask, addTaskAfter, toggleTask, updateTask, deleteTask, deleteTaskDirect,
 		changeTaskPriority, changeTaskTimeframe, changeTaskProgress,
-		toggleHighlight, togglePin, clearPinboard,
+		togglePin, clearPinboard,
 		updateTaskNote, assignTask, moveTaskToList,
 		updateTaskEmoji, updateTaskDate,
 		// Subtask operations
