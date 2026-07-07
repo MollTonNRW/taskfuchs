@@ -61,7 +61,7 @@
 		<button
 			onclick={handleSave}
 			class="w-5 h-5 flex items-center justify-center rounded hover:bg-black/5 dark:hover:bg-white/10 tf-text-muted"
-			aria-label="…schließen"
+			aria-label="Notiz speichern und schließen"
 		>
 			<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
