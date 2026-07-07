@@ -142,12 +142,12 @@
   --v2-cyan: #22d3ee;
 }
 
-/* Colorful per-list accent borders */
-.v2-root.v2-theme-colorful [data-col="0"] .v2-task-card { border-left: 3px solid var(--v2-red); }
-.v2-root.v2-theme-colorful [data-col="1"] .v2-task-card { border-left: 3px solid var(--v2-accent); }
-.v2-root.v2-theme-colorful [data-col="2"] .v2-task-card { border-left: 3px solid var(--v2-green); }
-.v2-root.v2-theme-colorful [data-col="3"] .v2-task-card { border-left: 3px solid var(--v2-purple); }
-.v2-root.v2-theme-colorful [data-col="4"] .v2-task-card { border-left: 3px solid var(--v2-yellow); }
+/* Colorful per-list top accents (linke Kartenkante bleibt der Prioritätsfarbe vorbehalten) */
+.v2-root.v2-theme-colorful [data-col="0"] { border-top: 2px solid var(--v2-red); }
+.v2-root.v2-theme-colorful [data-col="1"] { border-top: 2px solid var(--v2-accent); }
+.v2-root.v2-theme-colorful [data-col="2"] { border-top: 2px solid var(--v2-green); }
+.v2-root.v2-theme-colorful [data-col="3"] { border-top: 2px solid var(--v2-purple); }
+.v2-root.v2-theme-colorful [data-col="4"] { border-top: 2px solid var(--v2-yellow); }
 
 /* Aurora per-list top borders */
 .v2-root.v2-theme-aurora [data-col="0"] { border-top: 2px solid var(--v2-accent); }
