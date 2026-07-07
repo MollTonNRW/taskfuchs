@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { tick } from 'svelte';
 	import { get } from 'svelte/store';
 	import type { Database } from '$lib/types/database';
 	import { subtasksCollapsedByDefault } from '$lib/stores/filters';
@@ -15,9 +14,8 @@
 		allSubtasksDone = false,
 		forceSubtasksOpen = null,
 		ontoggle,
-		onedit,
+		onopen,
 		oncontextmenu,
-		ondblclick,
 		ontogglesubtask,
 		oneditsubtask,
 		ondragstart,
@@ -34,9 +32,8 @@
 		allSubtasksDone?: boolean;
 		forceSubtasksOpen?: boolean | null;
 		ontoggle: (id: string) => void;
-		onedit: (id: string, text: string) => void;
+		onopen?: (task: Task) => void;
 		oncontextmenu?: (e: MouseEvent, task: Task) => void;
-		ondblclick?: (task: Task) => void;
 		ontogglesubtask?: (id: string) => void;
 		oneditsubtask?: (id: string, text: string) => void;
 		ondragstart?: (e: DragEvent) => void;
@@ -47,9 +44,6 @@
 		onBulkToggle?: (id: string) => void;
 	} = $props();
 
-	let editing = $state(false);
-	let editText = $state('');
-	let editInput: HTMLInputElement | undefined = $state();
 	let localSubtasksOpen = $state(!get(subtasksCollapsedByDefault));
 
 	// ---- Subtask Drag & Drop ----
@@ -103,36 +97,25 @@
 	// If forceSubtasksOpen is set (not null), use it; otherwise use local state
 	let subtasksOpen = $derived(forceSubtasksOpen !== null ? forceSubtasksOpen : localSubtasksOpen);
 
-	function startEdit() {
-		editText = task.text;
-		editing = true;
-		tick().then(() => editInput?.focus());
-	}
-
-	function saveEdit() {
-		const trimmed = editText.trim();
-		if (trimmed && trimmed !== task.text) {
-			onedit(task.id, trimmed);
-		}
-		editing = false;
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Enter') { e.preventDefault(); saveEdit(); }
-		if (e.key === 'Escape') { editing = false; }
-	}
-
-	function handleDblClick() {
-		if (ondblclick) {
-			ondblclick(task);
-		} else {
-			startEdit();
-		}
+	// Natives Long-Press-Kontextmenü (Android) unterdrücken: auf Touch öffnet
+	// das Menü ausschließlich der ⋮-Button; Long-Press gehört exklusiv dem Drag.
+	let lastTouchTs = 0;
+	function handleTouchStart() {
+		lastTouchTs = Date.now();
 	}
 
 	function handleContext(e: MouseEvent) {
 		e.preventDefault();
+		if (Date.now() - lastTouchTs < 700) return;
 		oncontextmenu?.(e, task);
+	}
+
+	function handleCardClick() {
+		if (bulkMode) {
+			onBulkToggle?.(task.id);
+		} else {
+			onopen?.(task);
+		}
 	}
 
 	function toggleSubtasksOpen(e: MouseEvent) {
@@ -173,14 +156,15 @@
 	let hasProgress = $derived(subtaskCount > 0 || (task.progress != null && task.progress > 0));
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 <div
 	class="v2-glass-card v2-task-card"
 	class:v2-bulk-selected={bulkSelected}
 	data-priority={task.priority}
+	onclick={handleCardClick}
 	oncontextmenu={handleContext}
-	ondblclick={handleDblClick}
-	draggable={!editing ? 'true' : 'false'}
+	ontouchstart={handleTouchStart}
+	draggable="true"
 	ondragstart={ondragstart}
 	ondragend={ondragend}
 >
@@ -206,7 +190,7 @@
 		class="v2-checkbox"
 		class:checked={task.done}
 		class:invite={allSubtasksDone && subtaskCount > 0 && !task.done}
-		onclick={() => ontoggle(task.id)}
+		onclick={(e) => { e.stopPropagation(); ontoggle(task.id); }}
 		aria-label={task.done ? 'Aufgabe wieder \u00f6ffnen' : 'Aufgabe abhaken'}
 	>
 		{task.done ? '\u2713' : ''}
@@ -214,19 +198,8 @@
 
 	<!-- Task body (text + meta + progress + subtasks — all inside like v6) -->
 	<div class="v2-task-body">
-		<!-- Text / Inline Edit -->
-		{#if editing}
-			<input
-				bind:this={editInput}
-				bind:value={editText}
-				class="v2-task-input"
-				onblur={saveEdit}
-				onkeydown={handleKeydown}
-				maxlength="500"
-			/>
-		{:else}
-			<span class="v2-task-text" class:done={task.done}>{task.text}</span>
-		{/if}
+		<!-- Text -->
+		<span class="v2-task-text" class:done={task.done}>{task.text}</span>
 
 		<!-- Meta row (tags) — order matches v6: prio, due, subtask-toggle, note -->
 		<div class="v2-task-meta">

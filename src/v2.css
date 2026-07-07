@@ -915,6 +915,9 @@
   position: relative;
   cursor: pointer;
   overflow: hidden;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .v2-task-card::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;

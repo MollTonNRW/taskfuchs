@@ -517,7 +517,7 @@
 		ctx.handleListContext(syntheticEvent, list);
 	}
 
-	function handleTaskDblClick(task: Task) {
+	function handleTaskOpen(task: Task) {
 		popovers.openFocusMode(task.id);
 	}
 
@@ -732,11 +732,10 @@
 					forceSubtasksOpen={getForceSubtasksOpen(list.id)}
 					onQuickAdd={handleQuickAdd}
 					onToggleTask={handleToggleTask}
-					onEditTask={handleEditTask}
 					onToggleSubtask={handleToggleTask}
 					onEditSubtask={handleEditTask}
 					onContextMenu={handleContextMenu}
-					onTaskDblClick={handleTaskDblClick}
+					onTaskOpen={handleTaskOpen}
 					onListMenuClick={handleListMenuClick}
 					onReorderTask={(taskId, targetListId, newPos) => store.reorderTask(taskId, targetListId, newPos)}
 					onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
@@ -769,11 +768,10 @@
 						subtaskDoneCount={subsDone}
 						allSubtasksDone={subs.length > 0 && subsDone === subs.length}
 						ontoggle={handleToggleTask}
-						onedit={handleEditTask}
 						ontogglesubtask={handleToggleTask}
 						oneditsubtask={handleEditTask}
 						oncontextmenu={handleContextMenu}
-						ondblclick={handleTaskDblClick}
+						onopen={handleTaskOpen}
 						onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
 						{bulkMode}
 						bulkSelected={bulkSelectedIds.has(task.id)}
@@ -801,11 +799,10 @@
 						subtaskDoneCount={subsDone}
 						allSubtasksDone={subs.length > 0 && subsDone === subs.length}
 						ontoggle={handleToggleTask}
-						onedit={handleEditTask}
 						ontogglesubtask={handleToggleTask}
 						oneditsubtask={handleEditTask}
 						oncontextmenu={handleContextMenu}
-						ondblclick={handleTaskDblClick}
+						onopen={handleTaskOpen}
 						onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
 						{bulkMode}
 						bulkSelected={bulkSelectedIds.has(task.id)}
@@ -827,9 +824,8 @@
 					<TaskCard
 						{task}
 						ontoggle={handleToggleTask}
-						onedit={handleEditTask}
 						oncontextmenu={handleContextMenu}
-						ondblclick={handleTaskDblClick}
+						onopen={handleTaskOpen}
 						{bulkMode}
 						bulkSelected={bulkSelectedIds.has(task.id)}
 						onBulkToggle={toggleBulkSelect}
@@ -857,11 +853,10 @@
 				forceSubtasksOpen={getForceSubtasksOpen(activeList.id)}
 				onQuickAdd={handleQuickAdd}
 				onToggleTask={handleToggleTask}
-				onEditTask={handleEditTask}
 				onToggleSubtask={handleToggleTask}
 				onEditSubtask={handleEditTask}
 				onContextMenu={handleContextMenu}
-				onTaskDblClick={handleTaskDblClick}
+				onTaskOpen={handleTaskOpen}
 				onListMenuClick={handleListMenuClick}
 				onReorderTask={(taskId, targetListId, newPos) => store.reorderTask(taskId, targetListId, newPos)}
 				onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}

@@ -14,11 +14,10 @@
 		forceSubtasksOpen = null,
 		onQuickAdd,
 		onToggleTask,
-		onEditTask,
 		onToggleSubtask,
 		onEditSubtask,
 		onContextMenu,
-		onTaskDblClick,
+		onTaskOpen,
 		onListMenuClick,
 		onReorderTask,
 		onReorderSubtask,
@@ -33,11 +32,10 @@
 		forceSubtasksOpen?: boolean | null;
 		onQuickAdd: (listId: string, text: string) => void;
 		onToggleTask: (id: string) => void;
-		onEditTask: (id: string, text: string) => void;
 		onToggleSubtask: (id: string) => void;
 		onEditSubtask: (id: string, text: string) => void;
 		onContextMenu?: (e: MouseEvent, task: Task) => void;
-		onTaskDblClick?: (task: Task) => void;
+		onTaskOpen?: (task: Task) => void;
 		onListMenuClick?: (listId: string) => void;
 		onReorderTask?: (taskId: string, targetListId: string, newPosition: number) => void;
 		onReorderSubtask?: (subtaskId: string, parentId: string, newPosition: number) => void;
@@ -253,11 +251,10 @@
 						allSubtasksDone={subs.length > 0 && subsDone === subs.length}
 						{forceSubtasksOpen}
 						ontoggle={onToggleTask}
-						onedit={onEditTask}
 						ontogglesubtask={onToggleSubtask}
 						oneditsubtask={onEditSubtask}
 						oncontextmenu={onContextMenu}
-						ondblclick={onTaskDblClick}
+						onopen={onTaskOpen}
 						ondragstart={(e) => handleTaskDragStart(e, task)}
 						ondragend={handleTaskDragEnd}
 						{onReorderSubtask}
@@ -293,9 +290,8 @@
 					<TaskCard
 						{task}
 						ontoggle={onToggleTask}
-						onedit={onEditTask}
 						oncontextmenu={onContextMenu}
-						ondblclick={onTaskDblClick}
+						onopen={onTaskOpen}
 						{bulkMode}
 						bulkSelected={bulkSelectedIds.has(task.id)}
 						{onBulkToggle}
