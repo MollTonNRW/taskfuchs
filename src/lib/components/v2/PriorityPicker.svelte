@@ -40,7 +40,7 @@
 	class="v2-glass-card"
 	style="position: fixed; z-index: 71; left: {x}px; top: {y}px; padding: 8px; min-width: 140px;"
 >
-	<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); padding: 4px 8px; margin-bottom: 4px;">Prioritaet</div>
+	<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); padding: 4px 8px; margin-bottom: 4px;">Priorität</div>
 	{#each priorities as p}
 		<button
 			onclick={() => { onSelect(p.key); onClose(); }}

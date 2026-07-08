@@ -48,7 +48,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
 	},
 	{
 		id: 'task_10',
-		name: 'Fleissiger Fuchs',
+		name: 'Fleißiger Fuchs',
 		description: '10 Aufgaben erledigt',
 		icon: '🦊',
 		rarity: 'common',
@@ -56,7 +56,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
 	},
 	{
 		id: 'task_50',
-		name: 'Aufgaben-Jaeger',
+		name: 'Aufgaben-Jäger',
 		description: '50 Aufgaben erledigt',
 		icon: '🎯',
 		rarity: 'uncommon',
@@ -128,7 +128,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
 	// --- Time-based ---
 	{
 		id: 'early_bird',
-		name: 'Fruehaufsteher',
+		name: 'Frühaufsteher',
 		description: 'Aufgabe vor 7 Uhr erledigt',
 		icon: '🌅',
 		rarity: 'uncommon',

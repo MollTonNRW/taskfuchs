@@ -16,13 +16,13 @@
 						onclick={() => { toast.onUndo?.(); toasts.dismiss(toast.id); }}
 						style="margin-left: 8px; padding: 2px 10px; border: 1px dashed var(--v2-accent); border-radius: var(--v2-radius); background: var(--v2-accent-glow); color: var(--v2-accent); font-size: .6rem; cursor: pointer; font-family: var(--v2-font); flex-shrink: 0;"
 					>
-						Rueckgaengig
+						Rückgängig
 					</button>
 				{:else}
 					<button
 						onclick={() => toasts.dismiss(toast.id)}
 						style="margin-left: 8px; background: none; border: none; color: var(--v2-text-muted); cursor: pointer; font-size: .6rem; flex-shrink: 0;"
-						aria-label="Schliessen"
+						aria-label="Schließen"
 					>
 						&#x2715;
 					</button>

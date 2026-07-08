@@ -8,12 +8,14 @@
 		subtask,
 		ontoggle,
 		onedit,
+		oncontextmenu,
 		ondragstart,
 		ondragend
 	}: {
 		subtask: Task;
 		ontoggle: (id: string) => void;
 		onedit: (id: string, text: string) => void;
+		oncontextmenu?: (e: MouseEvent, subtask: Task) => void;
 		ondragstart?: (e: DragEvent) => void;
 		ondragend?: (e: DragEvent) => void;
 	} = $props();
@@ -22,7 +24,8 @@
 	let editText = $state('');
 	let editInput: HTMLInputElement | undefined = $state();
 
-	function startEdit() {
+	function startEdit(e: MouseEvent) {
+		e.stopPropagation();
 		editText = subtask.text;
 		editing = true;
 		tick().then(() => editInput?.focus());
@@ -40,13 +43,28 @@
 		if (e.key === 'Enter') { e.preventDefault(); saveEdit(); }
 		if (e.key === 'Escape') { editing = false; }
 	}
+
+	// Natives Long-Press-Kontextmenü (Android) unterdrücken — Menü nur via ⋮/Rechtsklick
+	let lastTouchTs = 0;
+	function handleTouchStart() {
+		lastTouchTs = Date.now();
+	}
+
+	function handleContext(e: MouseEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		if (Date.now() - lastTouchTs < 700) return;
+		oncontextmenu?.(e, subtask);
+	}
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 <div
 	class="v2-subtask"
 	class:done={subtask.done}
-	ondblclick={startEdit}
+	onclick={(e) => e.stopPropagation()}
+	oncontextmenu={handleContext}
+	ontouchstart={handleTouchStart}
 	draggable={!editing ? 'true' : 'false'}
 	{ondragstart}
 	{ondragend}
@@ -70,6 +88,15 @@
 			maxlength="500"
 		/>
 	{:else}
-		<span class="v2-subtask-text">{subtask.text}</span>
+		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+		<span class="v2-subtask-text" onclick={startEdit}>{subtask.text}</span>
+	{/if}
+
+	{#if oncontextmenu}
+		<button
+			class="v2-subtask-menu-btn"
+			onclick={(e) => { e.stopPropagation(); oncontextmenu?.(e, subtask); }}
+			aria-label="Menü"
+		>&#x22EE;</button>
 	{/if}
 </div>

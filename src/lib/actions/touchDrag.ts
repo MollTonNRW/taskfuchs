@@ -38,6 +38,18 @@ let startY = 0;
 let dragStarted = false;
 let scrollRAF: number | null = null;
 
+// Unterdrückt den vom Browser nach touchend synthetisierten Click —
+// nötig, weil ein Tap auf der Karte jetzt den Fokus-Modus öffnet und ein
+// beendeter Hold/Drag sonst wie ein Tap wirken würde.
+function suppressNextClick() {
+	const blocker = (e: MouseEvent) => {
+		e.stopPropagation();
+		e.preventDefault();
+	};
+	window.addEventListener('click', blocker, { capture: true, once: true });
+	setTimeout(() => window.removeEventListener('click', blocker, true), 400);
+}
+
 // ── Auto-scroll while dragging near edges ──────────────────────────
 function autoScroll(clientY: number) {
 	if (scrollRAF) cancelAnimationFrame(scrollRAF);
@@ -152,6 +164,7 @@ export function touchDragHandle(
 ) {
 	let currentParams = params;
 	let holdTimer: ReturnType<typeof setTimeout> | null = null;
+	let holdFired = false;
 
 	// Non-passive touchmove — wird NUR nach erfolgreichem Hold registriert
 	function onDragMove(e: TouchEvent) {
@@ -228,6 +241,7 @@ export function touchDragHandle(
 		startX = touch.clientX;
 		startY = touch.clientY;
 		dragStarted = false;
+		holdFired = false;
 
 		// Passiven Move-Listener registrieren um Scroll-Bewegung zu erkennen
 		node.addEventListener('touchmove', onScrollDetect, { passive: true });
@@ -235,6 +249,7 @@ export function touchDragHandle(
 		// Nach 300ms Hold OHNE Bewegung: Drag aktivieren
 		holdTimer = setTimeout(() => {
 			holdTimer = null;
+			holdFired = true;
 			// Scroll-Detector entfernen, Drag-Listener registrieren
 			node.removeEventListener('touchmove', onScrollDetect);
 			node.addEventListener('touchmove', onDragMove, { passive: false });
@@ -243,6 +258,7 @@ export function touchDragHandle(
 	}
 
 	function onTouchEnd(e: TouchEvent) {
+		if (holdFired || dragStarted) suppressNextClick();
 		cleanup();
 		if (!dragStarted) return;
 

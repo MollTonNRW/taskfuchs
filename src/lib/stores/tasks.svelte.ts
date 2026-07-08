@@ -131,7 +131,7 @@ export function createTaskStore() {
 		const optimisticTask: Task = {
 			id: crypto.randomUUID(), list_id: listId, user_id: userId, parent_id: null,
 			text, type: 'task', divider_label: null, done: false, priority: 'normal',
-			timeframe: null, highlighted: false, pinned: false, emoji: null, note: null,
+			timeframe: null, highlighted: false, pinned: false, pinned_by: null, emoji: null, note: null,
 			due_date: null, progress: 0, assigned_to: null, calendar_event_id: null, position,
 			created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1
 		};
@@ -162,7 +162,7 @@ export function createTaskStore() {
 		const optimisticTask: Task = {
 			id: crypto.randomUUID(), list_id: listId, user_id: userId, parent_id: null,
 			text, type: 'task', divider_label: null, done: false, priority: 'normal',
-			timeframe: null, highlighted: false, pinned: false, emoji: null, note: null,
+			timeframe: null, highlighted: false, pinned: false, pinned_by: null, emoji: null, note: null,
 			due_date: null, progress: 0, assigned_to: null, calendar_event_id: null, position: newPosition,
 			created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1
 		};
@@ -302,23 +302,16 @@ export function createTaskStore() {
 		}
 	}
 
-	async function toggleHighlight(id: string) {
-		const task = tasks.find((t) => t.id === id);
-		if (!task) return;
-		const highlighted = !task.highlighted;
-		const oldTasks = tasks;
-		tasks = tasks.map((t) => (t.id === id ? { ...t, highlighted } : t));
-		const { error } = await crud.updateTaskField(sb, id, { highlighted });
-		if (error) tasks = oldTasks;
-	}
-
 	async function togglePin(id: string) {
 		const task = tasks.find((t) => t.id === id);
 		if (!task) return;
 		const pinned = !task.pinned;
+		// pinned_by haelt fest, WER gepinnt hat (fuer das "gepinnt von"-Badge);
+		// beim Entpinnen wieder leeren.
+		const pinned_by = pinned ? userId : null;
 		const oldTasks = tasks;
-		tasks = tasks.map((t) => (t.id === id ? { ...t, pinned } : t));
-		const { error } = await crud.updateTaskField(sb, id, { pinned });
+		tasks = tasks.map((t) => (t.id === id ? { ...t, pinned, pinned_by } : t));
+		const { error } = await crud.updateTaskField(sb, id, { pinned, pinned_by });
 		if (error) tasks = oldTasks;
 	}
 
@@ -326,8 +319,8 @@ export function createTaskStore() {
 		const pinnedIds = tasks.filter((t) => t.pinned).map((t) => t.id);
 		if (pinnedIds.length === 0) return;
 		const oldTasks = tasks;
-		tasks = tasks.map((t) => (t.pinned ? { ...t, pinned: false } : t));
-		const { error } = await crud.bulkUpdateField(sb, pinnedIds, { pinned: false });
+		tasks = tasks.map((t) => (t.pinned ? { ...t, pinned: false, pinned_by: null } : t));
+		const { error } = await crud.bulkUpdateField(sb, pinnedIds, { pinned: false, pinned_by: null });
 		if (error) tasks = oldTasks;
 	}
 
@@ -404,7 +397,7 @@ export function createTaskStore() {
 		const optimisticSub: Task = {
 			id: crypto.randomUUID(), list_id: parentTask.list_id, user_id: userId, parent_id: parentId,
 			text, type: 'task', divider_label: null, done: false, priority: 'normal',
-			timeframe: null, highlighted: false, pinned: false, emoji: null, note: null,
+			timeframe: null, highlighted: false, pinned: false, pinned_by: null, emoji: null, note: null,
 			due_date: null, progress: 0, assigned_to: null, calendar_event_id: null, position,
 			created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1
 		};
@@ -511,12 +504,8 @@ export function createTaskStore() {
 		const sourceListId = task.list_id;
 		const isMoving = sourceListId !== targetListId;
 
-		// Visuelle Sortierung (gleich wie activeTasks in ListPanel): highlighted zuerst, dann position
-		const visualSort = (a: Task, b: Task) => {
-			if (a.highlighted && !b.highlighted) return -1;
-			if (!a.highlighted && b.highlighted) return 1;
-			return a.position - b.position;
-		};
+		// Visuelle Sortierung (gleich wie activeTasks in ListPanel): nach position
+		const visualSort = (a: Task, b: Task) => a.position - b.position;
 
 		// 1. Off-by-one Fix: Bei Same-List-Moves den visuellen Ursprungsindex ermitteln
 		let adjustedPos = newPosition;
@@ -658,22 +647,10 @@ export function createTaskStore() {
 	// ==========================================
 	// TASK-LEVEL OPERATIONS
 	// ==========================================
-	async function deleteAllSubtasksOfTask(taskId: string) {
-		const subtaskIds = tasks.filter(t => t.parent_id === taskId).map(t => t.id);
-		if (subtaskIds.length === 0) return;
-		const oldTasks = tasks;
-		tasks = tasks.filter(t => t.parent_id !== taskId);
-		const { error } = await crud.bulkDeleteTasks(sb, subtaskIds);
-		if (error) tasks = oldTasks;
-	}
-
-	// ==========================================
-	// LIST-LEVEL OPERATIONS
-	// ==========================================
-	async function deleteAllSubtasksInList(listId: string) {
-		const deleted = tasks.filter(t => t.list_id === listId && t.parent_id !== null);
+	function deleteAllSubtasksOfTask(taskId: string) {
+		const deleted = tasks.filter(t => t.parent_id === taskId);
 		if (deleted.length === 0) return;
-		tasks = tasks.filter(t => !(t.list_id === listId && t.parent_id !== null));
+		tasks = tasks.filter(t => t.parent_id !== taskId);
 		undoableBulkDelete(deleted, `${deleted.length} Unteraufgaben gelöscht`);
 	}
 
@@ -961,13 +938,13 @@ export function createTaskStore() {
 		// Task operations
 		addTask, addTaskAfter, toggleTask, updateTask, deleteTask, deleteTaskDirect,
 		changeTaskPriority, changeTaskTimeframe, changeTaskProgress,
-		toggleHighlight, togglePin, clearPinboard,
+		togglePin, clearPinboard,
 		updateTaskNote, assignTask, moveTaskToList,
 		updateTaskEmoji, updateTaskDate,
 		// Subtask operations
 		addSubtask, toggleSubtask, updateSubtask, deleteSubtask, deleteAllSubtasksOfTask,
 		// List-level operations
-		deleteAllSubtasksInList, deleteDoneInList, checkAllInList, duplicateList, convertTaskToList,
+		deleteDoneInList, checkAllInList, duplicateList, convertTaskToList,
 		// Bulk operations
 		bulkToggleDone, bulkChangePriority, bulkDelete, bulkMoveToList,
 		// Reorder

@@ -27,18 +27,14 @@ export interface ContextMenuDeps {
 		createDivider: (listId: string, position: number, label: string) => void;
 		checkAllInList: (listId: string) => void;
 		deleteDoneInList: (listId: string) => void;
-		deleteAllSubtasksInList: (listId: string) => void;
 		deleteAllSubtasksOfTask: (taskId: string) => void;
 		duplicateList: (listId: string) => Promise<number>;
 		renameList: (listId: string, name: string) => void;
 		deleteList: (listId: string) => void;
-		toggleTask: (taskId: string, done: boolean) => void;
 		changeTaskPriority: (taskId: string, priority: Priority) => void;
 		changeTaskTimeframe: (taskId: string, timeframe: Timeframe | null) => void;
-		toggleHighlight: (taskId: string) => void;
 		togglePin: (taskId: string) => void;
 		updateTask: (taskId: string, text: string) => void;
-		updateTaskNote: (taskId: string, note: string) => void;
 		updateTaskEmoji: (taskId: string, emoji: string) => void;
 		assignTask: (taskId: string, userId: string | null) => void;
 		moveTaskToList: (taskId: string, listId: string) => void;
@@ -53,7 +49,7 @@ export interface ContextMenuDeps {
 	profileMap: Map<string, Profile>;
 	userId: string | undefined;
 	userEmail: string | undefined;
-	openNotePopover: (taskId: string, x: number, y: number) => void;
+	startBulkSelect: (taskId: string) => void;
 	openDatePicker: (taskId: string, x: number, y: number) => void;
 	openEmojiPicker: (taskId: string, x: number, y: number) => void;
 	openShareDialog: (list: List) => void;
@@ -80,8 +76,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				},
 				{ divider: true, label: '' },
 				{ label: 'Alle Aufgaben abhaken', icon: '\u2705', action: () => store.checkAllInList(list.id) },
-				{ label: 'Erledigte Eintraege loeschen', icon: '\uD83E\uDDF9', action: () => store.deleteDoneInList(list.id) },
-				{ label: 'Alle Unteraufgaben loeschen', icon: '\uD83D\uDDD1', action: () => store.deleteAllSubtasksInList(list.id) },
+				{ label: 'Erledigte Eintr\u00E4ge l\u00F6schen', icon: '\uD83E\uDDF9', action: () => store.deleteDoneInList(list.id) },
 					{ divider: true, label: '' },
 				{
 					label: 'Unteraufgaben einklappen',
@@ -120,18 +115,18 @@ export function createContextMenus(deps: ContextMenuDeps) {
 					}
 				},
 				{
-					label: 'Icon aendern',
+					label: 'Icon \u00E4ndern',
 					icon: '\uD83C\uDFA8',
 					action: () => openListIconPicker(list.id, e.clientX, e.clientY)
 				},
-				{ label: 'Liste loeschen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteList(list.id), danger: true }
+				{ label: 'Liste l\u00F6schen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteList(list.id), danger: true }
 			]
 		};
 	}
 
 	function handleTaskContext(e: MouseEvent, task: Task) {
 		e.preventDefault();
-		const { store, openNotePopover, openDatePicker, openEmojiPicker, profileMap, userId, userEmail, setActiveListIndex } = deps;
+		const { store, openDatePicker, openEmojiPicker, profileMap, userId, userEmail, setActiveListIndex } = deps;
 
 		// Divider context menu
 		if (task.type === 'divider') {
@@ -146,7 +141,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 							if (newName?.trim()) store.updateTask(task.id, newName.trim());
 						}
 					},
-					{ label: 'Trenner loeschen', icon: '\uD83D\uDDD1', action: () => store.deleteTaskDirect(task.id), danger: true }
+					{ label: 'Trenner l\u00F6schen', icon: '\uD83D\uDDD1', action: () => store.deleteTaskDirect(task.id), danger: true }
 				]
 			};
 			return;
@@ -158,7 +153,15 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				show: true, x: e.clientX, y: e.clientY,
 				items: [
 					{
-						label: 'Prioritaet',
+						label: 'Umbenennen',
+						icon: '\u270F\uFE0F',
+						action: async () => {
+							const newName = await showInputDialog('Unteraufgabe umbenennen', '', task.text, 'Neuer Text');
+							if (newName?.trim()) store.updateTask(task.id, newName.trim());
+						}
+					},
+					{
+						label: 'Priorit\u00E4t',
 						icon: '\uD83D\uDD34',
 						submenu: (['low', 'normal', 'high', 'asap'] as Priority[]).map((p) => ({
 							label: priorityLabels[p],
@@ -167,7 +170,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 							active: task.priority === p
 						}))
 					},
-					{ label: 'Unteraufgabe loeschen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteTaskDirect(task.id), danger: true }
+					{ label: 'Unteraufgabe l\u00F6schen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteTaskDirect(task.id), danger: true }
 				]
 			};
 			return;
@@ -177,18 +180,22 @@ export function createContextMenus(deps: ContextMenuDeps) {
 		const taskSubtaskCount = store.tasks.filter(t => t.parent_id === task.id).length;
 
 		const items: MenuItem[] = [
+			{
+				label: 'Umbenennen',
+				icon: '\u270F\uFE0F',
+				action: async () => {
+					const newName = await showInputDialog('Aufgabe umbenennen', '', task.text, 'Neuer Text');
+					if (newName?.trim()) store.updateTask(task.id, newName.trim());
+				}
+			},
 			{ label: 'Neue Aufgabe darunter', icon: '\u2795', action: () => store.addTaskAfter(task.id, 'Neue Aufgabe') },
 			{ label: 'Unteraufgabe erstellen', icon: '\u2795', action: () => store.addSubtask(task.id, 'Neue Unteraufgabe') },
 			...(taskSubtaskCount > 0 ? [{
-				label: `Unteraufgaben loeschen (${taskSubtaskCount})`,
+				label: `Unteraufgaben l\u00F6schen (${taskSubtaskCount})`,
 				icon: '\uD83D\uDDD1',
 				action: () => store.deleteAllSubtasksOfTask(task.id)
 			} as MenuItem] : []),
-			{
-				label: task.done ? 'Nicht erledigt' : 'Erledigt',
-				icon: '\u2705',
-				action: () => store.toggleTask(task.id, !task.done)
-			},
+			{ label: 'Ausw\u00E4hlen', icon: '\u2611', action: () => deps.startBulkSelect(task.id) },
 			{ divider: true, label: '' },
 			{
 				label: 'In andere Liste',
@@ -201,7 +208,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 					: [{ label: 'Keine weiteren Listen', action: () => {} }]
 			},
 			{
-				label: 'Prioritaet',
+				label: 'Priorit\u00E4t',
 				icon: '\uD83D\uDD34',
 				submenu: (['low', 'normal', 'high', 'asap'] as Priority[]).map((p) => ({
 					label: priorityLabels[p],
@@ -241,19 +248,9 @@ export function createContextMenus(deps: ContextMenuDeps) {
 			},
 			{ divider: true, label: '' },
 			{
-				label: task.highlighted ? 'Fixierung aufheben' : 'Fixieren',
-				icon: '\uD83D\uDCCC',
-				action: () => store.toggleHighlight(task.id)
-			},
-			{
-				label: task.pinned ? 'Von Pinnwand loesen' : 'An Pinnwand pinnen',
+				label: task.pinned ? 'Von Pinnwand l\u00F6sen' : 'An Pinnwand pinnen',
 				icon: '\uD83D\uDCCD',
 				action: () => store.togglePin(task.id)
-			},
-			{
-				label: task.note ? 'Notiz bearbeiten' : 'Notiz hinzufuegen',
-				icon: '\uD83D\uDCDD',
-				action: () => openNotePopover(task.id, contextMenu.x, contextMenu.y)
 			},
 			{
 				label: 'Terminieren',
@@ -261,14 +258,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				action: () => openDatePicker(task.id, contextMenu.x, contextMenu.y)
 			},
 			{
-				label: 'Trenner erstellen',
-				icon: '\u2796',
-				action: () => {
-					store.createDivider(task.list_id, task.position + 1, 'Neuer Trenner');
-				}
-			},
-			{
-				label: task.emoji ? 'Symbol aendern' : 'Mit Symbol versehen',
+				label: task.emoji ? 'Symbol \u00E4ndern' : 'Mit Symbol versehen',
 				icon: '\uD83D\uDE00',
 				action: () => openEmojiPicker(task.id, contextMenu.x, contextMenu.y)
 			}
@@ -288,7 +278,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 
 		items.push({ divider: true, label: '' });
 		items.push({
-			label: 'Aufgabe loeschen',
+			label: 'Aufgabe l\u00F6schen',
 			icon: '\uD83D\uDDD1\uFE0F',
 			action: () => store.deleteTaskDirect(task.id),
 			danger: true

@@ -27,8 +27,8 @@
 		if (totalWeek === 0) return 'Los gehts! Erste Aufgabe erledigen.';
 		if (isNewRecord) return 'Neuer Rekord! Weiter so!';
 		if (progressPercent >= 80) return 'Fast am Rekord dran!';
-		if (progressPercent >= 50) return 'Gute Haelfte geschafft!';
-		return 'Schritt fuer Schritt.';
+		if (progressPercent >= 50) return 'Gute Hälfte geschafft!';
+		return 'Schritt für Schritt.';
 	}
 </script>
 

@@ -174,6 +174,17 @@ export async function updateShareRole(sb: Sb, shareId: string, role: 'editor' | 
 }
 
 // ==========================================
+// PROFILES
+// ==========================================
+
+// Laedt Profile (Name/Avatar) fuer eine Menge User-IDs -- z.B. die pinned_by-User
+// fuer das "gepinnt von"-Badge. profiles-RLS erlaubt SELECT auf alle Profile.
+export async function getProfilesByIds(sb: Sb, userIds: string[]) {
+	if (userIds.length === 0) return { data: [], error: null };
+	return sb.from('profiles').select('*').in('id', userIds);
+}
+
+// ==========================================
 // DATA LOADING
 // ==========================================
 

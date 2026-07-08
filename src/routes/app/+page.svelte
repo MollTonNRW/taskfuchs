@@ -2,12 +2,14 @@
 	import { createTaskStore } from '$lib/stores/tasks.svelte';
 	import { listsStore } from '$lib/stores/lists';
 	import { hiddenListIds } from '$lib/stores/visibility';
-	import { toasts } from '$lib/stores/toast';
+	import { toasts, showInputDialog } from '$lib/stores/toast';
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import type { Priority } from '$lib/constants';
 	import { v2Events } from '$lib/stores/v2/events.svelte';
+	import { profilesStore } from '$lib/stores/profiles';
+	import { getProfilesByIds } from '$lib/services/supabase-crud';
 
 	import Pinboard from '$lib/components/v2/Pinboard.svelte';
 	import ListPanel from '$lib/components/v2/ListPanel.svelte';
@@ -18,7 +20,6 @@
 	import FocusOverlay from '$lib/components/v2/FocusOverlay.svelte';
 	import SearchOverlay from '$lib/components/v2/SearchOverlay.svelte';
 	import ContextMenu from '$lib/components/v2/ContextMenu.svelte';
-	import NotePopover from '$lib/components/v2/NotePopover.svelte';
 	import EmojiPicker from '$lib/components/v2/EmojiPicker.svelte';
 	import DatePicker from '$lib/components/v2/DatePicker.svelte';
 	import PriorityPicker from '$lib/components/v2/PriorityPicker.svelte';
@@ -172,6 +173,33 @@
 		tasks.filter((t: Task) => t.pinned && !t.done)
 	);
 
+	// Profile der Pinner (pinned_by) fuer das "gepinnt von"-Badge vorladen --
+	// nur fremde IDs, die noch nicht geladen wurden. Befuellt den globalen
+	// profilesStore, aus dem das Pinboard-Badge liest.
+	let loadedPinnerIds = new Set<string>();
+	$effect(() => {
+		const sb = data.supabase;
+		const me = data.user?.id;
+		if (!sb) return;
+		const missing = [
+			...new Set(
+				tasks
+					.map((t: Task) => t.pinned_by)
+					.filter((id): id is string => !!id && id !== me && !loadedPinnerIds.has(id))
+			)
+		];
+		if (missing.length === 0) return;
+		for (const id of missing) loadedPinnerIds.add(id);
+		getProfilesByIds(sb, missing).then(({ data: profiles }) => {
+			if (!profiles || profiles.length === 0) return;
+			profilesStore.update((existing) => {
+				const ids = new Set(existing.map((p) => p.id));
+				const added = profiles.filter((p) => !ids.has(p.id));
+				return added.length > 0 ? [...existing, ...added] : existing;
+			});
+		});
+	});
+
 	// Search overlay
 	let searchOpen = $state(false);
 
@@ -248,18 +276,14 @@
 			createDivider: (listId: string, position: number, label: string) => store.createDivider(listId, position, label),
 			checkAllInList: (listId: string) => store.checkAllInList(listId),
 			deleteDoneInList: (listId: string) => store.deleteDoneInList(listId),
-			deleteAllSubtasksInList: (listId: string) => store.deleteAllSubtasksInList(listId),
 			deleteAllSubtasksOfTask: (taskId: string) => store.deleteAllSubtasksOfTask(taskId),
 			duplicateList: (listId: string) => store.duplicateList(listId),
 			renameList: (listId: string, name: string) => store.renameList(listId, name),
 			deleteList: (listId: string) => store.deleteList(listId),
-			toggleTask: (taskId: string, done: boolean) => store.toggleTask(taskId, done),
 			changeTaskPriority: (taskId: string, priority: Priority) => store.changeTaskPriority(taskId, priority),
 			changeTaskTimeframe: (taskId: string, timeframe: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null) => store.changeTaskTimeframe(taskId, timeframe),
-			toggleHighlight: (taskId: string) => store.toggleHighlight(taskId),
 			togglePin: (taskId: string) => store.togglePin(taskId),
 			updateTask: (taskId: string, text: string) => store.updateTask(taskId, text),
-			updateTaskNote: (taskId: string, note: string) => store.updateTaskNote(taskId, note),
 			updateTaskEmoji: (taskId: string, emoji: string) => store.updateTaskEmoji(taskId, emoji),
 			assignTask: (taskId: string, userId: string | null) => store.assignTask(taskId, userId),
 			moveTaskToList: (taskId: string, listId: string) => store.moveTaskToList(taskId, listId),
@@ -278,7 +302,10 @@
 		get profileMap() { return profileMap; },
 		get userId() { return data.user?.id; },
 		get userEmail() { return data.user?.email; },
-		openNotePopover: (taskId: string, x: number, y: number) => popovers.openNotePopover(taskId, x, y),
+		startBulkSelect: (taskId: string) => {
+			explicitBulkMode = true;
+			bulkSelectedIds = new Set([...bulkSelectedIds, taskId]);
+		},
 		openDatePicker: (taskId: string, x: number, y: number) => popovers.openDatePicker(taskId, x, y),
 		openEmojiPicker: (taskId: string, x: number, y: number) => popovers.openEmojiPicker(taskId, x, y),
 		openShareDialog: (list: List) => share.openShareDialog(list),
@@ -340,7 +367,6 @@
 				if (levelUpData.show) { levelUpData = { show: false, level: 1, rank: '' }; return; }
 				if (ctx.contextMenu.show) { ctx.close(); return; }
 				if (popovers.focusMode.show) { popovers.focusMode = { show: false, taskId: '' }; return; }
-				if (popovers.notePopover.show) { popovers.notePopover = { show: false, taskId: '', note: '', x: 0, y: 0 }; return; }
 				if (popovers.emojiPicker.show) { popovers.emojiPicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
 				if (listIconPicker.show) { listIconPicker = { show: false, listId: '', x: 0, y: 0 }; return; }
 				if (popovers.datePicker.show) { popovers.datePicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
@@ -422,10 +448,10 @@
 		lastViewSignal = sig.counter;
 	});
 
-	let lastAddListSignal = 0;
+	let lastAddListSignal = v2Events.addListSignal;
 	$effect(() => {
 		const val = v2Events.addListSignal;
-		if (val > lastAddListSignal) { store.createList(); }
+		if (val > lastAddListSignal) { handleAddList(); }
 		lastAddListSignal = val;
 	});
 
@@ -478,20 +504,21 @@
 		ctx.handleTaskContext(e, task);
 	}
 
-	function handleListMenuClick(listId: string) {
-		const list = lists.find((l: List) => l.id === listId);
-		if (!list) return;
-		const btn = document.querySelector(`[data-list-menu="${listId}"]`) as HTMLElement;
-		const rect = btn?.getBoundingClientRect();
-		const syntheticEvent = new MouseEvent('contextmenu', {
-			clientX: rect ? rect.left : 200,
-			clientY: rect ? rect.bottom : 100,
-			bubbles: true
+	async function handleAddList() {
+		const idx = await store.createList();
+		if (idx < 0) return;
+		const newList = store.lists[idx];
+		if (!newList) return;
+		const vIdx = visibleLists.findIndex((l: List) => l.id === newList.id);
+		if (vIdx >= 0) activeListIndex = vIdx;
+		requestAnimationFrame(() => {
+			document.querySelector(`[data-tab-list-id="${newList.id}"]`)?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
 		});
-		ctx.handleListContext(syntheticEvent, list);
+		const name = await showInputDialog('Liste benennen', '', newList.title, 'Listenname');
+		if (name?.trim() && name.trim() !== newList.title) store.renameList(newList.id, name.trim());
 	}
 
-	function handleTaskDblClick(task: Task) {
+	function handleTaskOpen(task: Task) {
 		popovers.openFocusMode(task.id);
 	}
 
@@ -596,22 +623,40 @@
 
 	// Long-press on list tabs (mobile touch-and-hold, 300ms)
 	let tabLongPressTimer: ReturnType<typeof setTimeout> | null = null;
+	let tabLongPressFiredAt = 0;
+	let tabTouchStartX = 0;
+	let tabTouchStartY = 0;
+
 	function handleTabTouchStart(e: TouchEvent, list: List) {
 		const touch = e.touches[0];
-		const tx = touch.clientX;
-		const ty = touch.clientY;
+		tabTouchStartX = touch.clientX;
+		tabTouchStartY = touch.clientY;
 		tabLongPressTimer = setTimeout(() => {
 			tabLongPressTimer = null;
+			tabLongPressFiredAt = Date.now();
 			const syntheticEvent = new MouseEvent('contextmenu', {
-				clientX: tx,
-				clientY: ty,
+				clientX: tabTouchStartX,
+				clientY: tabTouchStartY,
 				bubbles: true
 			});
 			ctx.handleListContext(syntheticEvent, list);
 		}, 300);
 	}
-	function handleTabTouchEnd() {
+	function handleTabTouchMove(e: TouchEvent) {
+		if (!tabLongPressTimer) return;
+		const touch = e.touches[0];
+		// 10px-Toleranz statt Sofort-Abbruch — minimale Fingerbewegung killt den
+		// Long-Press nicht mehr
+		if (Math.abs(touch.clientX - tabTouchStartX) > 10 || Math.abs(touch.clientY - tabTouchStartY) > 10) {
+			clearTimeout(tabLongPressTimer);
+			tabLongPressTimer = null;
+		}
+	}
+	function handleTabTouchEnd(e: TouchEvent) {
 		if (tabLongPressTimer) { clearTimeout(tabLongPressTimer); tabLongPressTimer = null; }
+		// Nach gefeuertem Long-Press: emulierten Ghost-Click unterdrücken, der
+		// sonst das frisch geöffnete Menü über dessen Backdrop sofort schließt
+		if (Date.now() - tabLongPressFiredAt < 700) e.preventDefault();
 	}
 	function handleTabTouchCancel() {
 		if (tabLongPressTimer) { clearTimeout(tabLongPressTimer); tabLongPressTimer = null; }
@@ -651,6 +696,7 @@
 <Pinboard
 	{tasks}
 	{lists}
+	currentUserId={data.user?.id ?? ''}
 	onUnpin={(id) => { store.togglePin(id); }}
 	onUnpinAll={() => { for (const t of pinnedTasks) store.togglePin(t.id); }}
 	onTaskClick={(task) => { popovers.openFocusMode(task.id); }}
@@ -668,21 +714,23 @@
 				class:tab-drag-over-left={tabDragOverIdx === i && draggingTabId && draggingTabId !== list.id}
 				class:tab-drag-over-right={tabDragOverIdx === i + 1 && draggingTabId && draggingTabId !== list.id}
 				onclick={() => (activeListIndex = i)}
-				oncontextmenu={(e) => ctx.handleListContext(e, list)}
+				oncontextmenu={(e) => { e.preventDefault(); if (Date.now() - tabLongPressFiredAt > 700) ctx.handleListContext(e, list); }}
 				ontouchstart={(e) => handleTabTouchStart(e, list)}
 				ontouchend={handleTabTouchEnd}
-				ontouchmove={handleTabTouchCancel}
+				ontouchmove={handleTabTouchMove}
 				ontouchcancel={handleTabTouchCancel}
 				draggable="true"
 				ondragstart={(e) => handleTabDragStart(e, list, i)}
 				ondragend={handleTabDragEnd}
 				ondragover={(e) => handleTabDragOver(e, i)}
 				ondrop={handleTabDrop}
+				data-tab-list-id={list.id}
 			>
 				<span class="v2-tab-icon">{list.icon}</span>
 				{list.title}
 			</button>
 		{/each}
+		<button class="v2-list-tab v2-add-list-tab" onclick={handleAddList} aria-label="Neue Liste erstellen">+</button>
 	</div>
 {/if}
 
@@ -705,12 +753,10 @@
 					forceSubtasksOpen={getForceSubtasksOpen(list.id)}
 					onQuickAdd={handleQuickAdd}
 					onToggleTask={handleToggleTask}
-					onEditTask={handleEditTask}
 					onToggleSubtask={handleToggleTask}
 					onEditSubtask={handleEditTask}
 					onContextMenu={handleContextMenu}
-					onTaskDblClick={handleTaskDblClick}
-					onListMenuClick={handleListMenuClick}
+					onTaskOpen={handleTaskOpen}
 					onReorderTask={(taskId, targetListId, newPos) => store.reorderTask(taskId, targetListId, newPos)}
 					onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
 					{bulkMode}
@@ -719,6 +765,7 @@
 				/>
 			</div>
 		{/each}
+		<button class="v2-scroll-add-list" onclick={handleAddList} aria-label="Neue Liste erstellen">+ Neue Liste</button>
 	</div>
 {:else if viewMode === 'kanban' && visibleLists[activeListIndex]}
 	<!-- Kanban View -->
@@ -742,11 +789,10 @@
 						subtaskDoneCount={subsDone}
 						allSubtasksDone={subs.length > 0 && subsDone === subs.length}
 						ontoggle={handleToggleTask}
-						onedit={handleEditTask}
 						ontogglesubtask={handleToggleTask}
 						oneditsubtask={handleEditTask}
 						oncontextmenu={handleContextMenu}
-						ondblclick={handleTaskDblClick}
+						onopen={handleTaskOpen}
 						onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
 						{bulkMode}
 						bulkSelected={bulkSelectedIds.has(task.id)}
@@ -774,11 +820,10 @@
 						subtaskDoneCount={subsDone}
 						allSubtasksDone={subs.length > 0 && subsDone === subs.length}
 						ontoggle={handleToggleTask}
-						onedit={handleEditTask}
 						ontogglesubtask={handleToggleTask}
 						oneditsubtask={handleEditTask}
 						oncontextmenu={handleContextMenu}
-						ondblclick={handleTaskDblClick}
+						onopen={handleTaskOpen}
 						onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
 						{bulkMode}
 						bulkSelected={bulkSelectedIds.has(task.id)}
@@ -800,9 +845,8 @@
 					<TaskCard
 						{task}
 						ontoggle={handleToggleTask}
-						onedit={handleEditTask}
 						oncontextmenu={handleContextMenu}
-						ondblclick={handleTaskDblClick}
+						onopen={handleTaskOpen}
 						{bulkMode}
 						bulkSelected={bulkSelectedIds.has(task.id)}
 						onBulkToggle={toggleBulkSelect}
@@ -830,12 +874,10 @@
 				forceSubtasksOpen={getForceSubtasksOpen(activeList.id)}
 				onQuickAdd={handleQuickAdd}
 				onToggleTask={handleToggleTask}
-				onEditTask={handleEditTask}
 				onToggleSubtask={handleToggleTask}
 				onEditSubtask={handleEditTask}
 				onContextMenu={handleContextMenu}
-				onTaskDblClick={handleTaskDblClick}
-				onListMenuClick={handleListMenuClick}
+				onTaskOpen={handleTaskOpen}
 				onReorderTask={(taskId, targetListId, newPos) => store.reorderTask(taskId, targetListId, newPos)}
 				onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
 				{bulkMode}
@@ -876,7 +918,7 @@
 			Erstelle deine erste Liste um loszulegen.
 		</p>
 		<button
-			onclick={() => store.createList()}
+			onclick={handleAddList}
 			style="margin-top: 16px; padding: 10px 20px; border: 1px dashed var(--v2-accent); border-radius: var(--v2-radius); background: var(--v2-accent-glow); color: var(--v2-accent); font-size: .75rem; font-weight: 600; cursor: pointer; font-family: var(--v2-font); min-height: 44px;"
 			aria-label="Neue Liste erstellen"
 		>
@@ -896,7 +938,7 @@
 		onChangePriority={(id, p) => store.changeTaskPriority(id, p)}
 		onChangeTimeframe={(id, tf) => store.changeTaskTimeframe(id, tf)}
 		onUpdateNote={(id, note) => store.updateTaskNote(id, note)}
-		onUpdateEmoji={(id, emoji) => store.updateTaskEmoji(id, emoji)}
+		onOpenEmojiPicker={(taskId, x, y) => popovers.openEmojiPicker(taskId, x, y)}
 		onToggleSubtask={handleToggleTask}
 		onUpdateSubtask={handleEditTask}
 		onAddSubtask={(parentId, text) => store.addSubtask(parentId, text)}
@@ -920,17 +962,6 @@
 		x={ctx.contextMenu.x}
 		y={ctx.contextMenu.y}
 		onclose={() => { ctx.close(); }}
-	/>
-{/if}
-
-<!-- Note Popover -->
-{#if popovers.notePopover.show}
-	<NotePopover
-		note={popovers.notePopover.note}
-		x={popovers.notePopover.x}
-		y={popovers.notePopover.y}
-		onSave={(text) => { popovers.handleNoteSave(text); }}
-		onClose={() => { popovers.notePopover = { show: false, taskId: '', note: '', x: 0, y: 0 }; }}
 	/>
 {/if}
 

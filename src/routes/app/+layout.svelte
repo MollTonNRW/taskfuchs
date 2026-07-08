@@ -72,8 +72,8 @@
 
 	// Contextual fox messages (matching PoC v6)
 	const FOX_MESSAGES: Record<string, string[]> = {
-		morning: ['> guten morgen. was steht an?', '> kaffee geladen. tasks warten.', '> fruehschicht. let\'s go.'],
-		midday: ['> mittagspause? oder noch ein task?', '> halbzeit. laeuft bei dir.'],
+		morning: ['> guten morgen. was steht an?', '> kaffee geladen. tasks warten.', '> frühschicht. let\'s go.'],
+		midday: ['> mittagspause? oder noch ein task?', '> halbzeit. läuft bei dir.'],
 		evening: ['> feierabend bald? noch ein paar tasks?', '> abend-session. solide.'],
 		night: ['> nachtschicht? respekt.', '> die besten commits passieren nachts.'],
 		empty: ['> keine tasks. saubere sache.', '> leere liste. alles erledigt.'],
@@ -319,7 +319,7 @@
 	// Shop placeholder items
 	const SHOP_ITEMS: { id: string; category: 'themes' | 'sounds' | 'titles' | 'effects'; name: string; desc: string; icon: string; price: number; owned: boolean }[] = [
 		// Themes
-		{ id: 'theme-hacker-green', category: 'themes', name: 'Hacker Green', desc: 'Gruener Terminal-Look', icon: '🟢', price: 50, owned: false },
+		{ id: 'theme-hacker-green', category: 'themes', name: 'Hacker Green', desc: 'Grüner Terminal-Look', icon: '🟢', price: 50, owned: false },
 		{ id: 'theme-midnight-blue', category: 'themes', name: 'Midnight Blue', desc: 'Dunkles Blau', icon: '🔵', price: 50, owned: false },
 		{ id: 'theme-sunset-orange', category: 'themes', name: 'Sunset Orange', desc: 'Warme Abendfarben', icon: '🟠', price: 75, owned: false },
 		// Sounds
@@ -327,8 +327,8 @@
 		{ id: 'sound-retro-beep', category: 'sounds', name: 'Retro Beep', desc: '8-Bit Sounds', icon: '🕹️', price: 30, owned: false },
 		// Titel
 		{ id: 'title-taskmaster', category: 'titles', name: 'Taskmaster', desc: 'Zeigt neben deinem Namen', icon: '🏅', price: 100, owned: false },
-		{ id: 'title-ninja', category: 'titles', name: 'Productivity Ninja', desc: 'Fuer die Effizienten', icon: '🥷', price: 150, owned: false },
-		{ id: 'title-bughunter', category: 'titles', name: 'Bug Hunter', desc: 'Fuer die Perfektionisten', icon: '🐛', price: 200, owned: false },
+		{ id: 'title-ninja', category: 'titles', name: 'Productivity Ninja', desc: 'Für die Effizienten', icon: '🥷', price: 150, owned: false },
+		{ id: 'title-bughunter', category: 'titles', name: 'Bug Hunter', desc: 'Für die Perfektionisten', icon: '🐛', price: 200, owned: false },
 		// Effekte
 		{ id: 'effect-confetti', category: 'effects', name: 'Confetti Rain', desc: 'Konfetti bei Task-Completion', icon: '🎉', price: 80, owned: false },
 		{ id: 'effect-matrix', category: 'effects', name: 'Matrix Rain', desc: 'Falling Code Animation', icon: '💻', price: 120, owned: false },
@@ -396,7 +396,7 @@
 		<!-- Sidebar Header (v6 style) -->
 		<div class="v2-sidebar-topbar">
 			<span class="v2-sidebar-title">TaskFuchs</span>
-			<button class="v2-sidebar-close" onclick={closeSidebar} aria-label="Sidebar schliessen">&times;</button>
+			<button class="v2-sidebar-close" onclick={closeSidebar} aria-label="Sidebar schließen">&times;</button>
 		</div>
 
 		<!-- Fox + User Area (v6 greeting style) -->
@@ -451,10 +451,10 @@
 				<button
 					class="v2-filter-group-btn"
 					onclick={() => (prioFilterOpen = !prioFilterOpen)}
-					aria-label="Prioritaet-Filter ein-/ausklappen"
+					aria-label="Prioritäts-Filter ein-/ausklappen"
 				>
 					<span class="v2-section-toggle" class:collapsed={!prioFilterOpen}>&#9660;</span>
-					Prioritaet
+					Priorität
 				</button>
 				<div class="v2-filter-options" class:collapsed={!prioFilterOpen}>
 					{#each [
@@ -485,10 +485,6 @@
 					Ansicht
 				</button>
 				<div class="v2-filter-options" class:collapsed={!viewFilterOpen}>
-					<label class="v2-filter-check">
-						<input type="checkbox" checked={$viewFilters.highlighted} onchange={() => toggleViewFilter('highlighted')} />
-						Nur Fixierte
-					</label>
 					<label class="v2-filter-check">
 						<input type="checkbox" checked={$viewFilters.withDate} onchange={() => toggleViewFilter('withDate')} />
 						Mit Termin
@@ -522,9 +518,9 @@
 					<button
 						class="v2-filter-reset"
 						onclick={resetFilters}
-						aria-label="Filter zuruecksetzen"
+						aria-label="Filter zurücksetzen"
 					>
-						Filter zuruecksetzen
+						Filter zurücksetzen
 					</button>
 				{/if}
 			</div>
@@ -620,7 +616,7 @@
 				{:else}
 					<p class="v2-nav-empty">Noch keine Listen</p>
 				{/if}
-				<button class="v2-nav-add-list" onclick={() => v2Events.triggerAddList()} aria-label="Neue Liste">+ Neue Liste</button>
+				<button class="v2-nav-add-list" onclick={() => { v2Events.triggerAddList(); if (window.innerWidth < 769) sidebarOpen = false; }} aria-label="Neue Liste">+ Neue Liste</button>
 
 				<!-- Ansichten sub-section (v6 style) -->
 				<h3 class="v2-nav-sub-header">&#x250C;&#x2500; Ansichten</h3>
@@ -819,7 +815,7 @@
 						class:active={v2Events.bulkModeActive}
 						onclick={() => v2Events.toggleBulk()}
 					>
-						{v2Events.bulkModeActive ? '\u2611 Auswaehlen' : '\u2610 Auswaehlen'}
+						{v2Events.bulkModeActive ? '\u2611 Ausw\u00e4hlen' : '\u2610 Ausw\u00e4hlen'}
 					</button>
 
 					<!-- Inline Search (Desktop: immer sichtbar, Mobile: nur Icon) -->
@@ -837,7 +833,7 @@
 					<button
 						class="v2-mobile-search-toggle"
 						onclick={() => v2Events.toggleSearch()}
-						aria-label="Suche oeffnen"
+						aria-label="Suche öffnen"
 					>
 						&#x26B2;
 					</button>

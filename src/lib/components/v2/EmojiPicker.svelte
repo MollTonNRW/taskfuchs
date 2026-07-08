@@ -30,13 +30,13 @@
 </script>
 
 <!-- Backdrop -->
-<div class="fixed inset-0" style="z-index: 70;" onclick={onClose} role="presentation"></div>
+<div class="fixed inset-0" style="z-index: 10000;" onclick={onClose} role="presentation"></div>
 
 <!-- Picker -->
 <div
 	bind:this={pickerEl}
 	class="v2-glass-card"
-	style="position: fixed; z-index: 71; left: {x}px; top: {y}px; padding: 10px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;"
+	style="position: fixed; z-index: 10001; left: {x}px; top: {y}px; padding: 10px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px;"
 >
 	{#each emojis as emoji}
 		<button
