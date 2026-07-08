@@ -60,13 +60,20 @@
 		}
 	});
 
+	// Touch-Browser emulieren mouseenter direkt vor dem click desselben Taps —
+	// ohne Grace würde der click das gerade per mouseenter geöffnete Submenü
+	// sofort wieder schließen.
+	let submenuOpenedAt = 0;
+
 	function openSubmenu(label: string, anchorEl: HTMLElement) {
 		submenuAnchor = anchorEl.getBoundingClientRect();
 		activeSubmenu = label;
+		submenuOpenedAt = Date.now();
 	}
 
 	function toggleSubmenu(label: string, anchorEl: HTMLElement) {
 		if (activeSubmenu === label) {
+			if (Date.now() - submenuOpenedAt < 500) return;
 			activeSubmenu = null;
 		} else {
 			openSubmenu(label, anchorEl);
