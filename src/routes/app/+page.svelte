@@ -623,7 +623,7 @@
 
 	// Long-press on list tabs (mobile touch-and-hold, 300ms)
 	let tabLongPressTimer: ReturnType<typeof setTimeout> | null = null;
-	let tabLongPressFired = false;
+	let tabLongPressFiredAt = 0;
 	let tabTouchStartX = 0;
 	let tabTouchStartY = 0;
 
@@ -631,10 +631,9 @@
 		const touch = e.touches[0];
 		tabTouchStartX = touch.clientX;
 		tabTouchStartY = touch.clientY;
-		tabLongPressFired = false;
 		tabLongPressTimer = setTimeout(() => {
 			tabLongPressTimer = null;
-			tabLongPressFired = true;
+			tabLongPressFiredAt = Date.now();
 			const syntheticEvent = new MouseEvent('contextmenu', {
 				clientX: tabTouchStartX,
 				clientY: tabTouchStartY,
@@ -657,7 +656,7 @@
 		if (tabLongPressTimer) { clearTimeout(tabLongPressTimer); tabLongPressTimer = null; }
 		// Nach gefeuertem Long-Press: emulierten Ghost-Click unterdrücken, der
 		// sonst das frisch geöffnete Menü über dessen Backdrop sofort schließt
-		if (tabLongPressFired) e.preventDefault();
+		if (Date.now() - tabLongPressFiredAt < 700) e.preventDefault();
 	}
 	function handleTabTouchCancel() {
 		if (tabLongPressTimer) { clearTimeout(tabLongPressTimer); tabLongPressTimer = null; }
@@ -715,7 +714,7 @@
 				class:tab-drag-over-left={tabDragOverIdx === i && draggingTabId && draggingTabId !== list.id}
 				class:tab-drag-over-right={tabDragOverIdx === i + 1 && draggingTabId && draggingTabId !== list.id}
 				onclick={() => (activeListIndex = i)}
-				oncontextmenu={(e) => { e.preventDefault(); if (!tabLongPressFired) ctx.handleListContext(e, list); }}
+				oncontextmenu={(e) => { e.preventDefault(); if (Date.now() - tabLongPressFiredAt > 700) ctx.handleListContext(e, list); }}
 				ontouchstart={(e) => handleTabTouchStart(e, list)}
 				ontouchend={handleTabTouchEnd}
 				ontouchmove={handleTabTouchMove}
