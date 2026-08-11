@@ -742,6 +742,16 @@
 				{/each}
 			</div>
 
+			<!-- G2 Brille koppeln -->
+			<a
+				href="/app/g2-koppeln"
+				class="v2-dark-toggle"
+				style="margin-top: 8px; text-decoration: none; display: block; text-align: left;"
+				onclick={() => { if (window.innerWidth < 769) sidebarOpen = false; }}
+			>
+				&#x1F453; G2 koppeln
+			</a>
+
 			<!-- Logout -->
 			<button
 				class="v2-dark-toggle"
