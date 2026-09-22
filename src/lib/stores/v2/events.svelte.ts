@@ -4,31 +4,9 @@
 
 import { browser } from '$app/environment';
 
-export interface TaskEvent {
-	type: 'task_done' | 'subtask_done' | 'task_undone';
-	taskId: string;
-	parentId: string | null;
-	priority: string;
-	timestamp: number;
-}
-
 function createEventBus() {
 	// Guard: $state runes are only initialized in the browser to prevent
 	// SSR state leaks (module-level singletons are shared between requests)
-	let lastEvent = $state<TaskEvent | null>(null);
-	let eventCounter = $state(0);
-
-	function emit(type: TaskEvent['type'], taskId: string, parentId: string | null = null, priority: string = 'normal') {
-		if (!browser) return;
-		lastEvent = {
-			type,
-			taskId,
-			parentId,
-			priority,
-			timestamp: Date.now()
-		};
-		eventCounter += 1;
-	}
 
 	// Nav counts: listId -> { done, total }
 	let navCounts = $state<Record<string, { done: number; total: number }>>({});
@@ -46,11 +24,8 @@ function createEventBus() {
 	let bulkToggle = $state(0);
 	let viewSignal = $state<{ counter: number; mode: string }>({ counter: 0, mode: 'list' });
 	let addListSignal = $state(0);
-	let levelUpSignal = $state<{ counter: number; level: number; rank: string }>({ counter: 0, level: 0, rank: '' });
 
 	return {
-		get lastEvent() { return lastEvent; },
-		get eventCounter() { return eventCounter; },
 		get navCounts() { return navCounts; },
 		get openTaskCount() { return openTaskCount; },
 		get viewMode() { return viewMode; },
@@ -67,8 +42,6 @@ function createEventBus() {
 			if (!browser) return;
 			openTaskCount = count;
 		},
-		emit,
-		clear() { lastEvent = null; },
 		// Layout -> Page action signals
 		get searchToggle() { return searchToggle; },
 		get sortToggle() { return sortToggle; },
@@ -79,9 +52,7 @@ function createEventBus() {
 		toggleSort() { if (!browser) return; sortToggle++; },
 		toggleBulk() { if (!browser) return; bulkToggle++; },
 		setView(mode: string) { if (!browser) return; viewSignal = { counter: viewSignal.counter + 1, mode }; },
-		triggerAddList() { if (!browser) return; addListSignal++; },
-		get levelUpSignal() { return levelUpSignal; },
-		triggerLevelUp(level: number, rank: string) { if (!browser) return; levelUpSignal = { counter: levelUpSignal.counter + 1, level, rank }; }
+		triggerAddList() { if (!browser) return; addListSignal++; }
 	};
 }
 

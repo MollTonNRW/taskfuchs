@@ -25,8 +25,6 @@
 	import PriorityPicker from '$lib/components/v2/PriorityPicker.svelte';
 	import BulkToolbar from '$lib/components/v2/BulkToolbar.svelte';
 	import ShareDialog from '$lib/components/v2/ShareDialog.svelte';
-	import CoinFloat from '$lib/components/v2/CoinFloat.svelte';
-	import LevelUpOverlay from '$lib/components/v2/LevelUpOverlay.svelte';
 
 	import { createContextMenus, type ContextMenuDeps } from '$lib/composables/v2/useContextMenus.svelte';
 	import { createSortFilter, sortLabels, validSortModes, type SortMode } from '$lib/composables/v2/useSortFilter.svelte';
@@ -40,41 +38,6 @@
 	let { data } = $props();
 
 	const store = createTaskStore();
-
-	// CoinFloat state
-	let coinFloats = $state<Array<{ id: number; amount: number; x: number; y: number }>>([]);
-	let coinFloatCounter = 0;
-
-	// LevelUp state
-	let levelUpData = $state<{ show: boolean; level: number; rank: string }>({ show: false, level: 1, rank: '' });
-
-	// Track gamification events to show CoinFloat + LevelUp
-	let lastGamEventCounter = 0;
-	$effect(() => {
-		const counter = v2Events.eventCounter;
-		const ev = v2Events.lastEvent;
-		if (!ev || counter === lastGamEventCounter) return;
-		if (ev.type !== 'task_done' && ev.type !== 'subtask_done') return;
-		lastGamEventCounter = counter;
-
-		// Show coin float at a semi-random position near center
-		const cx = (typeof window !== 'undefined' ? window.innerWidth / 2 : 300) + (Math.random() - 0.5) * 100;
-		const cy = (typeof window !== 'undefined' ? window.innerHeight / 2 : 300) + (Math.random() - 0.5) * 60;
-		const floatId = ++coinFloatCounter;
-		coinFloats = [...coinFloats, { id: floatId, amount: ev.parentId ? 1 : 2, x: cx, y: cy }];
-		setTimeout(() => {
-			coinFloats = coinFloats.filter(f => f.id !== floatId);
-		}, 1000);
-	});
-
-	// Listen for LevelUp signal from Layout (via event bus)
-	let lastLevelUpCounter = 0;
-	$effect(() => {
-		const sig = v2Events.levelUpSignal;
-		if (sig.counter === lastLevelUpCounter) return;
-		lastLevelUpCounter = sig.counter;
-		levelUpData = { show: true, level: sig.level, rank: sig.rank };
-	});
 
 	// Initialize store in $effect (runs during hydration before onMount)
 	let storeReady = $state(false);
@@ -364,7 +327,6 @@
 			}
 			// Escape: close all overlays
 			if (e.key === 'Escape') {
-				if (levelUpData.show) { levelUpData = { show: false, level: 1, rank: '' }; return; }
 				if (ctx.contextMenu.show) { ctx.close(); return; }
 				if (popovers.focusMode.show) { popovers.focusMode = { show: false, taskId: '' }; return; }
 				if (popovers.emojiPicker.show) { popovers.emojiPicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
@@ -482,17 +444,6 @@
 		if (task) {
 			const newDone = !task.done;
 			store.toggleTask(id, newDone);
-
-			// Emit gamification events
-			if (newDone) {
-				if (task.parent_id) {
-					v2Events.emit('subtask_done', id, task.parent_id, task.priority ?? 'normal');
-				} else {
-					v2Events.emit('task_done', id, null, task.priority ?? 'normal');
-				}
-			} else {
-				v2Events.emit('task_undone', id, task.parent_id);
-			}
 		}
 	}
 
@@ -665,14 +616,6 @@
 	// Bulk handlers
 	function handleBulkToggleDone(done: boolean) {
 		store.bulkToggleDone([...bulkSelectedIds], done);
-		if (done) {
-			for (const id of bulkSelectedIds) {
-				const task = tasks.find((t: Task) => t.id === id);
-				if (task) {
-					v2Events.emit(task.parent_id ? 'subtask_done' : 'task_done', id, task.parent_id, task.priority ?? 'normal');
-				}
-			}
-		}
 		clearBulkSelection();
 	}
 
@@ -1030,22 +973,6 @@
 	onMoveToList={handleBulkMoveToList}
 	onCancel={clearBulkSelection}
 />
-
-<!-- CoinFloat particles -->
-{#each coinFloats as float (float.id)}
-	<div aria-hidden="true">
-		<CoinFloat amount={float.amount} x={float.x} y={float.y} />
-	</div>
-{/each}
-
-<!-- Level Up Overlay -->
-{#if levelUpData.show}
-	<LevelUpOverlay
-		newLevel={levelUpData.level}
-		newRank={levelUpData.rank}
-		onClose={() => { levelUpData = { show: false, level: 1, rank: '' }; }}
-	/>
-{/if}
 
 <!-- Toast + Confirm + Input -->
 <ToastContainer />
