@@ -14,7 +14,6 @@ function createEventBus() {
 	let openTaskCount = $state(0);
 
 	// Shared header state (Page -> Layout communication)
-	let viewMode = $state<'list' | 'kanban' | 'scroll'>('list');
 	let sortLabel = $state('Position');
 	let bulkModeActive = $state(false);
 
@@ -22,14 +21,11 @@ function createEventBus() {
 	let searchToggle = $state(0);
 	let sortToggle = $state(0);
 	let bulkToggle = $state(0);
-	let viewSignal = $state<{ counter: number; mode: string }>({ counter: 0, mode: 'list' });
 	let addListSignal = $state(0);
 
 	return {
 		get navCounts() { return navCounts; },
 		get openTaskCount() { return openTaskCount; },
-		get viewMode() { return viewMode; },
-		set viewMode(v: 'list' | 'kanban' | 'scroll') { viewMode = v; },
 		get sortLabel() { return sortLabel; },
 		set sortLabel(v: string) { sortLabel = v; },
 		get bulkModeActive() { return bulkModeActive; },
@@ -46,12 +42,10 @@ function createEventBus() {
 		get searchToggle() { return searchToggle; },
 		get sortToggle() { return sortToggle; },
 		get bulkToggle() { return bulkToggle; },
-		get viewSignal() { return viewSignal; },
 		get addListSignal() { return addListSignal; },
 		toggleSearch() { if (!browser) return; searchToggle++; },
 		toggleSort() { if (!browser) return; sortToggle++; },
 		toggleBulk() { if (!browser) return; bulkToggle++; },
-		setView(mode: string) { if (!browser) return; viewSignal = { counter: viewSignal.counter + 1, mode }; },
 		triggerAddList() { if (!browser) return; addListSignal++; }
 	};
 }

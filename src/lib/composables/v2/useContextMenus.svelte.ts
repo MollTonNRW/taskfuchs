@@ -1,6 +1,6 @@
 import type { Database } from '$lib/types/database';
 import type { MenuItem } from '$lib/components/v2/ContextMenu.svelte';
-import { priorityLabels, priorityColors, type Priority, timeframeLabels, type Timeframe } from '$lib/constants';
+import { priorityLabels, type Priority, timeframeLabels, type Timeframe } from '$lib/constants';
 import { showInputDialog } from '$lib/stores/toast';
 
 type List = Database['public']['Tables']['lists']['Row'];
@@ -28,7 +28,6 @@ export interface ContextMenuDeps {
 		checkAllInList: (listId: string) => void;
 		deleteDoneInList: (listId: string) => void;
 		deleteAllSubtasksOfTask: (taskId: string) => void;
-		duplicateList: (listId: string) => Promise<number>;
 		renameList: (listId: string, name: string) => void;
 		deleteList: (listId: string) => void;
 		changeTaskPriority: (taskId: string, priority: Priority) => void;
@@ -36,10 +35,8 @@ export interface ContextMenuDeps {
 		togglePin: (taskId: string) => void;
 		updateTask: (taskId: string, text: string) => void;
 		updateTaskEmoji: (taskId: string, emoji: string) => void;
-		assignTask: (taskId: string, userId: string | null) => void;
 		moveTaskToList: (taskId: string, listId: string) => void;
 		deleteTaskDirect: (taskId: string) => void;
-		convertTaskToList: (taskId: string) => Promise<number>;
 	};
 	collapsedSubtasksListIds: Set<string>;
 	toggleCollapseSubtasks: (listId: string) => void;
@@ -61,7 +58,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 
 	function handleListContext(e: MouseEvent, list: List) {
 		e.preventDefault();
-		const { store, collapsedSubtasksListIds, setSubtasksForceState, setActiveListIndex, openShareDialog, openListIconPicker } = deps;
+		const { store, setSubtasksForceState, openShareDialog, openListIconPicker } = deps;
 		contextMenu = {
 			show: true, x: e.clientX, y: e.clientY,
 			items: [
@@ -94,14 +91,6 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				},
 				{ divider: true, label: '' },
 				{
-					label: 'Liste duplizieren',
-					icon: '\uD83D\uDCCB',
-					action: async () => {
-						const idx = await store.duplicateList(list.id);
-						if (idx >= 0) setActiveListIndex(idx);
-					}
-				},
-				{
 					label: 'Liste teilen',
 					icon: '\uD83D\uDC65',
 					action: () => openShareDialog(list)
@@ -126,7 +115,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 
 	function handleTaskContext(e: MouseEvent, task: Task) {
 		e.preventDefault();
-		const { store, openDatePicker, openEmojiPicker, profileMap, userId, userEmail, setActiveListIndex } = deps;
+		const { store, openDatePicker, openEmojiPicker } = deps;
 
 		// Divider context menu
 		if (task.type === 'divider') {
@@ -229,23 +218,6 @@ export function createContextMenus(deps: ContextMenuDeps) {
 					}))
 				]
 			},
-			{
-				label: 'Zuweisen',
-				icon: '\uD83D\uDC64',
-				submenu: [
-					...(task.assigned_to ? [{ label: '\u274C Niemand', action: () => store.assignTask(task.id, null) }] : []),
-					...[...profileMap.values()].map((p) => ({
-						label: p.display_name || p.username || p.id.slice(0, 8),
-						active: task.assigned_to === p.id,
-						action: () => store.assignTask(task.id, p.id)
-					})),
-					...(profileMap.size === 0 && userId ? [{
-						label: userEmail?.split('@')[0] || 'Ich',
-						active: task.assigned_to === userId,
-						action: () => store.assignTask(task.id, userId!)
-					}] : [])
-				]
-			},
 			{ divider: true, label: '' },
 			{
 				label: task.pinned ? 'Von Pinnwand l\u00F6sen' : 'An Pinnwand pinnen',
@@ -263,18 +235,6 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				action: () => openEmojiPicker(task.id, contextMenu.x, contextMenu.y)
 			}
 		];
-
-		// Convert to list
-		if (taskSubtaskCount > 0) {
-			items.push({
-				label: 'In Liste umwandeln',
-				icon: '\uD83D\uDCC2',
-				action: async () => {
-					const idx = await store.convertTaskToList(task.id);
-					if (idx >= 0) setActiveListIndex(idx);
-				}
-			});
-		}
 
 		items.push({ divider: true, label: '' });
 		items.push({

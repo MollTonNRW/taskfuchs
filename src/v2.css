@@ -71,96 +71,6 @@
 }
 
 /* =====================================================================
-   THEME PRESETS
-   ===================================================================== */
-
-/* Colorful Dark */
-.v2-root.v2-theme-colorful.v2-dark {
-  --v2-bg: #1e1e2e;
-  --v2-surface: #282840;
-  --v2-card: #2a2a45;
-  --v2-accent: #f5a623;
-  --v2-accent-dim: #e8961e;
-  --v2-accent-glow: rgba(245,166,35,.2);
-  --v2-glass-border: rgba(245,166,35,.15);
-}
-/* Colorful Light */
-.v2-root.v2-theme-colorful.v2-light {
-  --v2-bg: #fefcf8;
-  --v2-surface: #fff9f0;
-  --v2-card: #fff9f0;
-  --v2-accent: #e8961e;
-  --v2-accent-dim: #f5a623;
-  --v2-accent-glow: rgba(232,150,30,.12);
-}
-
-/* Neon (dark only) */
-.v2-root.v2-theme-neon {
-  --v2-bg: #0a0a1a;
-  --v2-surface: #0f0f2a;
-  --v2-card: #12123a;
-  --v2-hover: #1a1a4a;
-  --v2-border: #2a2a5a;
-  --v2-border-bright: #4040aa;
-  --v2-text: #e0e0ff;
-  --v2-text-secondary: #b0b0dd;
-  --v2-text-muted: #5050aa;
-  --v2-accent: #8b5cf6;
-  --v2-accent-dim: #6d28d9;
-  --v2-accent-glow: rgba(139,92,246,.3);
-  --v2-glass: rgba(15,15,42,.85);
-  --v2-glass-border: rgba(139,92,246,.2);
-  --v2-green: #22d3ee;
-  --v2-red: #f43f5e;
-  --v2-yellow: #fbbf24;
-  --v2-orange: #fb923c;
-  --v2-purple: #c084fc;
-  --v2-cyan: #22d3ee;
-}
-
-/* Aurora (dark only) */
-.v2-root.v2-theme-aurora {
-  --v2-bg: #0c1222;
-  --v2-surface: #111a30;
-  --v2-card: #15203a;
-  --v2-hover: #1a2848;
-  --v2-border: #253555;
-  --v2-border-bright: #3a5080;
-  --v2-text: #d0daf0;
-  --v2-text-secondary: #a0b0d0;
-  --v2-text-muted: #4a6090;
-  --v2-accent: #38bdf8;
-  --v2-accent-dim: #0284c7;
-  --v2-accent-glow: rgba(56,189,248,.2);
-  --v2-glass: rgba(17,26,48,.85);
-  --v2-glass-border: rgba(56,189,248,.15);
-  --v2-green: #34d399;
-  --v2-red: #fb7185;
-  --v2-yellow: #fcd34d;
-  --v2-orange: #fb923c;
-  --v2-purple: #a78bfa;
-  --v2-cyan: #22d3ee;
-}
-
-/* Colorful per-list top accents (linke Kartenkante bleibt der Prioritätsfarbe vorbehalten) */
-.v2-root.v2-theme-colorful [data-col="0"] { border-top: 2px solid var(--v2-red); }
-.v2-root.v2-theme-colorful [data-col="1"] { border-top: 2px solid var(--v2-accent); }
-.v2-root.v2-theme-colorful [data-col="2"] { border-top: 2px solid var(--v2-green); }
-.v2-root.v2-theme-colorful [data-col="3"] { border-top: 2px solid var(--v2-purple); }
-.v2-root.v2-theme-colorful [data-col="4"] { border-top: 2px solid var(--v2-yellow); }
-
-/* Aurora per-list top borders */
-.v2-root.v2-theme-aurora [data-col="0"] { border-top: 2px solid var(--v2-accent); }
-.v2-root.v2-theme-aurora [data-col="1"] { border-top: 2px solid var(--v2-green); }
-.v2-root.v2-theme-aurora [data-col="2"] { border-top: 2px solid var(--v2-purple); }
-.v2-root.v2-theme-aurora [data-col="3"] { border-top: 2px solid var(--v2-yellow); }
-.v2-root.v2-theme-aurora [data-col="4"] { border-top: 2px solid var(--v2-red); }
-
-/* Neon glow effects */
-.v2-root.v2-theme-neon .v2-task-card { box-shadow: 0 0 8px rgba(139,92,246,.1); }
-.v2-root.v2-theme-neon .v2-task-card:hover { box-shadow: 0 0 20px rgba(139,92,246,.25); }
-
-/* =====================================================================
    BASE STYLES
    ===================================================================== */
 .v2-root { font-size: 14px; }
@@ -416,136 +326,6 @@
 .v2-section-body.collapsed { max-height: 0; opacity: 0; margin: 0; padding-top: 0; padding-bottom: 0; }
 
 /* =====================================================================
-   FILTER SECTION
-   ===================================================================== */
-.v2-filter-section {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 1000px;
-  overflow: hidden;
-  transition: max-height .4s ease, opacity .3s ease;
-  opacity: 1;
-}
-.v2-filter-section.collapsed { max-height: 0; opacity: 0; margin: 0; }
-.v2-filter-group-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: var(--v2-radius);
-  font-size: .65rem;
-  color: var(--v2-text-secondary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-  min-height: 44px;
-}
-.v2-filter-group-btn .v2-section-toggle { font-size: .5rem; }
-.v2-filter-options {
-  margin-left: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 1000px;
-  overflow: hidden;
-  transition: max-height .4s ease, opacity .3s ease;
-  opacity: 1;
-}
-.v2-filter-options.collapsed { max-height: 0; opacity: 0; }
-.v2-filter-check {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: .65rem;
-  color: var(--v2-text-secondary);
-  cursor: pointer;
-  padding: 3px 6px;
-  border-radius: var(--v2-radius);
-  min-height: 44px;
-}
-.v2-filter-check input[type="checkbox"] { accent-color: var(--v2-accent); width: 13px; height: 13px; }
-.v2-filter-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.v2-filter-check-standalone {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: .65rem;
-  color: var(--v2-text-secondary);
-  cursor: pointer;
-  padding: 3px 8px;
-  margin-top: 4px;
-  min-height: 44px;
-}
-.v2-filter-check-standalone input[type="checkbox"] { accent-color: var(--v2-accent); width: 13px; height: 13px; }
-
-/* Subtask default toggle (radio-style buttons) */
-.v2-subtask-default-label {
-  font-size: .55rem;
-  color: var(--v2-text-muted);
-  padding: 6px 8px 2px;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-}
-.v2-subtask-default-row {
-  display: flex;
-  gap: 4px;
-  padding: 2px 8px 4px;
-}
-.v2-subtask-default-btn {
-  flex: 1;
-  padding: 5px 4px;
-  font-size: .55rem;
-  font-family: var(--v2-font);
-  border: 1px dashed var(--v2-border);
-  border-radius: 4px;
-  color: var(--v2-text-secondary);
-  background: transparent;
-  cursor: pointer;
-  transition: border-color .15s, color .15s, background .15s;
-  min-height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-}
-.v2-subtask-default-btn.active {
-  border-color: var(--v2-accent);
-  color: var(--v2-accent);
-  background: var(--v2-accent-glow);
-  border-style: solid;
-}
-.v2-subtask-default-btn:hover:not(.active) {
-  border-color: var(--v2-border-bright, var(--v2-border));
-}
-
-.v2-filter-reset {
-  font-size: .55rem;
-  color: var(--v2-accent);
-  cursor: pointer;
-  text-decoration: underline;
-  padding: 4px 8px;
-  background: none;
-  border: none;
-  text-align: left;
-  min-height: 44px;
-}
-.v2-active-badge {
-  font-size: .45rem;
-  padding: 1px 5px;
-  border-radius: 8px;
-  background: var(--v2-accent-glow);
-  color: var(--v2-accent);
-  font-weight: 600;
-  margin-left: 6px;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-/* =====================================================================
    NAV SECTION (Lists, v6 style)
    ===================================================================== */
 .v2-nav-section { flex: 1; overflow-y: auto; }
@@ -582,20 +362,13 @@
   transition: color .2s ease;
 }
 .v2-nav-add-list:hover { color: var(--v2-text); }
-.v2-nav-sub-header {
-  font-size: .6rem;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--v2-text-muted);
-  padding: 6px 8px;
-  margin-top: 10px;
-}
 .v2-nav-empty { font-size: .65rem; color: var(--v2-text-muted); font-style: italic; padding: 4px 0; }
 
 /* =====================================================================
-   SIDEBAR FOOTER — v6 style (Theme + Presets)
+   SIDEBAR FOOTER
    ===================================================================== */
 .v2-sidebar-footer {
+  margin-top: auto;
   border-top: 1px dashed var(--v2-border);
   border-bottom: none;
   display: flex;
@@ -646,38 +419,6 @@
   transition: all .2s ease;
 }
 .v2-dark-toggle:hover { border-color: var(--v2-accent); color: var(--v2-accent); }
-
-/* Calendar Reminder Row */
-.v2-reminder-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 4px 10px;
-}
-.v2-reminder-label {
-  font-size: .55rem;
-  color: var(--v2-text-muted);
-  font-family: var(--v2-font);
-}
-
-/* Theme Preset Row (v6 style: single row) */
-.v2-preset-row { display: flex; gap: 4px; }
-.v2-preset-btn {
-  flex: 1;
-  padding: 4px 2px;
-  font-size: .5rem;
-  border: 1px dashed var(--v2-border);
-  border-radius: var(--v2-radius);
-  color: var(--v2-text-muted);
-  text-align: center;
-  transition: all .2s ease;
-  cursor: pointer;
-  background: transparent;
-  font-family: var(--v2-font);
-}
-.v2-preset-btn.active { border-color: var(--v2-accent); color: var(--v2-accent); background: var(--v2-accent-glow); }
-.v2-preset-btn:hover:not(.active) { border-color: var(--v2-border-bright, var(--v2-border)); }
-.v2-preset-btn .v2-preset-icon { font-family: var(--v2-font); }
 
 /* =====================================================================
    NAV ITEMS (List Navigation, v6 style)
@@ -1465,28 +1206,6 @@
 }
 
 /* =====================================================================
-   VIEW TOGGLE (List / Kanban)
-   ===================================================================== */
-.v2-view-toggle {
-  display: flex;
-  border: 1px dashed var(--v2-border);
-  border-radius: var(--v2-radius);
-  overflow: hidden;
-}
-.v2-view-toggle button {
-  padding: 5px 10px;
-  font-size: .7rem;
-  color: var(--v2-text-muted);
-  transition: all var(--v2-transition);
-  border-right: 1px dashed var(--v2-border);
-  background: transparent;
-  font-family: var(--v2-font);
-}
-.v2-view-toggle button:last-child { border-right: none; }
-.v2-view-toggle button.active { background: var(--v2-accent-glow); color: var(--v2-accent); }
-.v2-view-toggle button:hover:not(.active) { background: var(--v2-hover); }
-
-/* =====================================================================
    SORT BUTTON + MENU
    ===================================================================== */
 .v2-sort-dropdown-wrapper { position: relative; }
@@ -1550,90 +1269,6 @@
 }
 .v2-bulk-mode-btn:hover { border-color: var(--v2-accent); color: var(--v2-accent); }
 .v2-bulk-mode-btn.active { background: var(--v2-accent-glow); color: var(--v2-accent); border-color: var(--v2-accent); }
-
-/* =====================================================================
-   SCROLL VIEW (all lists side by side)
-   ===================================================================== */
-.v2-scroll-view {
-  display: flex;
-  gap: 12px;
-  padding: 0 16px 16px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scroll-snap-type: x proximity;
-  scrollbar-width: thin;
-  scrollbar-color: var(--v2-border) transparent;
-}
-.v2-scroll-view::-webkit-scrollbar { height: 6px; }
-.v2-scroll-view::-webkit-scrollbar-track { background: transparent; }
-.v2-scroll-view::-webkit-scrollbar-thumb { background: var(--v2-border); border-radius: 3px; }
-.v2-scroll-list-col {
-  flex: 0 0 auto;
-  width: min(360px, 85vw);
-  min-width: min(300px, 80vw);
-  scroll-snap-align: start;
-}
-.v2-scroll-list-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  font-size: .75rem;
-  font-weight: 600;
-  color: var(--v2-text-secondary);
-  border-bottom: 1px solid var(--v2-border);
-  margin-bottom: 8px;
-}
-.v2-scroll-list-menu {
-  margin-left: auto;
-  background: none;
-  border: none;
-  color: var(--v2-text-muted);
-  cursor: pointer;
-  font-size: .85rem;
-  padding: 2px 6px;
-  border-radius: var(--v2-radius);
-}
-.v2-scroll-list-menu:hover {
-  background: var(--v2-surface-hover);
-}
-
-/* =====================================================================
-   KANBAN VIEW
-   ===================================================================== */
-
-.v2-kanban-view {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  padding: 0 16px 16px;
-}
-.v2-kanban-col {
-  background: var(--v2-surface);
-  border: 1px dashed var(--v2-border);
-  border-radius: var(--v2-radius-lg);
-  display: flex;
-  flex-direction: column;
-  min-height: 300px;
-}
-.v2-kanban-header {
-  padding: 10px 12px;
-  border-bottom: 1px dashed var(--v2-border);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: .75rem;
-  font-weight: 600;
-}
-.v2-kanban-header .dot { width: 8px; height: 8px; border-radius: 50%; }
-.v2-kanban-header .v2-kanban-count { margin-left: auto; font-size: .65rem; color: var(--v2-text-muted); }
-.v2-kanban-body {
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 1;
-}
 
 /* =====================================================================
    ONBOARDING
@@ -1843,9 +1478,6 @@
   /* Show mobile bottom tabs */
   .v2-mobile-tabs { display: block; }
 
-  /* Kanban single column on mobile */
-  .v2-kanban-view { grid-template-columns: 1fr; }
-
   /* Header: constrain to viewport width, wrap actions */
   .v2-header {
     padding: 8px 12px;
@@ -1863,8 +1495,6 @@
     min-width: 0;
   }
 
-  /* View toggle smaller on mobile */
-  .v2-view-toggle button { padding: 4px 7px; font-size: .65rem; }
   .v2-sort-btn { font-size: .6rem; padding: 4px 7px; }
   .v2-sort-btn span { display: none; }
   /* Auswählen steckt mobil im Task-Menü — Header-Button nur Desktop */
@@ -1936,21 +1566,6 @@
   padding: 8px 12px;
 }
 .v2-add-list-tab:hover { color: var(--v2-accent); }
-.v2-scroll-add-list {
-  flex-shrink: 0;
-  align-self: flex-start;
-  margin: 8px;
-  padding: 10px 16px;
-  border: 1px dashed var(--v2-border);
-  border-radius: var(--v2-radius);
-  background: transparent;
-  color: var(--v2-text-muted);
-  font-size: .7rem;
-  font-family: var(--v2-font);
-  cursor: pointer;
-}
-.v2-scroll-add-list:hover { color: var(--v2-accent); border-color: var(--v2-accent); }
-
 /* Single list container (v6: one list at a time) */
 .v2-single-list-container {
   max-width: none;

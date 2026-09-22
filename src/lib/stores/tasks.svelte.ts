@@ -45,25 +45,6 @@ export function createTaskStore() {
 	}
 
 	// ==========================================
-	// CALENDAR SYNC (fire-and-forget)
-	// ==========================================
-	function syncTaskToCalendar(action: 'create' | 'update' | 'delete', task: { id: string; text: string; due_date: string | null; note?: string | null; priority?: string | null; calendar_event_id?: string | null }) {
-		fetch('/api/calendar/sync', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ action, task })
-		}).then(res => {
-			if (res.ok) return res.json();
-		}).then(data => {
-			if (data?.calendar_event_id) {
-				tasks = tasks.map(t => t.id === task.id ? { ...t, calendar_event_id: data.calendar_event_id } : t);
-			}
-		}).catch(e => {
-			console.warn('Calendar sync failed:', e);
-		});
-	}
-
-	// ==========================================
 	// LIST CRUD
 	// ==========================================
 	async function createList() {
@@ -190,7 +171,6 @@ export function createTaskStore() {
 
 	async function toggleTask(id: string, done: boolean) {
 		const oldTasks = tasks;
-		const task = tasks.find(t => t.id === id);
 		tasks = tasks.map((t) => (t.id === id ? { ...t, done } : t));
 		if (done) {
 			const descendantIds = [...getDescendantIds(id)];
@@ -203,10 +183,6 @@ export function createTaskStore() {
 		}
 		const { error } = await crud.updateTaskField(sb, id, { done });
 		if (error) { tasks = oldTasks; return; }
-		// Calendar sync: Event löschen wenn erledigt (fire-and-forget)
-		if (done && task?.calendar_event_id) {
-			syncTaskToCalendar('delete', task);
-		}
 		if (done) {
 			toasts.undo('Aufgabe erledigt', () => {
 				toggleTask(id, false);
@@ -234,10 +210,6 @@ export function createTaskStore() {
 		if (error) {
 			if (deletedTask) tasks = [...tasks, deletedTask, ...deletedSubtasks];
 			return;
-		}
-		// Calendar sync: Event löschen NACH erfolgreichem DB-Delete
-		if (deletedTask?.calendar_event_id) {
-			syncTaskToCalendar('delete', deletedTask);
 		}
 		if (deletedTask) {
 			toasts.undo('Aufgabe gelöscht', async () => {
@@ -272,34 +244,6 @@ export function createTaskStore() {
 		tasks = tasks.map((t) => (t.id === id ? { ...t, timeframe } : t));
 		const { error } = await crud.updateTaskField(sb, id, { timeframe });
 		if (error) tasks = oldTasks;
-	}
-
-	async function changeTaskProgress(id: string, progress: number) {
-		const oldTasks = tasks;
-		const autoDone = progress === 3;
-		tasks = tasks.map((t) => {
-			if (t.id !== id) return t;
-			const updated = { ...t, progress };
-			if (autoDone) updated.done = true;
-			return updated;
-		});
-		if (autoDone) {
-			const descendantIds = [...getDescendantIds(id)];
-			if (descendantIds.length > 0) {
-				const descSet = new Set(descendantIds);
-				tasks = tasks.map((t) => (descSet.has(t.id) ? { ...t, done: true } : t));
-			}
-		}
-		const update: { progress: number; done?: boolean } = { progress };
-		if (autoDone) update.done = true;
-		const { error } = await crud.updateTaskField(sb, id, update);
-		if (error) { tasks = oldTasks; return; }
-		if (autoDone) {
-			const descendantIds = [...getDescendantIds(id)];
-			if (descendantIds.length > 0) {
-				await crud.bulkUpdateField(sb, descendantIds, { done: true });
-			}
-		}
 	}
 
 	async function togglePin(id: string) {
@@ -371,19 +315,9 @@ export function createTaskStore() {
 
 	async function updateTaskDate(taskId: string, dueDate: string | null) {
 		const oldTasks = tasks;
-		const task = tasks.find(t => t.id === taskId);
 		tasks = tasks.map((t) => (t.id === taskId ? { ...t, due_date: dueDate } : t));
 		const { error } = await crud.updateTaskField(sb, taskId, { due_date: dueDate });
 		if (error) { tasks = oldTasks; return; }
-		// Calendar sync (fire-and-forget)
-		if (task) {
-			const updatedTask = { ...task, due_date: dueDate };
-			if (dueDate) {
-				syncTaskToCalendar(task.calendar_event_id ? 'update' : 'create', updatedTask);
-			} else if (task.calendar_event_id) {
-				syncTaskToCalendar('delete', updatedTask);
-			}
-		}
 	}
 
 	// ==========================================
@@ -692,144 +626,6 @@ export function createTaskStore() {
 		if (error) tasks = oldTasks;
 	}
 
-	async function duplicateList(listId: string): Promise<number> {
-		const sourceList = lists.find(l => l.id === listId);
-		if (!sourceList) return -1;
-		const position = lists.length;
-
-		// Quelldaten VOR Mutation sammeln
-		const sourceTasks = tasks.filter(t => t.list_id === listId && !t.parent_id).sort((a, b) => a.position - b.position);
-		const sourceSubtasks = tasks.filter(t => t.list_id === listId && t.parent_id !== null).sort((a, b) => a.position - b.position);
-
-		// Neue Liste erstellen
-		const { data: newList, error: listErr } = await sb.from('lists').insert({
-			user_id: userId, title: sourceList.title + ' (Kopie)', icon: sourceList.icon, position
-		}).select().single();
-		if (listErr || !newList) return -1;
-		lists = [...lists, newList as List];
-
-		// Top-Level Tasks kopieren (alle relevanten Felder)
-		const idMap = new Map<string, string>();
-		for (const task of sourceTasks) {
-			const { data: newTask } = await sb.from('tasks').insert({
-				list_id: newList.id, user_id: userId, text: task.text, position: task.position,
-				type: task.type, priority: task.priority, timeframe: task.timeframe,
-				progress: task.progress, emoji: task.emoji, note: task.note,
-				due_date: task.due_date, highlighted: task.highlighted, pinned: task.pinned,
-				assigned_to: task.assigned_to, done: task.done, divider_label: task.divider_label
-			}).select().single();
-			if (newTask) {
-				idMap.set(task.id, (newTask as Task).id);
-				tasks = [...tasks, newTask as Task];
-			}
-		}
-
-		// Subtasks kopieren (alle relevanten Felder, rekursiv via idMap)
-		// Sortiert nach Tiefe: zuerst direkte Kinder, dann Enkel usw.
-		const allSubtasks = tasks.filter(t => t.list_id === listId && t.parent_id !== null).sort((a, b) => a.position - b.position);
-		let remaining = [...allSubtasks];
-		while (remaining.length > 0) {
-			const batch = remaining.filter(s => idMap.has(s.parent_id!));
-			if (batch.length === 0) break; // Keine weiteren Parent-Mappings moeglich
-			remaining = remaining.filter(s => !idMap.has(s.parent_id!));
-			for (const sub of batch) {
-				const newParentId = idMap.get(sub.parent_id!);
-				if (!newParentId) continue;
-				const { data: newSub } = await sb.from('tasks').insert({
-					list_id: newList.id, user_id: userId, text: sub.text, position: sub.position,
-					parent_id: newParentId, type: sub.type, priority: sub.priority,
-					timeframe: sub.timeframe, progress: sub.progress, emoji: sub.emoji,
-					note: sub.note, due_date: sub.due_date, highlighted: sub.highlighted,
-					pinned: sub.pinned, assigned_to: sub.assigned_to, done: sub.done,
-					divider_label: sub.divider_label
-				}).select().single();
-				if (newSub) {
-					idMap.set(sub.id, (newSub as Task).id);
-					tasks = [...tasks, newSub as Task];
-				}
-			}
-		}
-
-		return lists.findIndex(l => l.id === newList.id);
-	}
-
-	async function convertTaskToList(taskId: string): Promise<number> {
-		const task = tasks.find(t => t.id === taskId);
-		if (!task) return -1;
-		const subtasks = tasks.filter(t => t.parent_id === taskId).sort((a, b) => a.position - b.position);
-
-		// Neue Liste erstellen
-		const position = lists.length;
-		const { data: newList, error: listErr } = await sb.from('lists').insert({
-			user_id: userId, title: task.text, icon: task.emoji || '📝', position
-		}).select().single();
-		if (listErr || !newList) {
-			toasts.error('Fehler beim Erstellen der Liste.');
-			return -1;
-		}
-		lists = [...lists, newList as List];
-
-		// Subtasks als Top-Level-Tasks in die neue Liste einfuegen (alle Felder)
-		const subIdMap = new Map<string, string>();
-		for (let i = 0; i < subtasks.length; i++) {
-			const sub = subtasks[i];
-			const { data: newTask } = await sb.from('tasks').insert({
-				list_id: newList.id, user_id: userId, text: sub.text, position: i,
-				type: sub.type, priority: sub.priority, timeframe: sub.timeframe,
-				progress: sub.progress, emoji: sub.emoji, note: sub.note,
-				due_date: sub.due_date, highlighted: sub.highlighted, pinned: sub.pinned,
-				assigned_to: sub.assigned_to, done: sub.done, divider_label: sub.divider_label
-			}).select().single();
-			if (newTask) {
-				subIdMap.set(sub.id, (newTask as Task).id);
-				tasks = [...tasks, newTask as Task];
-			}
-		}
-
-		// Enkel-Subtasks rekursiv uebernehmen (Kinder der direkten Subtasks)
-		let grandchildren = tasks.filter(t => t.list_id === task.list_id && subtasks.some(s => s.id === t.parent_id));
-		const allDescIdsToDelete = new Set<string>();
-		let remaining = [...grandchildren];
-		while (remaining.length > 0) {
-			const batch = remaining.filter(gc => subIdMap.has(gc.parent_id!));
-			if (batch.length === 0) break;
-			remaining = remaining.filter(gc => !subIdMap.has(gc.parent_id!));
-			for (const gc of batch) {
-				const newParentId = subIdMap.get(gc.parent_id!);
-				if (!newParentId) continue;
-				const { data: newGc } = await sb.from('tasks').insert({
-					list_id: newList.id, user_id: userId, text: gc.text, position: gc.position,
-					parent_id: newParentId, type: gc.type, priority: gc.priority,
-					timeframe: gc.timeframe, progress: gc.progress, emoji: gc.emoji,
-					note: gc.note, due_date: gc.due_date, highlighted: gc.highlighted,
-					pinned: gc.pinned, assigned_to: gc.assigned_to, done: gc.done,
-					divider_label: gc.divider_label
-				}).select().single();
-				if (newGc) {
-					subIdMap.set(gc.id, (newGc as Task).id);
-					tasks = [...tasks, newGc as Task];
-				}
-				allDescIdsToDelete.add(gc.id);
-			}
-			// Naechste Ebene: Kinder der gerade verarbeiteten Tasks
-			remaining = tasks.filter(t => t.list_id === task.list_id && batch.some(b => b.id === t.parent_id) && !allDescIdsToDelete.has(t.id));
-		}
-
-		// Original-Task + alle Subtasks + Enkel loeschen
-		const allOriginalIds = [taskId, ...subtasks.map(s => s.id), ...allDescIdsToDelete];
-		const oldTasks = tasks;
-		tasks = tasks.filter(t => !allOriginalIds.includes(t.id));
-		const subtaskIds = subtasks.map(s => s.id);
-		const { error: delErr } = await crud.deleteTaskWithSubtasks(sb, taskId, [...subtaskIds, ...allDescIdsToDelete]);
-		if (delErr) {
-			tasks = oldTasks;
-			toasts.error('Fehler beim Löschen der Original-Aufgabe.');
-		}
-
-		toasts.success(`„${task.text}" in Liste umgewandelt.`);
-		return lists.findIndex(l => l.id === newList.id);
-	}
-
 	// ==========================================
 	// DIVIDER
 	// ==========================================
@@ -899,10 +695,6 @@ export function createTaskStore() {
 			if (deletedTask) tasks = [...tasks, deletedTask, ...deletedSubtasks];
 			return;
 		}
-		// Calendar sync: Event löschen NACH erfolgreichem DB-Delete
-		if (deletedTask?.calendar_event_id) {
-			syncTaskToCalendar('delete', deletedTask);
-		}
 		if (deletedTask) {
 			toasts.undo('Aufgabe gelöscht', async () => {
 				// Pending-IDs setzen BEVOR der Insert an Supabase geht,
@@ -937,14 +729,14 @@ export function createTaskStore() {
 		createList, renameList, deleteList, changeListIcon, reorderList,
 		// Task operations
 		addTask, addTaskAfter, toggleTask, updateTask, deleteTask, deleteTaskDirect,
-		changeTaskPriority, changeTaskTimeframe, changeTaskProgress,
+		changeTaskPriority, changeTaskTimeframe,
 		togglePin, clearPinboard,
 		updateTaskNote, assignTask, moveTaskToList,
 		updateTaskEmoji, updateTaskDate,
 		// Subtask operations
 		addSubtask, toggleSubtask, updateSubtask, deleteSubtask, deleteAllSubtasksOfTask,
 		// List-level operations
-		deleteDoneInList, checkAllInList, duplicateList, convertTaskToList,
+		deleteDoneInList, checkAllInList,
 		// Bulk operations
 		bulkToggleDone, bulkChangePriority, bulkDelete, bulkMoveToList,
 		// Reorder

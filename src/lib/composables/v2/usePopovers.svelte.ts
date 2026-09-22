@@ -2,7 +2,6 @@ import type { Database } from '$lib/types/database';
 
 type Task = Database['public']['Tables']['tasks']['Row'];
 
-export type NotePopoverState = { show: boolean; taskId: string; note: string; x: number; y: number };
 export type FocusState = { show: boolean; taskId: string };
 export type EmojiPickerState = { show: boolean; taskId: string; x: number; y: number };
 export type DatePickerState = { show: boolean; taskId: string; x: number; y: number };
@@ -11,29 +10,17 @@ export type PriorityPickerState = { show: boolean; taskId: string; x: number; y:
 export function createPopovers(
 	store: {
 		tasks: Task[];
-		updateTaskNote: (taskId: string, note: string) => void;
 		updateTaskEmoji: (taskId: string, emoji: string) => void;
 		updateTaskDate: (taskId: string, date: string | null) => void;
 		changeTaskPriority: (taskId: string, priority: 'low' | 'normal' | 'high' | 'asap') => void;
 	}
 ) {
-	let notePopover = $state<NotePopoverState>({ show: false, taskId: '', note: '', x: 0, y: 0 });
 	let focusMode = $state<FocusState>({ show: false, taskId: '' });
 	let emojiPicker = $state<EmojiPickerState>({ show: false, taskId: '', x: 0, y: 0 });
 	let datePicker = $state<DatePickerState>({ show: false, taskId: '', x: 0, y: 0 });
 	let priorityPicker = $state<PriorityPickerState>({ show: false, taskId: '', x: 0, y: 0, current: 'normal' });
 
 	let focusTask = $derived(focusMode.show ? store.tasks.find((t) => t.id === focusMode.taskId) ?? null : null);
-
-	function openNotePopover(taskId: string, x: number, y: number) {
-		const task = store.tasks.find((t) => t.id === taskId);
-		if (!task) return;
-		notePopover = { show: true, taskId, note: task.note ?? '', x, y };
-	}
-
-	function handleNoteSave(text: string) {
-		store.updateTaskNote(notePopover.taskId, text);
-	}
 
 	function openFocusMode(taskId: string) {
 		focusMode = { show: true, taskId };
@@ -66,7 +53,6 @@ export function createPopovers(
 	}
 
 	function closeAll() {
-		notePopover = { show: false, taskId: '', note: '', x: 0, y: 0 };
 		focusMode = { show: false, taskId: '' };
 		emojiPicker = { show: false, taskId: '', x: 0, y: 0 };
 		datePicker = { show: false, taskId: '', x: 0, y: 0 };
@@ -74,8 +60,6 @@ export function createPopovers(
 	}
 
 	return {
-		get notePopover() { return notePopover; },
-		set notePopover(v: NotePopoverState) { notePopover = v; },
 		get focusMode() { return focusMode; },
 		set focusMode(v: FocusState) { focusMode = v; },
 		get emojiPicker() { return emojiPicker; },
@@ -85,8 +69,6 @@ export function createPopovers(
 		get priorityPicker() { return priorityPicker; },
 		set priorityPicker(v: PriorityPickerState) { priorityPicker = v; },
 		get focusTask() { return focusTask; },
-		openNotePopover,
-		handleNoteSave,
 		openFocusMode,
 		openEmojiPicker,
 		handleEmojiSelect,
