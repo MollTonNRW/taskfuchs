@@ -7,21 +7,21 @@
 		{#each $toasts as toast (toast.id)}
 			<div
 				class="v2-toast"
-				style="pointer-events: auto; {toast.type === 'error' ? 'border-color: var(--v2-red);' : toast.type === 'success' ? 'border-color: var(--v2-green);' : toast.type === 'undo' ? 'border-color: var(--v2-orange);' : ''}"
+				style="pointer-events: auto; {toast.type === 'error' ? 'border-color: var(--high);' : toast.type === 'success' ? 'border-color: var(--low);' : toast.type === 'undo' ? 'border-color: var(--accent);' : ''}"
 				role={toast.type === 'error' ? 'alert' : 'status'}
 			>
 				<span>{toast.message}</span>
 				{#if toast.type === 'undo' && toast.onUndo}
 					<button
 						onclick={() => { toast.onUndo?.(); toasts.dismiss(toast.id); }}
-						style="margin-left: 8px; padding: 2px 10px; border: 1px dashed var(--v2-accent); border-radius: var(--v2-radius); background: var(--v2-accent-glow); color: var(--v2-accent); font-size: .6rem; cursor: pointer; font-family: var(--v2-font); flex-shrink: 0;"
+						style="margin-left: 8px; padding: 2px 10px; border: 1px solid var(--accent); border-radius: var(--v2-radius); background: var(--accent-glow); color: var(--accent); font-size: .6rem; cursor: pointer; font-family: var(--font-ui); flex-shrink: 0;"
 					>
 						Rückgängig
 					</button>
 				{:else}
 					<button
 						onclick={() => toasts.dismiss(toast.id)}
-						style="margin-left: 8px; background: none; border: none; color: var(--v2-text-muted); cursor: pointer; font-size: .6rem; flex-shrink: 0;"
+						style="margin-left: 8px; background: none; border: none; color: var(--ink-3); cursor: pointer; font-size: .6rem; flex-shrink: 0;"
 						aria-label="Schließen"
 					>
 						&#x2715;

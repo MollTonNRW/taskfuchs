@@ -28,7 +28,7 @@
 
 {#if selectedCount > 0}
 	<div class="v2-bulk-toolbar">
-		<span style="font-size: .65rem; color: var(--v2-text);">{selectedCount} ausgewählt</span>
+		<span style="font-size: .65rem; color: var(--ink);">{selectedCount} ausgewählt</span>
 
 		<button class="v2-bulk-btn" onclick={() => onToggleDone(true)} title="Erledigt">&#x2713;</button>
 
@@ -57,7 +57,7 @@
 			</div>
 		{/if}
 
-		<button class="v2-bulk-btn" style="color: var(--v2-red);" onclick={onDelete} title="Löschen">&#x2715;</button>
+		<button class="v2-bulk-btn" style="color: var(--high);" onclick={onDelete} title="Löschen">&#x2715;</button>
 		<button class="v2-bulk-btn" onclick={onCancel}>Abbrechen</button>
 	</div>
 {/if}

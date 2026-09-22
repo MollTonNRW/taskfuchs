@@ -45,12 +45,12 @@
 		<!-- Dialog -->
 		<div class="v2-glass-card" style="padding: 24px; max-width: 400px; width: 90%;">
 			{#if $inputDialogStore.title}
-				<p style="font-size: .72rem; color: var(--v2-accent); margin-bottom: 8px; font-family: var(--v2-font); letter-spacing: 0.05em; text-transform: uppercase;">
+				<p style="font-size: .72rem; color: var(--accent); margin-bottom: 8px; font-family: var(--font-ui); letter-spacing: 0.05em; text-transform: uppercase;">
 					{$inputDialogStore.title}
 				</p>
 			{/if}
 			{#if $inputDialogStore.message}
-				<p style="font-size: .72rem; color: var(--v2-text-muted); margin-bottom: 14px; line-height: 1.5;">
+				<p style="font-size: .72rem; color: var(--ink-3); margin-bottom: 14px; line-height: 1.5;">
 					{$inputDialogStore.message}
 				</p>
 			{/if}
@@ -59,20 +59,20 @@
 				type="text"
 				value={$inputDialogStore.defaultValue}
 				placeholder={$inputDialogStore.placeholder}
-				style="width: 100%; padding: 8px 12px; font-size: .75rem; color: var(--v2-text); background: var(--v2-bg); border: 1px dashed var(--v2-border); border-radius: var(--v2-radius); font-family: var(--v2-font); outline: none; margin-bottom: 16px; box-sizing: border-box;"
-				onfocus={(e) => { const t = e.currentTarget; t.style.borderColor = 'var(--v2-accent)'; }}
-				onblur={(e) => { const t = e.currentTarget; t.style.borderColor = 'var(--v2-border)'; }}
+				style="width: 100%; padding: 8px 12px; font-size: .75rem; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: var(--v2-radius); font-family: var(--font-ui); outline: none; margin-bottom: 16px; box-sizing: border-box;"
+				onfocus={(e) => { const t = e.currentTarget; t.style.borderColor = 'var(--accent)'; }}
+				onblur={(e) => { const t = e.currentTarget; t.style.borderColor = 'var(--line)'; }}
 			/>
 			<div style="display: flex; justify-content: flex-end; gap: 8px;">
 				<button
 					onclick={cancel}
-					style="padding: 6px 16px; font-size: .65rem; color: var(--v2-text-muted); background: none; border: 1px dashed var(--v2-border); border-radius: var(--v2-radius); cursor: pointer; font-family: var(--v2-font);"
+					style="padding: 6px 16px; font-size: .65rem; color: var(--ink-3); background: none; border: 1px solid var(--line); border-radius: var(--v2-radius); cursor: pointer; font-family: var(--font-ui);"
 				>
 					Abbrechen
 				</button>
 				<button
 					onclick={confirm}
-					style="padding: 6px 16px; font-size: .65rem; color: var(--v2-accent); background: var(--v2-accent-glow); border: 1px dashed var(--v2-accent); border-radius: var(--v2-radius); cursor: pointer; font-family: var(--v2-font);"
+					style="padding: 6px 16px; font-size: .65rem; color: var(--accent); background: var(--accent-glow); border: 1px solid var(--accent); border-radius: var(--v2-radius); cursor: pointer; font-family: var(--font-ui);"
 				>
 					OK
 				</button>

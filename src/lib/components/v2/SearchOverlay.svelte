@@ -72,8 +72,8 @@
 						class="v2-search-result"
 						onclick={() => { onSelect(result.id); onClose(); }}
 					>
-						<span style="font-size: .6rem; background: var(--v2-bg); padding: 1px 6px; border-radius: 4px;">{getListIcon(result.list_id)}</span>
-						<span class:done={result.done} style={result.done ? 'text-decoration: line-through; color: var(--v2-text-muted);' : ''}>
+						<span style="font-size: .6rem; background: var(--bg); padding: 1px 6px; border-radius: 4px;">{getListIcon(result.list_id)}</span>
+						<span class:done={result.done} style={result.done ? 'text-decoration: line-through; color: var(--ink-3);' : ''}>
 							{result.text}
 						</span>
 					</button>
@@ -81,16 +81,16 @@
 			</div>
 		{:else if query.trim().length >= 2}
 			<div style="padding: 24px; text-align: center;">
-				<span style="font-size: .72rem; color: var(--v2-text-muted);">Keine Ergebnisse</span>
+				<span style="font-size: .72rem; color: var(--ink-3);">Keine Ergebnisse</span>
 			</div>
 		{:else}
 			<div style="padding: 16px; text-align: center;">
-				<span style="font-size: .6rem; color: var(--v2-text-muted);">Mindestens 2 Zeichen eingeben</span>
+				<span style="font-size: .6rem; color: var(--ink-3);">Mindestens 2 Zeichen eingeben</span>
 			</div>
 		{/if}
 
 		<div style="display: flex; justify-content: flex-end; margin-top: 8px;">
-			<span style="font-size: .5rem; color: var(--v2-text-muted); background: var(--v2-bg); padding: 2px 8px; border-radius: 4px;">ESC</span>
+			<span style="font-size: .5rem; color: var(--ink-3); background: var(--bg); padding: 2px 8px; border-radius: 4px;">ESC</span>
 		</div>
 	</div>
 </div>

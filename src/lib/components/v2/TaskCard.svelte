@@ -288,7 +288,7 @@
 		left: 0;
 		right: 0;
 		height: 2px;
-		background: var(--v2-accent, #f7a072);
+		background: var(--accent);
 		border-radius: 1px;
 		z-index: 5;
 	}
@@ -299,7 +299,7 @@
 		left: 0;
 		right: 0;
 		height: 2px;
-		background: var(--v2-accent, #f7a072);
+		background: var(--accent);
 		border-radius: 1px;
 		z-index: 5;
 	}

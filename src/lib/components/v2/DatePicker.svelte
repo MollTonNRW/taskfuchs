@@ -42,7 +42,7 @@
 	class="v2-glass-card"
 	style="position: fixed; z-index: 71; left: {x}px; top: {y}px; padding: 12px; min-width: 220px;"
 >
-	<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); margin-bottom: 6px;">Fällig am</div>
+	<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--ink-3); margin-bottom: 6px;">Fällig am</div>
 	<input
 		type="date"
 		bind:value={dateValue}
@@ -51,7 +51,7 @@
 		onchange={handleSubmit}
 	/>
 
-	<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); margin-top: 10px; margin-bottom: 6px;">Uhrzeit (optional)</div>
+	<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--ink-3); margin-top: 10px; margin-bottom: 6px;">Uhrzeit (optional)</div>
 	<input
 		type="time"
 		bind:value={timeValue}
@@ -63,7 +63,7 @@
 	{#if current}
 		<button
 			onclick={() => { onSelect(null); onClose(); }}
-			style="width: 100%; margin-top: 10px; font-size: .6rem; color: var(--v2-text-muted); background: none; border: 1px dashed var(--v2-border); border-radius: var(--v2-radius); padding: 6px; cursor: pointer; text-align: center;"
+			style="width: 100%; margin-top: 10px; font-size: .6rem; color: var(--ink-3); background: none; border: 1px solid var(--line); border-radius: var(--v2-radius); padding: 6px; cursor: pointer; text-align: center;"
 		>
 			Entfernen
 		</button>

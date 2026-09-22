@@ -169,16 +169,16 @@
 	.g2-card {
 		width: 100%;
 		max-width: 440px;
-		border: 1px solid var(--v2-border, #333);
+		border: 1px solid var(--line);
 		border-radius: 4px;
 		padding: 1.5rem;
-		background: var(--v2-surface, #1e1f2e);
-		font-family: 'JetBrains Mono', monospace;
+		background: var(--surface);
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 	}
 
 	.g2-ascii-header {
 		font-size: 0.75rem;
-		color: var(--v2-orange, #ff9e64);
+		color: var(--accent);
 		margin: 0 0 1.25rem 0;
 		line-height: 1.2;
 	}
@@ -189,7 +189,7 @@
 
 	.g2-instructions p {
 		font-size: 0.8rem;
-		color: var(--v2-text-secondary, #a9b1d6);
+		color: var(--ink-2);
 		margin: 0.25rem 0;
 		line-height: 1.5;
 	}
@@ -203,30 +203,30 @@
 
 	.g2-prompt {
 		font-size: 0.85rem;
-		color: var(--v2-green, #9ece6a);
+		color: var(--low);
 		white-space: nowrap;
 	}
 
 	.g2-code-input {
-		font-family: 'JetBrains Mono', monospace;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 		font-size: 1.5rem;
 		letter-spacing: 0.5em;
 		width: 100%;
 		padding: 0.5rem;
 		background: transparent;
 		border: none;
-		border-bottom: 2px solid var(--v2-border, #333);
-		color: var(--v2-text, #c0caf5);
+		border-bottom: 2px solid var(--line);
+		color: var(--ink);
 		outline: none;
 		text-align: center;
 	}
 
 	.g2-code-input:focus {
-		border-bottom-color: var(--v2-orange, #ff9e64);
+		border-bottom-color: var(--accent);
 	}
 
 	.g2-code-input::placeholder {
-		color: var(--v2-text-muted, #565f89);
+		color: var(--ink-3);
 		letter-spacing: 0.5em;
 	}
 
@@ -236,36 +236,36 @@
 
 	.g2-error {
 		font-size: 0.75rem;
-		color: var(--v2-red, #f7768e);
+		color: var(--high);
 		margin: 0.5rem 0 1rem 0;
 	}
 
 	.g2-btn {
-		font-family: 'JetBrains Mono', monospace;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 		font-size: 0.8rem;
 		padding: 0.5rem 1rem;
-		border: 1px solid var(--v2-border, #333);
+		border: 1px solid var(--line);
 		border-radius: 3px;
 		background: transparent;
-		color: var(--v2-text-secondary, #a9b1d6);
+		color: var(--ink-2);
 		cursor: pointer;
 		transition: all 0.15s;
 	}
 
 	.g2-btn:hover {
-		background: var(--v2-border, #333);
-		color: var(--v2-text, #c0caf5);
+		background: var(--line);
+		color: var(--ink);
 	}
 
 	.g2-btn-primary {
 		width: 100%;
-		border-color: var(--v2-orange, #ff9e64);
-		color: var(--v2-orange, #ff9e64);
+		border-color: var(--accent);
+		color: var(--accent);
 	}
 
 	.g2-btn-primary:hover:not(:disabled) {
-		background: var(--v2-orange, #ff9e64);
-		color: var(--v2-bg, #1a1b26);
+		background: var(--accent);
+		color: var(--bg);
 	}
 
 	.g2-btn-primary:disabled {
@@ -275,13 +275,13 @@
 
 	.g2-footer-hints {
 		margin-top: 1.5rem;
-		border-top: 1px solid var(--v2-border, #333);
+		border-top: 1px solid var(--line);
 		padding-top: 1rem;
 	}
 
 	.g2-footer-hints p {
 		font-size: 0.7rem;
-		color: var(--v2-text-muted, #565f89);
+		color: var(--ink-3);
 		margin: 0.2rem 0;
 	}
 
@@ -292,20 +292,20 @@
 
 	.g2-check {
 		font-size: 2.5rem;
-		color: var(--v2-green, #9ece6a);
+		color: var(--low);
 		display: block;
 		margin-bottom: 0.75rem;
 	}
 
 	.g2-msg {
 		font-size: 0.85rem;
-		color: var(--v2-green, #9ece6a);
+		color: var(--low);
 		margin-bottom: 0.25rem;
 	}
 
 	.g2-hint {
 		font-size: 0.75rem;
-		color: var(--v2-text-muted, #565f89);
+		color: var(--ink-3);
 		margin-bottom: 1.25rem;
 	}
 </style>

@@ -1,45 +1,42 @@
 import { browser } from '$app/environment';
 
-// v2 Theme Presets — Terminal/Hacker Aesthetic
-export const v2ThemePresets = [
-	{ id: 'minimal', name: 'Minimal', icon: '>' },
-	{ id: 'colorful', name: 'Colorful', icon: '#' },
-	{ id: 'neon', name: 'Neon', icon: '~' },
-	{ id: 'aurora', name: 'Aurora', icon: '*' }
-] as const;
+/**
+ * Theme-Store der Richtung A „Klar" — genau zwei Zustaende: hell und dunkel.
+ *
+ * HELL ist der Default. Ohne gespeicherte Wahl startet die App hell,
+ * deshalb die strikte Pruefung auf den String 'true'.
+ * Die vier Presets (minimal/colorful/neon/aurora), `effectiveDark` und
+ * `themeClass` sind mit dem Redesign entfallen.
+ */
+const KEY = 'tf-dark';
 
-export type V2ThemePreset = (typeof v2ThemePresets)[number]['id'];
-
-function createV2Theme() {
-	const storedPreset = browser ? (localStorage.getItem('v2-preset') as V2ThemePreset | null) : null;
-	const storedDark = browser ? localStorage.getItem('v2-dark') !== 'false' : true; // default dark
-
-	let preset = $state<V2ThemePreset>(storedPreset ?? 'minimal');
-	let isDark = $state<boolean>(storedDark);
-
-	// Neon + Aurora force dark
-	let effectiveDark = $derived(preset === 'neon' || preset === 'aurora' ? true : isDark);
-
-	// CSS class for the v2 root element
-	let themeClass = $derived(
-		`v2-theme-${preset} ${effectiveDark ? 'v2-dark' : 'v2-light'}`
-	);
+function createTheme() {
+	let isDark = $state<boolean>(browser ? localStorage.getItem(KEY) === 'true' : false);
 
 	function persist() {
 		if (!browser) return;
-		localStorage.setItem('v2-preset', preset);
-		localStorage.setItem('v2-dark', String(isDark));
+		try {
+			localStorage.setItem(KEY, String(isDark));
+		} catch {
+			/* privater Modus — Auswahl gilt nur fuer diese Sitzung */
+		}
 	}
 
 	return {
-		get preset() { return preset; },
-		get isDark() { return isDark; },
-		get effectiveDark() { return effectiveDark; },
-		get themeClass() { return themeClass; },
-
-		setPreset(id: V2ThemePreset) { if (!browser) return; preset = id; persist(); },
-		toggleDark() { if (!browser) return; isDark = !isDark; persist(); }
+		get isDark() {
+			return isDark;
+		},
+		toggle() {
+			if (!browser) return;
+			isDark = !isDark;
+			persist();
+		},
+		set(value: boolean) {
+			if (!browser) return;
+			isDark = value;
+			persist();
+		}
 	};
 }
 
-export const v2Theme = createV2Theme();
+export const theme = createTheme();

@@ -312,7 +312,7 @@
 		left: 0;
 		right: 0;
 		height: 3px;
-		background: var(--v2-accent, #f7a072);
+		background: var(--accent);
 		border-radius: 2px;
 		z-index: 5;
 	}
@@ -323,7 +323,7 @@
 		left: 0;
 		right: 0;
 		height: 3px;
-		background: var(--v2-accent, #f7a072);
+		background: var(--accent);
 		border-radius: 2px;
 		z-index: 5;
 	}
@@ -334,7 +334,7 @@
 	}
 	.v2-bottom-drop-zone.drag-active {
 		min-height: 40px;
-		border-top: 3px solid var(--v2-accent, #f7a072);
-		background: rgba(247, 160, 114, 0.05);
+		border-top: 3px solid var(--accent);
+		background: var(--accent-soft);
 	}
 </style>

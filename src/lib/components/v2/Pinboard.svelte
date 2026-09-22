@@ -63,11 +63,11 @@
 
 	function getPriorityColor(priority: string | null): string {
 		switch (priority) {
-			case 'low': return 'var(--v2-green)';
-			case 'normal': return 'var(--v2-yellow)';
-			case 'high': return 'var(--v2-red)';
-			case 'asap': return 'var(--v2-red)';
-			default: return 'var(--v2-border)';
+			case 'low': return 'var(--low)';
+			case 'normal': return 'var(--normal)';
+			case 'high': return 'var(--high)';
+			case 'asap': return 'var(--high)';
+			default: return 'var(--line)';
 		}
 	}
 </script>
@@ -158,16 +158,16 @@
 <style>
 	.pinboard {
 		padding: 12px 24px;
-		border-bottom: 1px dashed var(--v2-border);
-		background: var(--v2-surface);
+		border-bottom: 1px solid var(--line);
+		background: var(--surface);
 		transition: border 0.15s ease, background 0.15s ease;
 		position: relative;
 		z-index: 0;
 	}
 
 	.pinboard.drag-over {
-		border: 2px dashed var(--v2-accent);
-		background: var(--v2-accent-glow);
+		border: 2px solid var(--accent);
+		background: var(--accent-glow);
 	}
 
 	.pinboard-header {
@@ -176,7 +176,7 @@
 		gap: 8px;
 		cursor: pointer;
 		font-size: .65rem;
-		color: var(--v2-text-muted);
+		color: var(--ink-3);
 		margin-bottom: 8px;
 		user-select: none;
 		text-transform: uppercase;
@@ -189,8 +189,8 @@
 
 	.pin-count {
 		font-size: .5rem;
-		background: var(--v2-accent-glow);
-		color: var(--v2-accent);
+		background: var(--accent-glow);
+		color: var(--accent);
 		padding: 1px 6px;
 		border-radius: 8px;
 		font-weight: 600;
@@ -199,17 +199,17 @@
 	.pin-clear {
 		margin-left: auto;
 		font-size: .55rem;
-		color: var(--v2-accent);
+		color: var(--accent);
 		cursor: pointer;
-		border: 1px dashed var(--v2-accent-dim);
+		border: 1px solid var(--accent-ink);
 		padding: 2px 8px;
 		border-radius: var(--v2-radius);
 		transition: all var(--v2-transition);
 	}
 
 	.pin-clear:hover {
-		background: var(--v2-accent-dim);
-		color: #fff;
+		background: var(--accent-ink);
+		color: var(--on-accent);
 	}
 
 	.pinboard-cards {
@@ -236,8 +236,8 @@
 	}
 
 	.pin-card:hover {
-		border-color: var(--v2-accent-dim);
-		box-shadow: 0 0 12px var(--v2-accent-glow);
+		border-color: var(--accent-ink);
+		box-shadow: 0 0 12px var(--accent-glow);
 	}
 
 	.pin-card::before {
@@ -247,7 +247,7 @@
 		top: 0;
 		bottom: 0;
 		width: 3px;
-		background: var(--pin-prio-color, var(--v2-border));
+		background: var(--pin-prio-color, var(--line));
 		border-radius: 3px 0 0 3px;
 	}
 
@@ -270,7 +270,7 @@
 
 	.pin-card-unpin {
 		font-size: .6rem;
-		color: var(--v2-text-muted);
+		color: var(--ink-3);
 		cursor: pointer;
 		padding: 2px;
 		border-radius: 3px;
@@ -279,14 +279,14 @@
 	}
 
 	.pin-card-unpin:hover {
-		color: var(--v2-red);
-		background: rgba(247,118,142,.1);
+		color: var(--high);
+		background: color-mix(in srgb, var(--high) 10%, transparent);
 	}
 
 	.pin-card-text {
 		font-size: .68rem;
 		line-height: 1.3;
-		color: var(--v2-text);
+		color: var(--ink);
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
 		-webkit-box-orient: vertical;
@@ -295,7 +295,7 @@
 
 	.pin-card-list {
 		font-size: .48rem;
-		color: var(--v2-text-muted);
+		color: var(--ink-3);
 		margin-top: 4px;
 	}
 
@@ -306,7 +306,7 @@
 		gap: 5px;
 		margin-top: 6px;
 		padding-top: 5px;
-		border-top: 1px dashed var(--v2-border);
+		border-top: 1px solid var(--line);
 	}
 
 	.pin-by-avatar,
@@ -325,15 +325,15 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		background: var(--v2-accent-glow);
-		color: var(--v2-accent);
+		background: var(--accent-glow);
+		color: var(--accent);
 		font-size: .4rem;
 		font-weight: 700;
 	}
 
 	.pin-by-name {
 		font-size: .46rem;
-		color: var(--v2-accent);
+		color: var(--accent);
 		text-transform: uppercase;
 		letter-spacing: .5px;
 		white-space: nowrap;
@@ -347,7 +347,7 @@
 
 	.pinboard-empty {
 		font-size: .6rem;
-		color: var(--v2-text-muted);
+		color: var(--ink-3);
 		font-style: italic;
 		padding: 8px 0 4px;
 		letter-spacing: .5px;

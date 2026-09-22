@@ -652,16 +652,16 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="fixed inset-0" style="z-index: 60;" onclick={() => { sortFilter.sortMenuOpen = false; }} role="presentation"></div>
 	<div class="v2-glass-card" style="position: fixed; z-index: 61; top: {sortMenuPos.top}px; left: {sortMenuPos.left}px; padding: 8px; min-width: 160px;">
-		<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); padding: 4px 8px; margin-bottom: 4px;">Sortierung</div>
+		<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--ink-3); padding: 4px 8px; margin-bottom: 4px;">Sortierung</div>
 		{#each validSortModes as mode}
 			<button
 				onclick={() => { sortFilter.sortMode = mode; sortFilter.sortMenuOpen = false; }}
-				style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--v2-radius); font-size: .65rem; color: var(--v2-text-secondary); background: {sortFilter.sortMode === mode ? 'var(--v2-accent-glow)' : 'transparent'}; border: none; cursor: pointer; transition: all .15s ease; text-align: left; min-height: 44px;"
+				style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--v2-radius); font-size: .65rem; color: var(--ink-2); background: {sortFilter.sortMode === mode ? 'var(--accent-glow)' : 'transparent'}; border: none; cursor: pointer; transition: all .15s ease; text-align: left; min-height: 44px;"
 				aria-label="Sortierung: {sortLabels[mode]}"
 			>
 				<span>{sortLabels[mode]}</span>
 				{#if sortFilter.sortMode === mode}
-					<span style="margin-left: auto; font-size: .6rem; color: var(--v2-accent);">&#x2713;</span>
+					<span style="margin-left: auto; font-size: .6rem; color: var(--accent);">&#x2713;</span>
 				{/if}
 			</button>
 		{/each}
@@ -672,13 +672,13 @@
 {#if lists.length === 0}
 	<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center;">
 		<div style="font-size: 2.5rem; margin-bottom: 16px;" aria-hidden="true">&#x1F98A;</div>
-		<h2 style="font-size: 1rem; font-weight: 700; color: var(--v2-text); margin-bottom: 8px;">Willkommen bei TaskFuchs v2</h2>
-		<p style="font-size: .75rem; color: var(--v2-text-muted); max-width: 320px; line-height: 1.6;">
+		<h2 style="font-size: 1rem; font-weight: 700; color: var(--ink); margin-bottom: 8px;">Willkommen bei TaskFuchs v2</h2>
+		<p style="font-size: .75rem; color: var(--ink-3); max-width: 320px; line-height: 1.6;">
 			Erstelle deine erste Liste um loszulegen.
 		</p>
 		<button
 			onclick={handleAddList}
-			style="margin-top: 16px; padding: 10px 20px; border: 1px dashed var(--v2-accent); border-radius: var(--v2-radius); background: var(--v2-accent-glow); color: var(--v2-accent); font-size: .75rem; font-weight: 600; cursor: pointer; font-family: var(--v2-font); min-height: 44px;"
+			style="margin-top: 16px; padding: 10px 20px; border: 1px dashed var(--accent); border-radius: var(--v2-radius); background: var(--accent-glow); color: var(--accent); font-size: .75rem; font-weight: 600; cursor: pointer; font-family: var(--font-ui); min-height: 44px;"
 			aria-label="Neue Liste erstellen"
 		>
 			+ Neue Liste

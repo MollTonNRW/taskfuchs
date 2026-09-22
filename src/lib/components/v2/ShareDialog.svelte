@@ -50,7 +50,7 @@
 <!-- Backdrop -->
 <div
 	class="fixed inset-0"
-	style="z-index: 80; background: rgba(0,0,0,.6); backdrop-filter: blur(4px);"
+	style="z-index: 80; background: var(--scrim); backdrop-filter: blur(4px);"
 	onclick={onClose}
 	role="presentation"
 ></div>
@@ -67,12 +67,12 @@
 	<!-- Header -->
 	<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
 		<div style="display: flex; align-items: center; gap: 8px;">
-			<span style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-accent);">&gt; share</span>
-			<span style="font-size: .85rem; font-weight: 700; color: var(--v2-text);">Liste teilen</span>
+			<span style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--accent);">&gt; share</span>
+			<span style="font-size: .85rem; font-weight: 700; color: var(--ink);">Liste teilen</span>
 		</div>
 		<button
 			onclick={onClose}
-			style="background: none; border: 1px solid var(--v2-border); border-radius: var(--v2-radius); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: var(--v2-text-muted); cursor: pointer; font-size: .65rem;"
+			style="background: none; border: 1px solid var(--line); border-radius: var(--v2-radius); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: var(--ink-3); cursor: pointer; font-size: .65rem;"
 			aria-label="Schließen"
 		>
 			&#x2715;
@@ -80,14 +80,14 @@
 	</div>
 
 	<!-- List info -->
-	<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 8px 12px; border: 1px dashed var(--v2-border); border-radius: var(--v2-radius); background: var(--v2-hover);">
+	<div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--v2-radius); background: var(--surface-2);">
 		<span style="font-size: 1rem;">{list.icon}</span>
-		<span style="font-size: .72rem; font-weight: 600; color: var(--v2-text);">{list.title}</span>
+		<span style="font-size: .72rem; font-weight: 600; color: var(--ink);">{list.title}</span>
 	</div>
 
 	<!-- Invite form -->
 	<div style="margin-bottom: 16px;">
-		<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); margin-bottom: 8px;">Person einladen</div>
+		<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--ink-3); margin-bottom: 8px;">Person einladen</div>
 		<div style="display: flex; gap: 8px;">
 			<!-- svelte-ignore a11y_autofocus -->
 			<input
@@ -109,32 +109,32 @@
 			</select>
 			<button
 				onclick={handleSubmit}
-				style="padding: 8px 16px; background: var(--v2-accent); color: var(--v2-bg); font-size: .65rem; font-weight: 600; border: none; border-radius: var(--v2-radius); cursor: pointer; font-family: var(--v2-font); white-space: nowrap;"
+				style="padding: 8px 16px; background: var(--accent); color: var(--on-accent); font-size: .65rem; font-weight: 600; border: none; border-radius: var(--v2-radius); cursor: pointer; font-family: var(--font-ui); white-space: nowrap;"
 				disabled={!email.trim()}
 			>
 				Einladen
 			</button>
 		</div>
 		{#if error}
-			<p style="font-size: .6rem; color: var(--v2-red); margin-top: 4px;">{error}</p>
+			<p style="font-size: .6rem; color: var(--high); margin-top: 4px;">{error}</p>
 		{/if}
 	</div>
 
 	<!-- Current shares -->
 	{#if shares.length > 0}
 		<div>
-			<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); margin-bottom: 8px;">Geteilte Zugriffe</div>
+			<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--ink-3); margin-bottom: 8px;">Geteilte Zugriffe</div>
 			<div style="display: flex; flex-direction: column; gap: 6px;">
 				{#each shares as share (share.id)}
-					<div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--v2-border); border-radius: var(--v2-radius); background: var(--v2-surface);">
-						<div style="width: 28px; height: 28px; border-radius: var(--v2-radius); display: flex; align-items: center; justify-content: center; font-size: .55rem; font-weight: 700; color: var(--v2-bg); background: var(--v2-accent);">
+					<div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--v2-radius); background: var(--surface);">
+						<div style="width: 28px; height: 28px; border-radius: var(--v2-radius); display: flex; align-items: center; justify-content: center; font-size: .55rem; font-weight: 700; color: var(--on-accent); background: var(--accent);">
 							{share.user_id.charAt(0).toUpperCase()}
 						</div>
-						<span style="flex: 1; font-size: .65rem; color: var(--v2-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--v2-font);">
+						<span style="flex: 1; font-size: .65rem; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-ui);">
 							{share.user_id}
 						</span>
 						{#if share.role === 'owner'}
-							<span style="font-size: .55rem; font-weight: 600; color: var(--v2-accent);">{roleLabels[share.role]}</span>
+							<span style="font-size: .55rem; font-weight: 600; color: var(--accent);">{roleLabels[share.role]}</span>
 						{:else}
 							<select
 								value={share.role}
@@ -147,7 +147,7 @@
 							</select>
 							<button
 								onclick={() => onRemoveShare(share.id)}
-								style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: none; border: 1px solid var(--v2-border); border-radius: var(--v2-radius); color: var(--v2-red); cursor: pointer; font-size: .6rem;"
+								style="width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; background: none; border: 1px solid var(--line); border-radius: var(--v2-radius); color: var(--high); cursor: pointer; font-size: .6rem;"
 								title="Zugriff entfernen"
 							>
 								&#x2715;
@@ -158,7 +158,7 @@
 			</div>
 		</div>
 	{:else}
-		<p style="font-size: .65rem; color: var(--v2-text-muted); text-align: center; padding: 12px 0; font-style: italic;">
+		<p style="font-size: .65rem; color: var(--ink-3); text-align: center; padding: 12px 0; font-style: italic;">
 			Diese Liste ist noch nicht geteilt.
 		</p>
 	{/if}

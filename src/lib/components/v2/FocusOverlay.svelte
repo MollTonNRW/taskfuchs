@@ -98,7 +98,7 @@
 		<!-- Close -->
 		<button
 			onclick={() => { saveNote(); onClose(); }}
-			style="position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--v2-text-muted); font-size: .8rem; cursor: pointer;"
+			style="position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--ink-3); font-size: .8rem; cursor: pointer;"
 			aria-label="Schließen"
 		>
 			&#x2715;
@@ -108,7 +108,7 @@
 		<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
 			<button
 				onclick={(e) => onOpenEmojiPicker(task.id, e.clientX, e.clientY)}
-				style="font-size: 1.5rem; background: none; border: 1px dashed var(--v2-border); border-radius: var(--v2-radius); padding: 4px 8px; cursor: pointer;"
+				style="font-size: 1.5rem; background: none; border: 1px solid var(--line); border-radius: var(--v2-radius); padding: 4px 8px; cursor: pointer;"
 				title="Emoji ändern"
 			>
 				{task.emoji || '...'}
@@ -127,7 +127,7 @@
 			{:else}
 				<!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
 				<h2
-					style="font-size: .9rem; font-weight: 700; color: var(--v2-text); cursor: pointer; flex: 1;"
+					style="font-size: .9rem; font-weight: 700; color: var(--ink); cursor: pointer; flex: 1;"
 					onclick={startEdit}
 				>
 					{task.text}
@@ -140,7 +140,7 @@
 			{#each priorityOrder as p}
 				<button
 					class="v2-badge"
-					style="cursor: pointer; border: 1px dashed {task.priority === p ? 'var(--v2-accent)' : 'var(--v2-border)'}; background: {task.priority === p ? 'var(--v2-accent-glow)' : 'transparent'}; color: {task.priority === p ? 'var(--v2-accent)' : 'var(--v2-text-muted)'};"
+					style="cursor: pointer; border: 1px solid {task.priority === p ? 'var(--accent)' : 'var(--line)'}; background: {task.priority === p ? 'var(--accent-glow)' : 'transparent'}; color: {task.priority === p ? 'var(--accent)' : 'var(--ink-3)'};"
 					onclick={() => onChangePriority(task.id, p)}
 				>
 					{priorityLabels[p]}
@@ -150,11 +150,11 @@
 
 		<!-- Timeframe Selector -->
 		<div style="margin-bottom: 16px;">
-			<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); margin-bottom: 6px;">Zeitrahmen</div>
+			<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--ink-3); margin-bottom: 6px;">Zeitrahmen</div>
 			<div style="display: flex; gap: 6px; flex-wrap: wrap;">
 				<button
 					class="v2-badge"
-					style="cursor: pointer; border: 1px dashed {!task.timeframe ? 'var(--v2-accent)' : 'var(--v2-border)'}; background: {!task.timeframe ? 'var(--v2-accent-glow)' : 'transparent'}; color: {!task.timeframe ? 'var(--v2-accent)' : 'var(--v2-text-muted)'};"
+					style="cursor: pointer; border: 1px solid {!task.timeframe ? 'var(--accent)' : 'var(--line)'}; background: {!task.timeframe ? 'var(--accent-glow)' : 'transparent'}; color: {!task.timeframe ? 'var(--accent)' : 'var(--ink-3)'};"
 					onclick={() => onChangeTimeframe(task.id, null)}
 				>
 					Keiner
@@ -162,7 +162,7 @@
 				{#each timeframeOrder as tf}
 					<button
 						class="v2-badge"
-						style="cursor: pointer; border: 1px dashed {task.timeframe === tf ? 'var(--v2-accent)' : 'var(--v2-border)'}; background: {task.timeframe === tf ? 'var(--v2-accent-glow)' : 'transparent'}; color: {task.timeframe === tf ? 'var(--v2-accent)' : 'var(--v2-text-muted)'};"
+						style="cursor: pointer; border: 1px solid {task.timeframe === tf ? 'var(--accent)' : 'var(--line)'}; background: {task.timeframe === tf ? 'var(--accent-glow)' : 'transparent'}; color: {task.timeframe === tf ? 'var(--accent)' : 'var(--ink-3)'};"
 						onclick={() => onChangeTimeframe(task.id, tf)}
 					>
 						{timeframeLabels[tf]}
@@ -180,14 +180,14 @@
 			>
 				{task.done ? '\u2713' : ''}
 			</button>
-			<span style="font-size: .72rem; color: var(--v2-text-secondary);">
+			<span style="font-size: .72rem; color: var(--ink-2);">
 				{task.done ? 'Erledigt' : 'Offen'}
 			</span>
 		</div>
 
 		<!-- Note -->
 		<div style="margin-bottom: 16px;">
-			<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); margin-bottom: 6px;">Notiz</div>
+			<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--ink-3); margin-bottom: 6px;">Notiz</div>
 			<textarea
 				bind:value={noteText}
 				onblur={saveNote}
@@ -199,7 +199,7 @@
 
 		<!-- Subtasks -->
 		<div>
-			<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--v2-text-muted); margin-bottom: 8px;">
+			<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--ink-3); margin-bottom: 8px;">
 				Unteraufgaben ({subtasks.length})
 			</div>
 			<div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;">
@@ -228,7 +228,7 @@
 			{:else}
 				<button
 					onclick={() => (addingSubtask = true)}
-					style="font-size: .65rem; color: var(--v2-accent); background: none; border: 1px dashed var(--v2-border); border-radius: var(--v2-radius); padding: 4px 10px; cursor: pointer;"
+					style="font-size: .65rem; color: var(--accent); background: none; border: 1px solid var(--line); border-radius: var(--v2-radius); padding: 4px 10px; cursor: pointer;"
 				>
 					+ Unteraufgabe
 				</button>

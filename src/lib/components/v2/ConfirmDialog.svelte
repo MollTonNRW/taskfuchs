@@ -27,19 +27,19 @@
 
 		<!-- Dialog -->
 		<div class="v2-glass-card" style="padding: 24px; max-width: 360px; width: 90%;">
-			<p style="font-size: .78rem; color: var(--v2-text); margin-bottom: 20px; line-height: 1.5;">
+			<p style="font-size: .78rem; color: var(--ink); margin-bottom: 20px; line-height: 1.5;">
 				{$confirmStore.message}
 			</p>
 			<div style="display: flex; justify-content: flex-end; gap: 8px;">
 				<button
 					onclick={() => resolveConfirm(false)}
-					style="padding: 6px 16px; font-size: .65rem; color: var(--v2-text-muted); background: none; border: 1px dashed var(--v2-border); border-radius: var(--v2-radius); cursor: pointer; font-family: var(--v2-font);"
+					style="padding: 6px 16px; font-size: .65rem; color: var(--ink-3); background: none; border: 1px solid var(--line); border-radius: var(--v2-radius); cursor: pointer; font-family: var(--font-ui);"
 				>
 					Abbrechen
 				</button>
 				<button
 					onclick={() => resolveConfirm(true)}
-					style="padding: 6px 16px; font-size: .65rem; color: var(--v2-accent); background: var(--v2-accent-glow); border: 1px dashed var(--v2-accent); border-radius: var(--v2-radius); cursor: pointer; font-family: var(--v2-font);"
+					style="padding: 6px 16px; font-size: .65rem; color: var(--accent); background: var(--accent-glow); border: 1px solid var(--accent); border-radius: var(--v2-radius); cursor: pointer; font-family: var(--font-ui);"
 				>
 					Bestätigen
 				</button>

@@ -106,14 +106,14 @@ function createGhost(sourceEl: HTMLElement): HTMLElement {
 		transform: scale(0.95);
 		border-radius: 12px;
 		overflow: hidden;
-		box-shadow: 0 8px 32px rgba(0,0,0,.25);
-		background: var(--tf-surface, #fff);
-		border: 2px solid var(--tf-accent, #f97316);
+		box-shadow: var(--sh-pop);
+		background: var(--surface);
+		border: 2px solid var(--accent);
 	`;
 
 	// Simple text preview inside ghost
 	const label = document.createElement('div');
-	label.style.cssText = 'padding: 8px 12px; font-size: 13px; color: var(--tf-text, #333); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
+	label.style.cssText = 'padding: 8px 12px; font-size: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
 	const textEl = cloneSource.querySelector('.task-text, .v2-task-text, span.text-xs, h2');
 	label.textContent = textEl?.textContent?.trim() || 'Verschieben...';
 	ghost.appendChild(label);

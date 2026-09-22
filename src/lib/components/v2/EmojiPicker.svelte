@@ -50,7 +50,7 @@
 	{/each}
 	<button
 		onclick={() => { onSelect(''); onClose(); }}
-		style="grid-column: 1 / -1; font-size: .5rem; color: var(--v2-text-muted); background: none; border: 1px dashed var(--v2-border); border-radius: var(--v2-radius); padding: 4px; cursor: pointer; margin-top: 4px;"
+		style="grid-column: 1 / -1; font-size: .5rem; color: var(--ink-3); background: none; border: 1px solid var(--line); border-radius: var(--v2-radius); padding: 4px; cursor: pointer; margin-top: 4px;"
 	>
 		Entfernen
 	</button>

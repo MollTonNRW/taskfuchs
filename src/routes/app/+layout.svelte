@@ -2,21 +2,22 @@
 	import '../../v2.css';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
-	import { v2Theme } from '$lib/stores/v2/theme.svelte';
+	import { theme } from '$lib/stores/v2/theme.svelte';
 	import { v2Events } from '$lib/stores/v2/events.svelte';
+	import Logo from '$lib/components/tf/Logo.svelte';
 
 	let { data, children } = $props();
 	let sidebarOpen = $state(browser && window.innerWidth >= 769);
 
-	// Apply DaisyUI data-theme + sync the browser/TWA status-bar color to the active theme
+	// Status-Leiste von Browser und TWA auf die aktive Flaechenfarbe ziehen.
+	// isDark wird bewusst zuerst gelesen: getComputedStyle ist nicht reaktiv,
+	// ohne diese Zeile wuerde der Effekt beim Umschalten nicht neu laufen.
 	$effect(() => {
+		const dark = theme.isDark;
 		if (!browser) return;
-		const dark = v2Theme.effectiveDark;
-		document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
-
-		const root = document.querySelector('.v2-root');
-		const bg = root ? getComputedStyle(root).getPropertyValue('--v2-bg').trim() : '';
-		const color = bg || (dark ? '#1a1b26' : '#faf8f5');
+		const root = document.querySelector('.tf-root');
+		const bg = root ? getComputedStyle(root).getPropertyValue('--bg').trim() : '';
+		const color = bg || (dark ? '#181512' : '#F3EEE4');
 		let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
 		if (!meta) {
 			meta = document.createElement('meta');
@@ -44,15 +45,9 @@
 	}
 </script>
 
-<svelte:head>
-	<link rel="preconnect" href="https://fonts.googleapis.com" />
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-	<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-</svelte:head>
-
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="v2-root {v2Theme.themeClass}">
+<div class="v2-root tf-root" class:tf-dark={theme.isDark}>
 
 	<!-- Sidebar Overlay (mobile) -->
 	{#if sidebarOpen}
@@ -76,11 +71,11 @@
 			<!-- Dark/Light Toggle -->
 			<button
 				class="v2-dark-toggle"
-				onclick={() => v2Theme.toggleDark()}
-				aria-label={v2Theme.effectiveDark ? 'Zu Light Mode wechseln' : 'Zu Dark Mode wechseln'}
+				onclick={() => theme.toggle()}
+				aria-label={theme.isDark ? 'Zu hellem Modus wechseln' : 'Zu dunklem Modus wechseln'}
 			>
-				{v2Theme.effectiveDark ? '\u263E' : '\u2600'}
-				{v2Theme.effectiveDark ? 'Light Mode' : 'Dark Mode'}
+				{theme.isDark ? '\u2600' : '\u263E'}
+				{theme.isDark ? 'Hell' : 'Dunkel'}
 			</button>
 
 			<!-- G2 Brille koppeln -->
@@ -97,7 +92,7 @@
 			<button
 				class="v2-dark-toggle"
 				onclick={logout}
-				style="margin-top: 8px; color: var(--v2-red, #ef4444);"
+				style="margin-top: 8px; color: var(--high);"
 			>
 				&#x23FB; Abmelden
 			</button>
@@ -111,17 +106,16 @@
 			<header class="v2-header">
 				<button
 					onclick={() => (sidebarOpen = !sidebarOpen)}
-					style="background: none; border: none; color: var(--v2-text-secondary); font-size: 1.1rem; padding: 4px; cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;"
+					style="background: none; border: none; color: var(--ink-2); font-size: 1.1rem; padding: 4px; cursor: pointer; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;"
 					aria-label="Sidebar umschalten"
 				>
 					&#9776;
 				</button>
 
-				<!-- ASCII-Art Logo (v6 style) -->
-				<div class="v2-header-logo">
-					<pre style="font-size: .55rem; color: var(--v2-text-muted); white-space: pre; line-height: 1.05;">&#x2554;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2557;
-&#x2551; <span style="color: var(--v2-orange);">TaskFuchs</span> &#x2551;
-&#x255A;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x2550;&#x255D;</pre>
+				<!-- Marke -->
+				<div class="v2-header-logo" style="display: flex; align-items: center; gap: 8px;">
+					<Logo size={24} />
+					<span style="font-size: 15px; font-weight: 600; color: var(--ink);">TaskFuchs</span>
 				</div>
 
 				<div class="v2-header-actions">
@@ -161,11 +155,11 @@
 
 					<!-- Dark/Light Toggle -->
 					<button
-						onclick={() => v2Theme.toggleDark()}
-						style="background: none; border: none; color: var(--v2-text-secondary); font-size: .9rem; cursor: pointer; padding: 4px 8px; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;"
-						aria-label="Dark/Light Mode umschalten"
+						onclick={() => theme.toggle()}
+						style="background: none; border: none; color: var(--ink-2); font-size: .9rem; cursor: pointer; padding: 4px 8px; min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center;"
+						aria-label="Hell/Dunkel umschalten"
 					>
-						{v2Theme.effectiveDark ? '\u2600' : '\u263E'}
+						{theme.isDark ? '\u2600' : '\u263E'}
 					</button>
 				</div>
 			</header>
@@ -175,10 +169,10 @@
 				<svelte:boundary onerror={(e) => console.error('V2_BOUNDARY_ERROR:', e)}>
 					{@render children()}
 					{#snippet failed(error)}
-						<div style="padding: 40px; font-family: monospace; color: var(--v2-red, red);">
+						<div style="padding: 40px; font-family: monospace; color: var(--high, red);">
 							<h2>v2 Error</h2>
 							<pre style="white-space: pre-wrap; font-size: 12px; max-width: 100%; overflow-x: auto;">{(error as any)?.message ?? error}</pre>
-							<pre style="white-space: pre-wrap; font-size: 10px; color: var(--v2-text-muted, #888); margin-top: 8px;">{(error as any)?.stack ?? ''}</pre>
+							<pre style="white-space: pre-wrap; font-size: 10px; color: var(--ink-3); margin-top: 8px;">{(error as any)?.stack ?? ''}</pre>
 						</div>
 					{/snippet}
 				</svelte:boundary>
