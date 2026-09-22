@@ -2,10 +2,11 @@
 	import { createTaskStore } from '$lib/stores/tasks.svelte';
 	import { toasts, showInputDialog } from '$lib/stores/toast';
 	import { browser } from '$app/environment';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import type { Priority } from '$lib/constants';
 	import { v2Events } from '$lib/stores/v2/events.svelte';
+	import { nav } from '$lib/stores/tf/navigation.svelte';
 	import { profilesStore } from '$lib/stores/profiles';
 	import { getProfilesByIds } from '$lib/services/supabase-crud';
 
@@ -41,6 +42,8 @@
 	$effect(() => {
 		if (data.supabase && data.user && !storeReady) {
 			store.init(data.supabase, data.user.id, data.lists, data.tasks);
+			// Gespeicherte Listenauswahl gegen die geladenen Listen pruefen
+			nav.hydrate(data.lists.map((l: List) => l.id));
 			storeReady = true;
 		}
 	});
@@ -49,8 +52,28 @@
 	let lists = $derived(store.lists);
 	let tasks = $derived(store.tasks);
 
-	// Mobile: active list tab index
-	let activeListIndex = $state(0);
+	// Aktive Liste und Detail-Auswahl kommen aus dem gemeinsamen Navigationszustand
+	let activeList = $derived(lists.find((l: List) => l.id === nav.activeListId) ?? null);
+	let selectedTask = $derived(
+		nav.selectedTaskId ? (tasks.find((t: Task) => t.id === nav.selectedTaskId) ?? null) : null
+	);
+
+	// Bestand nachfuehren: faellt die aktive Liste weg (Loeschen, Realtime), rueckt
+	// nav auf die naechste vorhandene; ist die ausgewaehlte Aufgabe verschwunden,
+	// faellt die Auswahl. untrack, damit die Schreibvorgaenge auf nav diesen
+	// Effekt nicht erneut ausloesen.
+	$effect(() => {
+		if (!storeReady) return;
+		const ids = lists.map((l: List) => l.id);
+		const vorhandene = tasks;
+		untrack(() => {
+			nav.syncLists(ids);
+			if (nav.selectedTaskId && !vorhandene.some((t: Task) => t.id === nav.selectedTaskId)) {
+				nav.selectTask(null);
+			}
+		});
+	});
+
 	let isMobile = $state(false);
 
 	// Force subtasks open/closed per list (null = TaskCard controls itself)
@@ -215,8 +238,6 @@
 			next.set(listId, open);
 			subtasksForceState = next;
 		},
-		getActiveListIndex: () => activeListIndex,
-		setActiveListIndex: (idx: number) => { activeListIndex = idx; },
 		get profileMap() { return profileMap; },
 		get userId() { return data.user?.id; },
 		get userEmail() { return data.user?.email; },
@@ -235,17 +256,23 @@
 	// Read sortFilter.sortMode explicitly so Svelte 5 tracks it as a dependency
 	let sortedActiveListTasks = $derived.by(() => {
 		const _mode = sortFilter.sortMode; // explicit dependency on sortMode
-		const activeList = lists[activeListIndex];
 		if (!activeList) return [];
 		return sortFilter.tasksForList(activeList.id);
 	});
 
-	// Focus subtasks (derived from popovers)
+	// Unteraufgaben der ausgewaehlten Aufgabe
 	let focusSubtasks = $derived(
-		popovers.focusTask
-			? tasks.filter((t: Task) => t.parent_id === popovers.focusTask!.id).sort((a: Task, b: Task) => a.position - b.position)
+		selectedTask
+			? tasks.filter((t: Task) => t.parent_id === selectedTask!.id).sort((a: Task, b: Task) => a.position - b.position)
 			: []
 	);
+
+	/** Liegt der Fokus in einem Textfeld? Dann gehoeren Pfeiltasten dem Cursor. */
+	function inEingabefeld(target: EventTarget | null): boolean {
+		if (!(target instanceof HTMLElement)) return false;
+		const tag = target.tagName;
+		return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+	}
 
 	// Track mobile/desktop + Realtime + Keyboard shortcuts
 	onMount(() => {
@@ -283,7 +310,7 @@
 			// Escape: close all overlays
 			if (e.key === 'Escape') {
 				if (ctx.contextMenu.show) { ctx.close(); return; }
-				if (popovers.focusMode.show) { popovers.focusMode = { show: false, taskId: '' }; return; }
+				if (nav.selectedTaskId) { nav.selectTask(null); return; }
 				if (popovers.emojiPicker.show) { popovers.emojiPicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
 				if (listIconPicker.show) { listIconPicker = { show: false, listId: '', x: 0, y: 0 }; return; }
 				if (popovers.datePicker.show) { popovers.datePicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
@@ -292,14 +319,13 @@
 				if (searchOpen) { searchOpen = false; return; }
 				if (bulkMode) { clearBulkSelection(); return; }
 			}
-			// Arrow keys: navigate lists
-			if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-				if (lists.length > 1) {
-					const dir = e.key === 'ArrowLeft' ? -1 : 1;
-					const newIdx = activeListIndex + dir;
-					if (newIdx >= 0 && newIdx < lists.length) {
-						activeListIndex = newIdx;
-					}
+			// Pfeiltasten: Nachbarliste waehlen — aber nie in einem Eingabefeld,
+			// dort gehoert links/rechts dem Cursor.
+			if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !inEingabefeld(e.target)) {
+				const idx = lists.findIndex((l: List) => l.id === nav.activeListId);
+				if (idx >= 0) {
+					const ziel = lists[idx + (e.key === 'ArrowLeft' ? -1 : 1)];
+					if (ziel) nav.selectList(ziel.id);
 				}
 			}
 			// Delete: delete selected in bulk mode
@@ -359,21 +385,6 @@
 		lastAddListSignal = val;
 	});
 
-	// Push nav counts to shared event bus for sidebar display
-	$effect(() => {
-		const counts: Record<string, { done: number; total: number }> = {};
-		let totalOpen = 0;
-		for (const list of lists) {
-			const listTasks = tasks.filter((t: Task) => t.list_id === list.id && !t.parent_id && t.type !== 'divider');
-			const done = listTasks.filter((t: Task) => t.done).length;
-			const total = listTasks.length;
-			counts[list.id] = { done, total };
-			totalOpen += (total - done);
-		}
-		v2Events.setNavCounts(counts);
-		v2Events.setOpenTaskCount(totalOpen);
-	});
-
 	// ==========================================
 	// HANDLERS
 	// ==========================================
@@ -402,8 +413,7 @@
 		if (idx < 0) return;
 		const newList = store.lists[idx];
 		if (!newList) return;
-		const vIdx = lists.findIndex((l: List) => l.id === newList.id);
-		if (vIdx >= 0) activeListIndex = vIdx;
+		nav.selectList(newList.id);
 		requestAnimationFrame(() => {
 			document.querySelector(`[data-tab-list-id="${newList.id}"]`)?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
 		});
@@ -412,12 +422,12 @@
 	}
 
 	function handleTaskOpen(task: Task) {
-		popovers.openFocusMode(task.id);
+		nav.selectTask(task.id);
 	}
 
 	function handleSearchSelect(taskId: string) {
 		const task = tasks.find((t: Task) => t.id === taskId);
-		if (task) popovers.openFocusMode(task.id);
+		if (task) nav.selectTask(task.id);
 	}
 
 	// ---- Swipe between lists (mobile) ----
@@ -449,17 +459,11 @@
 		// Only trigger swipe if horizontal > 50px and vertical < 30px
 		if (Math.abs(dx) < 50 || Math.abs(dy) > 30) return;
 
-		if (dx < 0) {
-			// Swipe left -> next list
-			if (activeListIndex < lists.length - 1) {
-				activeListIndex = activeListIndex + 1;
-			}
-		} else {
-			// Swipe right -> previous list
-			if (activeListIndex > 0) {
-				activeListIndex = activeListIndex - 1;
-			}
-		}
+		// Wischen nach links -> naechste Liste, nach rechts -> vorherige
+		const idx = lists.findIndex((l: List) => l.id === nav.activeListId);
+		if (idx < 0) return;
+		const ziel = lists[idx + (dx < 0 ? 1 : -1)];
+		if (ziel) nav.selectList(ziel.id);
 	}
 
 	// ---- List Tab Drag & Drop ----
@@ -501,11 +505,8 @@
 			if (raw) {
 				const data = JSON.parse(raw);
 				if (data.listId) {
+					// Die Auswahl haengt an der ID — Umsortieren laesst sie unberuehrt
 					store.reorderList(data.listId, dropIdx);
-					// Update activeListIndex to follow the moved tab
-					const newIdx = lists.findIndex((l: List) => l.id === data.listId);
-					if (newIdx >= 0) activeListIndex = newIdx;
-					else activeListIndex = Math.min(dropIdx, lists.length - 1);
 				}
 			}
 		} catch { /* ignore */ }
@@ -581,7 +582,7 @@
 	currentUserId={data.user?.id ?? ''}
 	onUnpin={(id) => { store.togglePin(id); }}
 	onUnpinAll={() => { for (const t of pinnedTasks) store.togglePin(t.id); }}
-	onTaskClick={(task) => { popovers.openFocusMode(task.id); }}
+	onTaskClick={(task) => { nav.selectTask(task.id); }}
 	onPin={(taskId) => { const t = tasks.find((x: Task) => x.id === taskId); if (t && !t.pinned) store.togglePin(taskId); }}
 />
 
@@ -592,10 +593,10 @@
 			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<button
 				class="v2-list-tab"
-				class:active={i === activeListIndex}
+				class:active={list.id === nav.activeListId}
 				class:tab-drag-over-left={tabDragOverIdx === i && draggingTabId && draggingTabId !== list.id}
 				class:tab-drag-over-right={tabDragOverIdx === i + 1 && draggingTabId && draggingTabId !== list.id}
-				onclick={() => (activeListIndex = i)}
+				onclick={() => nav.selectList(list.id)}
 				oncontextmenu={(e) => { e.preventDefault(); if (Date.now() - tabLongPressFiredAt > 700) ctx.handleListContext(e, list); }}
 				ontouchstart={(e) => handleTabTouchStart(e, list)}
 				ontouchend={handleTabTouchEnd}
@@ -624,12 +625,10 @@
 	ontouchmove={handleSwipeTouchMove}
 	ontouchend={handleSwipeTouchEnd}
 >
-	{#if lists[activeListIndex]}
-		{@const activeList = lists[activeListIndex]}
+	{#if activeList}
 		<ListPanel
 			list={activeList}
 			tasks={sortedActiveListTasks}
-			colIndex={activeListIndex}
 			isActive={true}
 			forceSubtasksOpen={getForceSubtasksOpen(activeList.id)}
 			onQuickAdd={handleQuickAdd}
@@ -687,11 +686,11 @@
 {/if}
 
 <!-- Focus Overlay -->
-{#if popovers.focusTask}
+{#if selectedTask}
 	<FocusOverlay
-		task={popovers.focusTask}
+		task={selectedTask}
 		subtasks={focusSubtasks}
-		onClose={() => { popovers.focusMode = { show: false, taskId: '' }; }}
+		onClose={() => { nav.selectTask(null); }}
 		onToggle={handleToggleTask}
 		onUpdate={handleEditTask}
 		onChangePriority={(id, p) => store.changeTaskPriority(id, p)}

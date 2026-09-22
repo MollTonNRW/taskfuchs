@@ -8,11 +8,6 @@ function createEventBus() {
 	// Guard: $state runes are only initialized in the browser to prevent
 	// SSR state leaks (module-level singletons are shared between requests)
 
-	// Nav counts: listId -> { done, total }
-	let navCounts = $state<Record<string, { done: number; total: number }>>({});
-	// Open task count (all lists)
-	let openTaskCount = $state(0);
-
 	// Shared header state (Page -> Layout communication)
 	let sortLabel = $state('Position');
 	let bulkModeActive = $state(false);
@@ -24,20 +19,10 @@ function createEventBus() {
 	let addListSignal = $state(0);
 
 	return {
-		get navCounts() { return navCounts; },
-		get openTaskCount() { return openTaskCount; },
 		get sortLabel() { return sortLabel; },
 		set sortLabel(v: string) { sortLabel = v; },
 		get bulkModeActive() { return bulkModeActive; },
 		set bulkModeActive(v: boolean) { bulkModeActive = v; },
-		setNavCounts(counts: Record<string, { done: number; total: number }>) {
-			if (!browser) return;
-			navCounts = counts;
-		},
-		setOpenTaskCount(count: number) {
-			if (!browser) return;
-			openTaskCount = count;
-		},
 		// Layout -> Page action signals
 		get searchToggle() { return searchToggle; },
 		get sortToggle() { return sortToggle; },

@@ -41,8 +41,6 @@ export interface ContextMenuDeps {
 	collapsedSubtasksListIds: Set<string>;
 	toggleCollapseSubtasks: (listId: string) => void;
 	setSubtasksForceState: (listId: string, open: boolean) => void;
-	getActiveListIndex: () => number;
-	setActiveListIndex: (idx: number) => void;
 	profileMap: Map<string, Profile>;
 	userId: string | undefined;
 	userEmail: string | undefined;
