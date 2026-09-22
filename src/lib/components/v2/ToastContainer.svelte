@@ -1,29 +1,38 @@
 <script lang="ts">
 	import { toasts } from '$lib/stores/toast';
+
+	/**
+	 * Toast — dunkle Flaeche, helle Schrift, „Rueckgaengig" in --toast-undo.
+	 *
+	 * Die Positionierung steckt in src/tf.css (.tf-toasts): Desktop mittig auf
+	 * bottom 20, mobil zwischen die Raender gespannt und um die Hoehe der
+	 * Tab-Leiste plus Safe-Area angehoben. Vorher stand hier fest bottom:80px —
+	 * auf einem iPhone reicht die Leiste bis 87 px, der Toast lag dahinter.
+	 */
 </script>
 
 {#if $toasts.length > 0}
-	<div style="position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none;" role="status" aria-live="polite">
+	<div class="tf-toasts" role="status" aria-live="polite">
 		{#each $toasts as toast (toast.id)}
 			<div
-				class="v2-toast"
-				style="pointer-events: auto; {toast.type === 'error' ? 'border-color: var(--high);' : toast.type === 'success' ? 'border-color: var(--low);' : toast.type === 'undo' ? 'border-color: var(--accent);' : ''}"
+				class="tf-toast"
+				class:fehler={toast.type === 'error'}
+				class:erfolg={toast.type === 'success'}
 				role={toast.type === 'error' ? 'alert' : 'status'}
 			>
-				<span>{toast.message}</span>
+				<span class="txt">{toast.message}</span>
 				{#if toast.type === 'undo' && toast.onUndo}
 					<button
-						onclick={() => { toast.onUndo?.(); toasts.dismiss(toast.id); }}
-						style="margin-left: 8px; padding: 2px 10px; border: 1px solid var(--accent); border-radius: var(--v2-radius); background: var(--accent-glow); color: var(--accent); font-size: .6rem; cursor: pointer; font-family: var(--font-ui); flex-shrink: 0;"
+						class="undo"
+						onclick={() => {
+							toast.onUndo?.();
+							toasts.dismiss(toast.id);
+						}}
 					>
-						Rückgängig
+						R&uuml;ckg&auml;ngig
 					</button>
 				{:else}
-					<button
-						onclick={() => toasts.dismiss(toast.id)}
-						style="margin-left: 8px; background: none; border: none; color: var(--ink-3); cursor: pointer; font-size: .6rem; flex-shrink: 0;"
-						aria-label="Schließen"
-					>
+					<button class="zu" onclick={() => toasts.dismiss(toast.id)} aria-label="Schlie&szlig;en">
 						&#x2715;
 					</button>
 				{/if}

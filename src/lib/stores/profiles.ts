@@ -1,24 +1,13 @@
-import { writable, derived } from 'svelte/store';
+import { writable } from 'svelte/store';
 import type { Database } from '$lib/types/database';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
+/**
+ * Profil-Zwischenspeicher fuer das „gepinnt von"-Abzeichen in der Aufgabenzeile.
+ *
+ * Der abgeleitete `profileMap` und `getInitials` hingen allein an Pinboard.svelte
+ * und sind mit dieser Komponente entfallen. Initialen bildet jetzt
+ * `initialeAus` in src/lib/utils/mitnutzer.ts — ein Ort, eine Regel.
+ */
 export const profilesStore = writable<Profile[]>([]);
-
-export const profileMap = derived(profilesStore, ($profiles) => {
-	const map = new Map<string, Profile>();
-	for (const p of $profiles) {
-		map.set(p.id, p);
-	}
-	return map;
-});
-
-export function getInitials(profile: Profile | undefined, fallback: string): string {
-	if (profile?.display_name) {
-		return profile.display_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-	}
-	if (profile?.username) {
-		return profile.username.slice(0, 2).toUpperCase();
-	}
-	return fallback.charAt(0).toUpperCase();
-}

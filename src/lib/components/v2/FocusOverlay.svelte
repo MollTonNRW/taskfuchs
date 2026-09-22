@@ -2,6 +2,12 @@
 	import { tick } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import SubtaskCard from './SubtaskCard.svelte';
+	import {
+		priorityLabels,
+		priorityOrder,
+		timeframeLabels,
+		timeframeOrder
+	} from '$lib/constants';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 
@@ -49,11 +55,6 @@
 	let newSubtaskText = $state('');
 	let editInput: HTMLInputElement | undefined = $state();
 
-	const priorityLabels: Record<string, string> = { low: 'Niedrig', normal: 'Normal', high: 'Hoch', asap: 'ASAP!' };
-	const priorityOrder: ('low' | 'normal' | 'high' | 'asap')[] = ['low', 'normal', 'high', 'asap'];
-
-	const timeframeLabels: Record<string, string> = { akut: 'Akut', zeitnah: 'Zeitnah', mittelfristig: 'Mittelfristig', langfristig: 'Langfristig' };
-	const timeframeOrder: ('akut' | 'zeitnah' | 'mittelfristig' | 'langfristig')[] = ['akut', 'zeitnah', 'mittelfristig', 'langfristig'];
 
 	function startEdit() {
 		editText = task.text;

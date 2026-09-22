@@ -2,6 +2,8 @@
 	import type { Database } from '$lib/types/database';
 	import Icon from './Icon.svelte';
 	import NewListCard from './NewListCard.svelte';
+	import AvatarStack from './AvatarStack.svelte';
+	import type { Mitnutzer } from '$lib/utils/mitnutzer';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 
@@ -18,6 +20,7 @@
 		lists,
 		activeListId,
 		offeneJeListe,
+		mitnutzer,
 		dringendAnzahl,
 		benutzer,
 		initiale,
@@ -32,19 +35,26 @@
 		lists: List[];
 		activeListId: string | null;
 		offeneJeListe: Map<string, number>;
+		/** Beteiligte je Liste, eigener Nutzer eingeschlossen (listId -> Leute). */
+		mitnutzer: Record<string, Mitnutzer[]>;
 		dringendAnzahl: number;
 		benutzer: string;
 		initiale: string;
 		isDark: boolean;
 		onSelectList: (id: string) => void;
 		onSelectSmart: (view: 'pins' | 'dringend') => void;
-		onNeueListe: (title: string, icon: string) => void;
+		onNeueListe: (title: string, icon: string) => Promise<boolean>;
 		onListContext: (e: MouseEvent, list: List) => void;
 		onToggleTheme: () => void;
 		onLogout: () => void;
 	} = $props();
 
 	let neueListeAuf = $state(false);
+
+	/** Die Zeile zeigt nur die ANDEREN — der eigene Avatar steht in der Fusszeile. */
+	function fremde(listId: string): Mitnutzer[] {
+		return (mitnutzer[listId] ?? []).filter((m) => !m.ich);
+	}
 </script>
 
 <button class="tf-li" onclick={() => onSelectSmart('dringend')}>
@@ -65,6 +75,7 @@
 	>
 		<span class="em">{list.icon}</span>
 		<span class="name">{list.title}</span>
+		<AvatarStack leute={fremde(list.id)} />
 		<span class="n">{offeneJeListe.get(list.id) ?? 0}</span>
 		<Icon name="chevron-rechts" size={16} class="chev" />
 	</button>
@@ -73,9 +84,10 @@
 {#if neueListeAuf}
 	<NewListCard
 		mobil
-		onAnlegen={(t, i) => {
-			neueListeAuf = false;
-			onNeueListe(t, i);
+		onAnlegen={async (t, i) => {
+			const ok = await onNeueListe(t, i);
+			if (ok) neueListeAuf = false;
+			return ok;
 		}}
 		onAbbrechen={() => {
 			neueListeAuf = false;

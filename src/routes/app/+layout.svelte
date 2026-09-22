@@ -18,14 +18,27 @@
 	 */
 	let { children } = $props();
 
-	// Status-Leiste von Browser und TWA auf die aktive Flaechenfarbe ziehen.
-	// isDark wird bewusst zuerst gelesen: getComputedStyle ist nicht reaktiv,
-	// ohne diese Zeile wuerde der Effekt beim Umschalten nicht neu laufen.
+	/*
+	 * Theme-Klasse gehoert ans <html>, nicht an das div darunter.
+	 * `body{background:var(--bg)}` (src/app.css) loest sonst immer gegen das
+	 * helle :root auf — sichtbar in den Safe-Area-Streifen oben und unten
+	 * (iPhone, TWA) und beim Ueberscrollen. Den ersten Wert setzt bereits das
+	 * Startskript in src/app.html; dieser Effekt fuehrt nur noch das
+	 * Umschalten nach. `color-scheme` haengt mit dran, damit Scrollbalken,
+	 * Textcursor und Markierung dem Theme folgen und nicht dem Betriebssystem.
+	 *
+	 * Die Statusleiste von Browser und TWA bekommt dieselbe Flaechenfarbe.
+	 * `theme.isDark` wird bewusst zuerst gelesen: getComputedStyle ist nicht
+	 * reaktiv, ohne diese Zeile liefe der Effekt beim Umschalten nicht neu.
+	 */
 	$effect(() => {
 		const dark = theme.isDark;
 		if (!browser) return;
-		const root = document.querySelector('.tf-root');
-		const bg = root ? getComputedStyle(root).getPropertyValue('--bg').trim() : '';
+		const wurzel = document.documentElement;
+		wurzel.classList.toggle('tf-dark', dark);
+		wurzel.style.colorScheme = dark ? 'dark' : 'light';
+
+		const bg = getComputedStyle(wurzel).getPropertyValue('--bg').trim();
 		const color = bg || (dark ? '#181512' : '#F3EEE4');
 		let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
 		if (!meta) {
@@ -37,6 +50,6 @@
 	});
 </script>
 
-<div class="v2-root tf-root" class:tf-dark={theme.isDark}>
+<div class="v2-root tf-root">
 	{@render children()}
 </div>

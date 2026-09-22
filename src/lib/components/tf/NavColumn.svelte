@@ -3,7 +3,9 @@
 	import Icon from './Icon.svelte';
 	import Logo from './Logo.svelte';
 	import NewListCard from './NewListCard.svelte';
+	import AvatarStack from './AvatarStack.svelte';
 	import type { SmartView } from '$lib/stores/tf/navigation.svelte';
+	import type { Mitnutzer } from '$lib/utils/mitnutzer';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 
@@ -22,6 +24,7 @@
 		activeListId,
 		smartView,
 		offeneJeListe,
+		mitnutzer,
 		pinAnzahl,
 		dringendAnzahl,
 		benutzer,
@@ -45,6 +48,8 @@
 		activeListId: string | null;
 		smartView: SmartView;
 		offeneJeListe: Map<string, number>;
+		/** Beteiligte je Liste, eigener Nutzer eingeschlossen (listId -> Leute). */
+		mitnutzer: Record<string, Mitnutzer[]>;
 		pinAnzahl: number;
 		dringendAnzahl: number;
 		benutzer: string;
@@ -53,7 +58,7 @@
 		onSelectList: (id: string) => void;
 		onSelectSmart: (view: Exclude<SmartView, null>) => void;
 		onSuche: () => void;
-		onNeueListe: (title: string, icon: string) => void;
+		onNeueListe: (title: string, icon: string) => Promise<boolean>;
 		onListContext: (e: MouseEvent, list: List) => void;
 		onToggleTheme: () => void;
 		onLogout: () => void;
@@ -68,6 +73,11 @@
 
 	let neueListeAuf = $state(false);
 	let menueAuf = $state(false);
+
+	/** Die Zeile zeigt nur die ANDEREN — der eigene Avatar steht in der Fusszeile. */
+	function fremde(listId: string): Mitnutzer[] {
+		return (mitnutzer[listId] ?? []).filter((m) => !m.ich);
+	}
 </script>
 
 <nav class="tf-nav" aria-label="Listen">
@@ -120,15 +130,17 @@
 			>
 				<span class="em">{list.icon}</span>
 				<span class="name">{list.title}</span>
+				<AvatarStack leute={fremde(list.id)} />
 				<span class="n">{offeneJeListe.get(list.id) ?? 0}</span>
 			</button>
 		{/each}
 
 		{#if neueListeAuf}
 			<NewListCard
-				onAnlegen={(t, i) => {
-					neueListeAuf = false;
-					onNeueListe(t, i);
+				onAnlegen={async (t, i) => {
+					const ok = await onNeueListe(t, i);
+					if (ok) neueListeAuf = false;
+					return ok;
 				}}
 				onAbbrechen={() => {
 					neueListeAuf = false;

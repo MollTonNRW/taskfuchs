@@ -12,6 +12,30 @@
 		<link rel="manifest" href="/manifest.json" />
 		<link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
 		<link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png" />
+		<script>
+			/*
+			 * Theme VOR dem ersten Bild setzen — am <html>, nicht an einem
+			 * inneren div. Sonst loest body{background:var(--bg)} gegen das
+			 * helle :root auf: die Safe-Area-Streifen oben und unten und der
+			 * Ueberscroll-Bereich blieben im Dunkelmodus hell.
+			 * Ohne dieses Skript blitzt beim Laden zusaetzlich die helle
+			 * Fassung auf, weil die Svelte-Effekte erst nach der Hydration
+			 * laufen. Schluessel und Default-hell wie in
+			 * src/lib/stores/v2/theme.svelte.ts.
+			 */
+			(function () {
+				try {
+					var dunkel = localStorage.getItem('tf-dark') === 'true';
+					var wurzel = document.documentElement;
+					wurzel.classList.toggle('tf-dark', dunkel);
+					wurzel.style.colorScheme = dunkel ? 'dark' : 'light';
+					var meta = document.querySelector('meta[name="theme-color"]');
+					if (meta) meta.setAttribute('content', dunkel ? '#181512' : '#F3EEE4');
+				} catch (e) {
+					/* privater Modus oder localStorage gesperrt — App bleibt hell */
+				}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

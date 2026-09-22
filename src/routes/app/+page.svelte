@@ -9,12 +9,14 @@
 	import { theme } from '$lib/stores/v2/theme.svelte';
 	import { profilesStore } from '$lib/stores/profiles';
 	import { getProfilesByIds } from '$lib/services/supabase-crud';
+	import type { Mitnutzer } from '$lib/utils/mitnutzer';
 
 	import Icon from '$lib/components/tf/Icon.svelte';
 	import NavColumn from '$lib/components/tf/NavColumn.svelte';
 	import ListsOverview from '$lib/components/tf/ListsOverview.svelte';
 	import MobileTabBar from '$lib/components/tf/MobileTabBar.svelte';
 	import SmartList from '$lib/components/tf/SmartList.svelte';
+	import AvatarStack from '$lib/components/tf/AvatarStack.svelte';
 
 	import ListPanel from '$lib/components/v2/ListPanel.svelte';
 	import ToastContainer from '$lib/components/v2/ToastContainer.svelte';
@@ -154,6 +156,16 @@
 		}
 		return m;
 	});
+
+	// ==========================================
+	// MITNUTZER
+	// ==========================================
+	// Zuordnung listId -> Beteiligte aus `+page.ts` (list_shares + profiles).
+	// Die Navigationszeile und die mobile Uebersicht zeigen nur die ANDEREN,
+	// die Geteilt-Pille im Listen-Header alle — inklusive des eigenen Avatars.
+	let mitnutzer = $derived<Record<string, Mitnutzer[]>>(data.mitnutzer ?? {});
+	let aktiveBeteiligte = $derived(activeList ? (mitnutzer[activeList.id] ?? []) : []);
+	let aktiveFremde = $derived(aktiveBeteiligte.filter((m: Mitnutzer) => !m.ich));
 
 	let pinnedTasks = $derived(tasks.filter((t: Task) => t.pinned && !t.done && !t.parent_id));
 
@@ -372,8 +384,14 @@
 					if (ziel) nav.selectList(ziel.id);
 				}
 			}
-			// Delete: delete selected in bulk mode
-			if ((e.key === 'Delete' || e.key === 'Backspace') && bulkMode && !e.target) {
+			// Delete: Auswahl im Mehrfachmodus loeschen. Die Bedingung lautete
+			// `!e.target` und war damit tot — ein Tastendruck hat immer ein Ziel.
+			// Gemeint war: nicht waehrend einer Texteingabe.
+			if (
+				(e.key === 'Delete' || e.key === 'Backspace') &&
+				bulkMode &&
+				!inEingabefeld(e.target)
+			) {
 				e.preventDefault();
 				store.bulkDelete([...bulkSelectedIds]);
 				clearBulkSelection();
@@ -411,11 +429,16 @@
 		ctx.handleTaskContext(e, task);
 	}
 
-	/** Karte „Neue Liste": erst hier wird geschrieben, dann gleich hinspringen. */
-	async function neueListeAnlegen(title: string, icon: string) {
+	/**
+	 * Karte „Neue Liste": erst hier wird geschrieben, dann gleich hinspringen.
+	 * Der Rueckgabewert entscheidet, ob die Karte schliesst — schlaegt das
+	 * Anlegen fehl, bleibt sie mit Name und Symbol stehen.
+	 */
+	async function neueListeAnlegen(title: string, icon: string): Promise<boolean> {
 		const id = await store.createList(title, icon);
-		if (!id) return;
+		if (!id) return false;
 		nav.selectList(id);
+		return true;
 	}
 
 	function handleTaskOpen(task: Task) {
@@ -594,6 +617,7 @@
 			activeListId={nav.activeListId}
 			smartView={nav.smartView}
 			{offeneJeListe}
+			{mitnutzer}
 			pinAnzahl={pinnedTasks.length}
 			dringendAnzahl={dringendTasks.length}
 			benutzer={benutzerName}
@@ -634,6 +658,7 @@
 							<span>{activeList.icon}</span>
 							<span class="name">{activeList.title}</span>
 							<span class="cnt">{offeneJeListe.get(activeList.id) ?? 0}</span>
+							<AvatarStack leute={aktiveFremde} />
 						</h2>
 						<button
 							class="tf-ib gross"
@@ -673,6 +698,7 @@
 						{lists}
 						activeListId={nav.activeListId}
 						{offeneJeListe}
+						{mitnutzer}
 						dringendAnzahl={dringendTasks.length}
 						benutzer={benutzerName}
 						initiale={benutzerInitiale}
@@ -708,6 +734,12 @@
 					<span class="cnt">{offeneJeListe.get(activeList.id) ?? 0} offen</span>
 				</h2>
 				<span class="sp"></span>
+				{#if aktiveBeteiligte.length > 1}
+					<span class="tf-shared">
+						<AvatarStack leute={aktiveBeteiligte} />
+						Geteilt &middot; {aktiveBeteiligte.length}
+					</span>
+				{/if}
 				<button class="tf-sortbtn" onclick={sortMenuUmschalten}>
 					<Icon name="sortierung" size={16} />
 					{sortLabels[sortFilter.sortMode]}

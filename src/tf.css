@@ -91,6 +91,15 @@
 	--avatar-ink: var(--on-accent);
 	--avatar-a: #4f7c9b;
 	--avatar-b: #6f8f5a;
+	/* Die Spezifikation nennt zwei Avatarfarben; c und d ergaenzen dieselbe
+	   gedaempfte Familie, damit eine Liste mit mehr als zwei Mitnutzern nicht
+	   zweimal dieselbe Farbe zeigt. */
+	--avatar-c: #8b6f9b;
+	--avatar-d: #9b7a4f;
+
+	/* Hoehe der mobilen Tab-Leiste: 52 px Inhalt + 1 px Oberlinie.
+	   Der Toast rechnet damit, statt eine Zahl zu raten. */
+	--tf-tabbar: 53px;
 	--on-danger: var(--on-accent);
 	--scrim: rgba(40, 30, 20, 0.35);
 	--scrim-soft: rgba(40, 30, 20, 0.18);
@@ -135,6 +144,25 @@
 	--toast-bg: #f0e9dd;
 	--toast-ink: #2b2521;
 	--toast-undo: #b8480b;
+}
+
+/* ---------------------------------------------------------------------
+   color-scheme folgt dem eigenen Theme, nicht dem Betriebssystem.
+
+   daisyUI liefert ueber src/app.css ein
+   `@media (prefers-color-scheme: dark){:root:not([data-theme]){color-scheme:dark}}`.
+   Auf einem dunkel eingestellten System rendert die App damit zwar helle
+   Token, aber Scrollbalken, Textcursor, Markierung und native Bedienelemente
+   dunkel. Beide Regeln hier haben dieselbe Spezifitaet wie die von daisyUI
+   und stehen spaeter im Bundle (app.css wird vor tf.css importiert), also
+   gewinnen sie. Der Startskript in src/app.html setzt zusaetzlich einen
+   Inline-Wert, damit schon der erste Frame stimmt.
+   --------------------------------------------------------------------- */
+:root:not(.tf-dark) {
+	color-scheme: light;
+}
+:root.tf-dark {
+	color-scheme: dark;
 }
 
 /* ---------------------------------------------------------------------
@@ -823,4 +851,150 @@
 }
 .tf-ni.ziel-unten {
 	box-shadow: inset 0 -2px 0 0 var(--accent);
+}
+
+/* ---------------------------------------------------------------------
+   Avatar-Stack der Mitnutzer
+
+   Spezifikation Abschnitt 3: Navigationszeile, mobile Listenuebersicht und
+   die Geteilt-Pille im Listen-Header zeigen die Beteiligten als ueberlappende
+   20-px-Kreise mit einem 1.5-px-Ring in der Farbe des Untergrunds. Welche
+   Farbe das ist, setzt der jeweilige Behaelter ueber --tf-ring; ohne Angabe
+   gilt die App-Flaeche.
+   --------------------------------------------------------------------- */
+.tf-avatars {
+	display: flex;
+	align-items: center;
+	flex: none;
+	--tf-ring: var(--bg);
+}
+.tf-avatars .tf-avatar {
+	width: 20px;
+	height: 20px;
+	font-size: 11px;
+	box-shadow: 0 0 0 1.5px var(--tf-ring);
+}
+.tf-avatars .tf-avatar + .tf-avatar {
+	margin-left: -5px;
+}
+.tf-ni.on .tf-avatars {
+	--tf-ring: var(--surface);
+}
+.tf-li .tf-avatars,
+.tf-mobile-header .tf-avatars {
+	--tf-ring: var(--surface);
+}
+.tf-li.on .tf-avatars {
+	--tf-ring: var(--sel);
+}
+
+/* Geteilt-Pille im Listen-Header (Hoehe 34, Radius 17) */
+.tf-shared {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	height: 34px;
+	padding: 0 10px 0 6px;
+	border-radius: 17px;
+	background: var(--surface-2);
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--ink-2);
+	flex: none;
+	white-space: nowrap;
+}
+.tf-shared .tf-avatars {
+	--tf-ring: var(--surface-2);
+}
+
+/* ---------------------------------------------------------------------
+   Toast
+
+   Dunkle Flaeche, helle Schrift, „Rueckgaengig" in --toast-undo (im
+   Dunkelmodus invertiert; Spezifikation Abschnitt 1). Desktop mittig ueber
+   dem unteren Rand, mobil ueber der Tab-Leiste: die Leiste sitzt auf dem
+   Safe-Area-Polster des Body, ihre Oberkante liegt also bei
+   --tf-tabbar + env(safe-area-inset-bottom). Vorher stand der Toast fest auf
+   80 px und verschwand auf dem iPhone hinter der Leiste.
+   --------------------------------------------------------------------- */
+.tf-toasts {
+	position: fixed;
+	left: 50%;
+	bottom: 20px;
+	transform: translateX(-50%);
+	z-index: 9999;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	pointer-events: none;
+}
+.tf-toast {
+	pointer-events: auto;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 44px;
+	padding: 0 14px;
+	border-radius: var(--r-row);
+	background: var(--toast-bg);
+	color: var(--toast-ink);
+	box-shadow: var(--sh-toast);
+	font-size: 14px;
+	max-width: min(440px, calc(100vw - 32px));
+}
+.tf-toast .txt {
+	flex: 1;
+	min-width: 0;
+}
+/* Der Toast liegt als Overlay ueber allem und traegt seine Knopf-Grundlage
+   selbst: der Reset in `:where(.tf-root)` hat Spezifitaet 0 und greift nur,
+   solange der Toast wirklich im App-Wurzelelement haengt. */
+.tf-toast .undo,
+.tf-toast .zu {
+	appearance: none;
+	background: none;
+	border: 0;
+	cursor: pointer;
+}
+.tf-toast .undo {
+	flex: none;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--toast-undo);
+	padding: 6px 2px;
+}
+.tf-toast .zu {
+	flex: none;
+	width: 28px;
+	height: 28px;
+	margin-right: -6px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	color: var(--toast-ink);
+	opacity: 0.65;
+}
+.tf-toast .zu:hover {
+	opacity: 1;
+}
+.tf-toast.fehler {
+	box-shadow: var(--sh-toast), inset 3px 0 0 0 var(--high);
+}
+.tf-toast.erfolg {
+	box-shadow: var(--sh-toast), inset 3px 0 0 0 var(--low);
+}
+
+@media (max-width: 899px) {
+	.tf-toasts {
+		left: 16px;
+		right: 16px;
+		bottom: calc(var(--tf-tabbar) + 12px + env(safe-area-inset-bottom));
+		transform: none;
+		align-items: stretch;
+	}
+	.tf-toast {
+		max-width: none;
+	}
 }
