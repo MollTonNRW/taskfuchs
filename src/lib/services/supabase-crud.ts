@@ -9,8 +9,14 @@ type Sb = SupabaseClient<Database>;
 // LIST CRUD
 // ==========================================
 
-export async function createList(sb: Sb, userId: string, position: number) {
-	return sb.from('lists').insert({ user_id: userId, title: 'Neue Liste', position }).select().single();
+export async function createList(
+	sb: Sb,
+	userId: string,
+	position: number,
+	title: string,
+	icon: string
+) {
+	return sb.from('lists').insert({ user_id: userId, title, position, icon }).select().single();
 }
 
 export async function renameList(sb: Sb, id: string, title: string) {

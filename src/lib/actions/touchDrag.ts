@@ -77,7 +77,9 @@ let lastTouchX = 0; // Track touch X for scroll container lookup
 
 function findScrollContainer(_clientY: number): HTMLElement | null {
 	// Finde den sichtbaren Scroll-Container (nicht den versteckten Desktop/Mobile-Container)
-	const candidates = document.querySelectorAll('.task-list-scroll, .v2-content');
+	// `.tf-liste` ist der scrollende Container der neuen Shell (Mitte bzw.
+	// mobiler Schirm). `.v2-content` gab es bis zur Drei-Spalten-Shell.
+	const candidates = document.querySelectorAll('.tf-liste, .task-list-scroll, .v2-content');
 	for (const el of candidates) {
 		const htmlEl = el as HTMLElement;
 		if (htmlEl.offsetParent !== null || htmlEl.getClientRects().length > 0) {

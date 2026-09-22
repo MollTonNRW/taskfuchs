@@ -205,3 +205,622 @@
 	stroke-linecap: round;
 	stroke-linejoin: round;
 }
+
+/* =====================================================================
+   SHELL — drei Spalten (Desktop) und Tab-Leiste (Mobile)
+   Verbindliche Quelle: A-klar-spec.md, Abschnitt 3 und 4.
+
+   Bewusst KEIN `contain` und kein `content-visibility` auf den
+   Spalten-Containern: beides bricht `position: sticky` bei Kindern in
+   echten Browsern, ohne dass headless Playwright es zeigt (der Befund
+   steht als Warnung in src/v2.css).
+   ===================================================================== */
+
+/* Das Wurzelelement der App fuellt den Body (der traegt bereits
+   height:100dvh und die Safe-Area-Raender, siehe src/app.css). */
+.tf-root {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	/* Nur fuer Unterseiten ohne eigene Spalten (z. B. /app/g2-koppeln).
+	   Die Shell selbst waechst nie ueber diese Hoehe hinaus. */
+	overflow-y: auto;
+}
+
+.tf-app {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	overflow: hidden;
+
+	/* Die Safe-Area unten wird bereits vom Body abgezogen (app.css).
+	   env() hier noch einmal zu addieren wuerde den Rand verdoppeln.
+	   Faellt das Body-Padding je weg, steht hier env(safe-area-inset-bottom). */
+	--tf-safe-bottom: 0px;
+}
+.tf-app.mobil {
+	flex-direction: column;
+}
+
+/* ---------------------------------------------------------------------
+   Spalte 1 — Navigation (248 px)
+   --------------------------------------------------------------------- */
+.tf-nav {
+	width: 248px;
+	flex: none;
+	padding: 14px 12px 12px;
+	display: flex;
+	flex-direction: column;
+	border-right: 1px solid var(--line);
+	background: var(--bg);
+	min-height: 0;
+}
+.tf-nav-scroll {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+.tf-brand {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 4px 8px 14px;
+	font-weight: 600;
+	font-size: 16px;
+	letter-spacing: -0.01em;
+	flex: none;
+}
+
+.tf-suchzeile {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 36px;
+	width: 100%;
+	padding: 0 10px;
+	border-radius: var(--r-nav);
+	background: var(--surface-2);
+	color: var(--ink-2);
+	font-size: 14px;
+	margin-bottom: 14px;
+	flex: none;
+	text-align: left;
+}
+.tf-suchzeile .tf-ico {
+	color: var(--ink-3);
+}
+.tf-suchzeile kbd {
+	margin-left: auto;
+	font: inherit;
+	font-size: 12px;
+	color: var(--ink-3);
+	border: 1px solid var(--line);
+	border-radius: 5px;
+	padding: 1px 5px;
+	background: var(--surface);
+}
+
+.tf-navh {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--ink-2);
+	padding: 12px 10px 6px;
+}
+
+.tf-ni {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	height: 38px;
+	padding: 0 10px;
+	border-radius: var(--r-nav);
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--ink);
+	margin-bottom: 1px;
+	text-align: left;
+}
+.tf-ni:hover {
+	background: var(--surface-2);
+}
+.tf-ni.on {
+	background: var(--surface);
+	box-shadow: var(--sh-nav);
+}
+.tf-ni .em {
+	width: 22px;
+	text-align: center;
+	font-size: 16px;
+	flex: none;
+}
+.tf-ni .tf-ico {
+	color: var(--accent);
+}
+.tf-ni .name {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.tf-ni .n {
+	font-size: 13px;
+	color: var(--ink-2);
+	font-weight: 500;
+	flex: none;
+}
+.tf-ni.on .n {
+	color: var(--ink);
+}
+.tf-ni.neu .tf-ico {
+	color: var(--ink-2);
+}
+.tf-ni.neu {
+	color: var(--ink-2);
+}
+
+.tf-navf {
+	margin-top: auto;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 4px 0;
+	border-top: 1px solid var(--line-2);
+	flex: none;
+	position: relative;
+}
+.tf-navf .me {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	font-size: 14px;
+	font-weight: 500;
+	min-width: 0;
+}
+.tf-navf .me span:last-child {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ---------------------------------------------------------------------
+   Spalte 2 — Liste
+   --------------------------------------------------------------------- */
+.tf-main {
+	flex: 1;
+	min-width: 0;
+	min-height: 0;
+	background: var(--surface);
+	display: flex;
+	flex-direction: column;
+	position: relative;
+}
+
+.tf-lh {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 64px;
+	padding: 0 20px 0 28px;
+	flex: none;
+}
+.tf-lh h2 {
+	font-size: 20px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+}
+.tf-lh h2 .name {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.tf-lh .cnt {
+	font-size: 14px;
+	color: var(--ink-2);
+	font-weight: 500;
+	margin-left: 2px;
+	flex: none;
+}
+.tf-lh .sp {
+	flex: 1;
+}
+.tf-sortbtn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 34px;
+	padding: 0 10px;
+	border-radius: 8px;
+	color: var(--ink-2);
+	font-size: 14px;
+	font-weight: 500;
+	flex: none;
+}
+.tf-sortbtn:hover {
+	background: var(--surface-2);
+}
+
+.tf-liste {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: 4px 20px 24px 16px;
+	-webkit-overflow-scrolling: touch;
+	overscroll-behavior-y: contain;
+}
+
+/* ---------------------------------------------------------------------
+   Spalte 3 — Detail (384 px). Kein Overlay: kein Scrim, kein
+   position:fixed, kein Schliessen durch Klick daneben.
+   --------------------------------------------------------------------- */
+.tf-detail {
+	width: 384px;
+	flex: none;
+	min-height: 0;
+	border-left: 1px solid var(--line);
+	background: var(--bg);
+	display: flex;
+	flex-direction: column;
+	padding: 0 20px;
+	overflow: hidden;
+}
+.tf-detail-head {
+	display: flex;
+	align-items: center;
+	height: 64px;
+	gap: 4px;
+	margin: 0 -8px;
+	flex: none;
+}
+.tf-detail-body {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding-bottom: 16px;
+}
+.tf-detail-leer {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	color: var(--ink-3);
+	font-size: 14px;
+	padding-bottom: 64px;
+}
+
+/* ---------------------------------------------------------------------
+   Mobile — Header, Inhalt, Tab-Leiste
+   --------------------------------------------------------------------- */
+.tf-mobile-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	height: 56px;
+	padding: 0 8px 0 20px;
+	flex: none;
+	background: var(--surface);
+}
+.tf-mobile-header.unterschirm {
+	padding-left: 8px;
+}
+.tf-mobile-header h2 {
+	font-size: 22px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	min-width: 0;
+	letter-spacing: -0.01em;
+}
+.tf-mobile-header h2 .name {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.tf-mobile-header h2 .cnt {
+	font-size: 14px;
+	color: var(--ink-2);
+	font-weight: 500;
+	flex: none;
+}
+
+.tf-app.mobil .tf-liste {
+	padding: 0 12px 16px;
+}
+
+.tf-bottombar {
+	flex: none;
+	display: flex;
+	padding: 0 8px var(--tf-safe-bottom);
+	border-top: 1px solid var(--line);
+	background: var(--bg);
+}
+.tf-tab {
+	flex: 1;
+	height: 52px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--ink-2);
+}
+.tf-tab.on {
+	color: var(--accent-ink);
+}
+
+/* Listenuebersicht (mobiler Tab „Listen") */
+.tf-li {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	height: 52px;
+	padding: 0 10px 0 12px;
+	border-radius: 12px;
+	font-size: 16px;
+	font-weight: 500;
+	color: var(--ink);
+	text-align: left;
+}
+.tf-li.on {
+	background: var(--sel);
+}
+.tf-li .em {
+	width: 28px;
+	text-align: center;
+	font-size: 20px;
+	flex: none;
+}
+.tf-li .em .tf-ico {
+	color: var(--accent);
+	margin: 0 auto;
+}
+.tf-li .name {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.tf-li .n {
+	font-size: 14px;
+	color: var(--ink-2);
+	font-weight: 500;
+	flex: none;
+}
+.tf-li .chev {
+	color: var(--ink-3);
+}
+.tf-lsec {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--ink-2);
+	padding: 12px 12px 4px;
+}
+
+/* ---------------------------------------------------------------------
+   Gemeinsame Bausteine der Shell
+   --------------------------------------------------------------------- */
+.tf-ib {
+	width: 36px;
+	height: 36px;
+	border-radius: var(--r-nav);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--ink-2);
+	flex: none;
+}
+.tf-ib:hover {
+	background: var(--surface-2);
+}
+.tf-ib.gross {
+	width: 44px;
+	height: 44px;
+	border-radius: var(--r-icon);
+}
+.tf-ib.on {
+	background: var(--surface-2);
+	color: var(--ink);
+}
+
+.tf-btn {
+	height: 36px;
+	padding: 0 12px;
+	border-radius: var(--r-btn);
+	font-size: 14px;
+	font-weight: 500;
+	background: var(--surface-2);
+	color: var(--ink);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	flex: none;
+}
+.tf-btn.primary {
+	background: var(--accent);
+	color: var(--on-accent);
+}
+.tf-btn.ghost {
+	background: none;
+	color: var(--ink-2);
+}
+
+.tf-avatar {
+	width: 26px;
+	height: 26px;
+	border-radius: 50%;
+	background: var(--accent);
+	color: var(--avatar-ink);
+	font-size: 12px;
+	font-weight: 600;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: none;
+}
+
+/* Karte „Neue Liste" — der einzige Einstieg, schreibt erst bei „Anlegen" */
+.tf-newlist {
+	margin: 8px 4px 0;
+	padding: 10px;
+	border-radius: var(--r-row);
+	background: var(--surface);
+	border: 1px solid var(--line);
+}
+.tf-newlist.mobil {
+	margin: 8px 0 0;
+	padding: 12px;
+}
+.tf-newlist .lbl {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--ink-2);
+	margin-bottom: 8px;
+}
+.tf-newlist .in {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+.tf-newlist .em {
+	width: 38px;
+	height: 38px;
+	border-radius: 8px;
+	background: var(--surface-2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 18px;
+	flex: none;
+}
+.tf-newlist .txt {
+	flex: 1;
+	min-width: 0;
+	height: 38px;
+	border-radius: 8px;
+	background: var(--surface-2);
+	box-shadow: inset 0 0 0 1.5px var(--accent);
+	padding: 0 10px;
+	font-size: 14px;
+	border: 0;
+	outline: none;
+	color: var(--ink);
+}
+.tf-newlist .acts {
+	display: flex;
+	gap: 6px;
+	margin-top: 8px;
+	justify-content: flex-end;
+}
+.tf-newlist .acts .tf-btn {
+	height: 32px;
+}
+.tf-newlist.mobil .em,
+.tf-newlist.mobil .txt {
+	height: 44px;
+}
+.tf-newlist.mobil .acts .tf-btn {
+	height: 44px;
+	padding: 0 16px;
+}
+
+/* Kleines Menue in der Navigations-Fusszeile (Einstellungen) */
+.tf-popmenu {
+	position: absolute;
+	right: 4px;
+	bottom: 48px;
+	min-width: 200px;
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--r-pop);
+	box-shadow: var(--sh-pop);
+	padding: 6px;
+	z-index: 30;
+	display: flex;
+	flex-direction: column;
+}
+.tf-mi {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 38px;
+	padding: 0 10px;
+	border-radius: 8px;
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--ink);
+	text-align: left;
+	width: 100%;
+	text-decoration: none;
+}
+.tf-mi:hover {
+	background: var(--surface-2);
+}
+.tf-mi .tf-ico {
+	color: var(--ink-2);
+}
+.tf-mi.danger,
+.tf-mi.danger .tf-ico {
+	color: var(--high);
+}
+
+/* Leerzustand der Mitte */
+.tf-leer {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	padding: 40px 20px;
+	text-align: center;
+	color: var(--ink-2);
+}
+.tf-leer h2 {
+	font-size: 18px;
+}
+.tf-leer p {
+	margin: 0;
+	font-size: 14px;
+	color: var(--ink-3);
+	max-width: 320px;
+}
+
+/* Gruppenkopf der Smart-Ansichten (Uebergang bis T10) */
+.tf-gruppe {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 14px 4px 6px;
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--ink-2);
+}
+.tf-gruppe .em {
+	font-size: 15px;
+}
+
+/* Einfuegestelle beim Umsortieren der Listen in der Navigationsspalte */
+.tf-ni.ziel-oben {
+	box-shadow: inset 0 2px 0 0 var(--accent);
+}
+.tf-ni.ziel-unten {
+	box-shadow: inset 0 -2px 0 0 var(--accent);
+}

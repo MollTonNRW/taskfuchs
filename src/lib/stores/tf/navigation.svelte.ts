@@ -19,6 +19,13 @@ import { browser } from '$app/environment';
 
 export type MobileTab = 'listen' | 'pins' | 'suche';
 
+/**
+ * Smart-Ansicht statt einer Liste in der Mitte (Navigationsspalte oben).
+ * `null` = die gewaehlte Liste. Bewusst NICHT persistiert: nach einem
+ * Neuladen steht wieder die zuletzt gewaehlte Liste vorn.
+ */
+export type SmartView = 'pins' | 'dringend' | null;
+
 const KEY = 'tf-active-list';
 
 function createNav() {
@@ -26,6 +33,7 @@ function createNav() {
 	let selectedTaskId = $state<string | null>(null);
 	let mobileTab = $state<MobileTab>('listen');
 	let listOpenMobile = $state(false);
+	let smartView = $state<SmartView>(null);
 
 	/** Zuletzt gesehene Reihenfolge der Listen — Grundlage fuer die Nachfolgersuche. */
 	let bekannteListen: string[] = [];
@@ -80,6 +88,9 @@ function createNav() {
 		get listOpenMobile() {
 			return listOpenMobile;
 		},
+		get smartView() {
+			return smartView;
+		},
 
 		/**
 		 * Einmalig nach dem Laden der Listen aufrufen: gespeicherte Auswahl
@@ -117,10 +128,21 @@ function createNav() {
 			const ziel = nachfolger(activeListId, listIds);
 			bekannteListen = [...listIds];
 			setActive(ziel);
+			// Ohne Liste gibt es mobil nichts zu zeigen: zurueck zur Uebersicht,
+			// sonst stuende dort ein leerer Unterschirm mit blossem Zurueck-Pfeil.
+			if (!ziel) listOpenMobile = false;
 		},
 
 		selectList(id: string) {
 			setActive(id);
+			smartView = null;
+			listOpenMobile = true;
+		},
+
+		/** Smart-Ansicht (Angepinnt/Dringend) statt einer Liste zeigen. */
+		selectSmart(view: Exclude<SmartView, null>) {
+			smartView = view;
+			selectedTaskId = null;
 			listOpenMobile = true;
 		},
 
@@ -130,10 +152,13 @@ function createNav() {
 
 		setTab(tab: MobileTab) {
 			mobileTab = tab;
-			if (tab !== 'listen') listOpenMobile = false;
+			if (tab !== 'listen') {
+				listOpenMobile = false;
+				smartView = null;
+			}
 		},
 
-		/** Mobile-Zurueck: Sheet → Liste → Uebersicht. */
+		/** Mobile-Zurueck: Sheet → Liste/Smart-Ansicht → Uebersicht. */
 		back() {
 			if (selectedTaskId) {
 				selectedTaskId = null;
@@ -141,6 +166,7 @@ function createNav() {
 			}
 			if (listOpenMobile) {
 				listOpenMobile = false;
+				smartView = null;
 			}
 		}
 	};

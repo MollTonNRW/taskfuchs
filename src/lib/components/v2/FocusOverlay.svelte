@@ -8,6 +8,7 @@
 	let {
 		task,
 		subtasks = [],
+		eingebettet = false,
 		onClose,
 		onToggle,
 		onUpdate,
@@ -21,6 +22,14 @@
 	}: {
 		task: Task;
 		subtasks: Task[];
+		/**
+		 * `true` = Inhalt fuer die Detail-SPALTE (Desktop): ohne Scrim, ohne
+		 * position:fixed, ohne Klick-daneben und ohne eigenes Escape. Sonst
+		 * wuerde auf dem Desktop jeder Klick neben der Spalte das Detail
+		 * schliessen. `false` = die bisherige Huelle (mobiles Overlay).
+		 * Die endgueltige Trennung in TaskDetail/DetailSheet macht Task 7.
+		 */
+		eingebettet?: boolean;
 		onClose: () => void;
 		onToggle: (id: string) => void;
 		onUpdate: (id: string, text: string) => void;
@@ -70,6 +79,8 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
+		// In der Spalte gehoert Escape der Seite (sie hebt die Auswahl auf).
+		if (eingebettet) return;
 		if (e.key === 'Escape') {
 			e.stopPropagation();
 			onClose();
@@ -80,30 +91,24 @@
 		saveNote();
 		onClose();
 	}
+
+	// Beim Wechsel der Auswahl wird diese Instanz zerstoert (die Spalte steht
+	// unter {#key}). Eine noch nicht gespeicherte Notiz darf dabei nicht
+	// verloren gehen — blur allein greift nicht, wenn der Fokus woanders liegt.
+	$effect(() => {
+		return () => {
+			if (noteText !== (task.note ?? '')) onUpdateNote(task.id, noteText);
+		};
+	});
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
 
-<!-- Overlay -->
-<div class="v2-focus-overlay" role="dialog" aria-label="Aufgabe bearbeiten">
-	<!-- Backdrop -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div
-		style="position: absolute; inset: 0; z-index: -1;"
-		onclick={handleBackdropClick}
-	></div>
-
-	<!-- Card -->
-	<div class="v2-glass-card v2-focus-card">
-		<!-- Close -->
-		<button
-			onclick={() => { saveNote(); onClose(); }}
-			style="position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--ink-3); font-size: .8rem; cursor: pointer;"
-			aria-label="Schließen"
-		>
-			&#x2715;
-		</button>
-
+<!--
+	Inhalt des Details. Er wird zweimal gerendert: eingebettet in die
+	Detail-Spalte (Desktop) und in der bisherigen Overlay-Huelle (Mobile).
+-->
+{#snippet inhalt()}
 		<!-- Emoji + Title -->
 		<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
 			<button
@@ -234,5 +239,27 @@
 				</button>
 			{/if}
 		</div>
+{/snippet}
+
+{#if eingebettet}
+	<!-- Detail-SPALTE: kein Scrim, kein position:fixed, kein Klick daneben. -->
+	<div class="tf-detail-body">
+		{@render inhalt()}
 	</div>
-</div>
+{:else}
+	<div class="v2-focus-overlay" role="dialog" aria-label="Aufgabe bearbeiten">
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div style="position: absolute; inset: 0; z-index: -1;" onclick={handleBackdropClick}></div>
+
+		<div class="v2-glass-card v2-focus-card">
+			<button
+				onclick={() => { saveNote(); onClose(); }}
+				style="position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--ink-3); font-size: .8rem; cursor: pointer;"
+				aria-label="Schließen"
+			>
+				&#x2715;
+			</button>
+			{@render inhalt()}
+		</div>
+	</div>
+{/if}

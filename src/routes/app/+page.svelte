@@ -1,16 +1,21 @@
 <script lang="ts">
 	import { createTaskStore } from '$lib/stores/tasks.svelte';
-	import { toasts, showInputDialog } from '$lib/stores/toast';
-	import { browser } from '$app/environment';
+	import { toasts } from '$lib/stores/toast';
+	import { goto } from '$app/navigation';
 	import { onMount, untrack } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import type { Priority } from '$lib/constants';
-	import { v2Events } from '$lib/stores/v2/events.svelte';
-	import { nav } from '$lib/stores/tf/navigation.svelte';
+	import { nav, type MobileTab } from '$lib/stores/tf/navigation.svelte';
+	import { theme } from '$lib/stores/v2/theme.svelte';
 	import { profilesStore } from '$lib/stores/profiles';
 	import { getProfilesByIds } from '$lib/services/supabase-crud';
 
-	import Pinboard from '$lib/components/v2/Pinboard.svelte';
+	import Icon from '$lib/components/tf/Icon.svelte';
+	import NavColumn from '$lib/components/tf/NavColumn.svelte';
+	import ListsOverview from '$lib/components/tf/ListsOverview.svelte';
+	import MobileTabBar from '$lib/components/tf/MobileTabBar.svelte';
+	import SmartList from '$lib/components/tf/SmartList.svelte';
+
 	import ListPanel from '$lib/components/v2/ListPanel.svelte';
 	import ToastContainer from '$lib/components/v2/ToastContainer.svelte';
 	import ConfirmDialog from '$lib/components/v2/ConfirmDialog.svelte';
@@ -74,7 +79,19 @@
 		});
 	});
 
-	let isMobile = $state(false);
+	// ==========================================
+	// BREAKPOINT — genau ein Ort fuer „mobil"
+	// ==========================================
+	// 900 px: darunter blieben von 248 + 384 px Fixbreite weniger als 270 px
+	// fuer die Liste. Die drei frueheren Mechanismen (window.innerWidth >= 769
+	// ohne Resize-Listener, harte 768-px-Abfragen, eigenes matchMedia) sind
+	// ersatzlos entfallen.
+	// Startwert bewusst wie auf dem Server: `bind:innerWidth` setzt die echte
+	// Breite noch vor dem ersten Bild. Wuerde hier schon window.innerWidth
+	// stehen, unterschiede sich der erste Client-Baum vom SSR-Baum und die
+	// Hydration liefe auf die falschen Knoten.
+	let fensterBreite = $state(1200);
+	let isMobile = $derived(fensterBreite < 900);
 
 	// Force subtasks open/closed per list (null = TaskCard controls itself)
 	let subtasksForceState = $state<Map<string, boolean>>(new Map());
@@ -110,11 +127,6 @@
 	let explicitBulkMode = $state(false);
 	let bulkMode = $derived(explicitBulkMode || bulkSelectedIds.size > 0);
 
-	// Sync bulkMode to shared event bus for header display
-	$effect(() => {
-		v2Events.bulkModeActive = bulkMode;
-	});
-
 	function toggleBulkSelect(taskId: string) {
 		const next = new Set(bulkSelectedIds);
 		if (next.has(taskId)) next.delete(taskId); else next.add(taskId);
@@ -129,14 +141,44 @@
 	// Sort menu position (computed from sort button)
 	let sortMenuPos = $state<{ left: number; top: number }>({ left: 0, top: 0 });
 
-	// Pinned tasks
-	let pinnedTasks = $derived(
-		tasks.filter((t: Task) => t.pinned && !t.done)
-	);
+	// ==========================================
+	// ZAEHLER DER NAVIGATION
+	// ==========================================
+	// Offene Aufgaben der obersten Ebene je Liste. Kommt aus `store.tasks`,
+	// nicht mehr aus dem alten Ereignisbus (`v2Events.navCounts`).
+	let offeneJeListe = $derived.by(() => {
+		const m = new Map<string, number>();
+		for (const t of tasks) {
+			if (t.done || t.parent_id || t.type === 'divider') continue;
+			m.set(t.list_id, (m.get(t.list_id) ?? 0) + 1);
+		}
+		return m;
+	});
+
+	let pinnedTasks = $derived(tasks.filter((t: Task) => t.pinned && !t.done && !t.parent_id));
+
+	/** Dringend: ASAP/High oder heute faellig bzw. ueberfaellig, jeweils offen. */
+	let dringendTasks = $derived.by(() => {
+		// Ende des heutigen Tages als Zeitstempel — ohne ein Date-Objekt zu halten.
+		const heuteEndeMs = new Date().setHours(23, 59, 59, 999);
+		return tasks.filter((t: Task) => {
+			if (t.done || t.parent_id || t.type === 'divider') return false;
+			if (t.priority === 'asap' || t.priority === 'high') return true;
+			if (!t.due_date) return false;
+			const faellig = Date.parse(t.due_date);
+			return !Number.isNaN(faellig) && faellig <= heuteEndeMs;
+		});
+	});
+
+	function subtasksFor(taskId: string): Task[] {
+		return tasks
+			.filter((t: Task) => t.parent_id === taskId)
+			.sort((a: Task, b: Task) => a.position - b.position);
+	}
 
 	// Profile der Pinner (pinned_by) fuer das "gepinnt von"-Badge vorladen --
 	// nur fremde IDs, die noch nicht geladen wurden. Befuellt den globalen
-	// profilesStore, aus dem das Pinboard-Badge liest.
+	// profilesStore, aus dem das Badge liest.
 	let loadedPinnerIds = new Set<string>();
 	$effect(() => {
 		const sb = data.supabase;
@@ -173,7 +215,7 @@
 
 	function handleListIconSelect(emoji: string) {
 		if (listIconPicker.listId) {
-			store.changeListIcon(listIconPicker.listId, emoji || '\uD83D\uDCCB');
+			store.changeListIcon(listIconPicker.listId, emoji || '📋');
 		}
 	}
 
@@ -197,11 +239,6 @@
 		},
 		{ show: (msg: string, type: 'info' | 'error' | 'success', duration?: number) => toasts.show(msg, type, duration) }
 	);
-
-	// Sync sort label to shared event bus for header display
-	$effect(() => {
-		v2Events.sortLabel = sortLabels[sortFilter.sortMode];
-	});
 
 	// Share Dialog
 	const share = createShareDialog(
@@ -261,11 +298,23 @@
 	});
 
 	// Unteraufgaben der ausgewaehlten Aufgabe
-	let focusSubtasks = $derived(
-		selectedTask
-			? tasks.filter((t: Task) => t.parent_id === selectedTask!.id).sort((a: Task, b: Task) => a.position - b.position)
-			: []
-	);
+	let focusSubtasks = $derived(selectedTask ? subtasksFor(selectedTask.id) : []);
+
+	// ==========================================
+	// SCHIRM-ZUSTAND
+	// ==========================================
+	/** Mobil: Unterschirm „Liste geoeffnet" bzw. Smart-Ansicht. */
+	let unterschirm = $derived(nav.listOpenMobile);
+	/** Kopfzeile und Inhalt der Mitte: Smart-Ansicht schlaegt die Liste. */
+	let smartTitel = $derived(nav.smartView === 'pins' ? 'Angepinnt' : 'Dringend');
+	let smartAufgaben = $derived(nav.smartView === 'pins' ? pinnedTasks : dringendTasks);
+
+	let benutzerName = $derived.by(() => {
+		const mail = data.user?.email ?? '';
+		const lokal = mail.split('@')[0] ?? '';
+		return lokal ? lokal.charAt(0).toUpperCase() + lokal.slice(1) : 'Ich';
+	});
+	let benutzerInitiale = $derived(benutzerName.charAt(0).toUpperCase());
 
 	/** Liegt der Fokus in einem Textfeld? Dann gehoeren Pfeiltasten dem Cursor. */
 	function inEingabefeld(target: EventTarget | null): boolean {
@@ -274,13 +323,8 @@
 		return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 	}
 
-	// Track mobile/desktop + Realtime + Keyboard shortcuts
+	// Realtime + Keyboard shortcuts
 	onMount(() => {
-		const mq = window.matchMedia('(max-width: 768px)');
-		isMobile = mq.matches;
-		const handler = (e: MediaQueryListEvent) => { isMobile = e.matches; };
-		mq.addEventListener('change', handler);
-
 		// Realtime subscriptions (guard against missing supabase)
 		const sb = data.supabase;
 		let listsChannel: any = null;
@@ -300,9 +344,9 @@
 				.subscribe();
 		}
 
-		// Keyboard shortcuts
+		// Keyboard shortcuts — genau eine Ctrl+K-Registrierung (die zweite im
+		// Layout ist mit der alten Kopfzeile entfallen).
 		function handleGlobalKeydown(e: KeyboardEvent) {
-			// Ctrl+K / Cmd+K: search
 			if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
 				e.preventDefault();
 				searchOpen = !searchOpen;
@@ -310,13 +354,13 @@
 			// Escape: close all overlays
 			if (e.key === 'Escape') {
 				if (ctx.contextMenu.show) { ctx.close(); return; }
-				if (nav.selectedTaskId) { nav.selectTask(null); return; }
 				if (popovers.emojiPicker.show) { popovers.emojiPicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
 				if (listIconPicker.show) { listIconPicker = { show: false, listId: '', x: 0, y: 0 }; return; }
 				if (popovers.datePicker.show) { popovers.datePicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
 				if (popovers.priorityPicker.show) { popovers.priorityPicker = { show: false, taskId: '', x: 0, y: 0, current: 'normal' }; return; }
 				if (share.shareDialog.show) { share.close(); return; }
 				if (searchOpen) { searchOpen = false; return; }
+				if (nav.selectedTaskId) { nav.selectTask(null); return; }
 				if (bulkMode) { clearBulkSelection(); return; }
 			}
 			// Pfeiltasten: Nachbarliste waehlen — aber nie in einem Eingabefeld,
@@ -338,51 +382,10 @@
 		window.addEventListener('keydown', handleGlobalKeydown);
 
 		return () => {
-			mq.removeEventListener('change', handler);
 			window.removeEventListener('keydown', handleGlobalKeydown);
 			if (sb && listsChannel) sb.removeChannel(listsChannel);
 			if (sb && tasksChannel) sb.removeChannel(tasksChannel);
 		};
-	});
-
-	// Layout -> Page communication via store signals (replaces window custom events)
-	let lastSearchToggle = 0;
-	$effect(() => {
-		const val = v2Events.searchToggle;
-		if (val > lastSearchToggle) { searchOpen = !searchOpen; }
-		lastSearchToggle = val;
-	});
-
-	let lastSortToggle = 0;
-	$effect(() => {
-		const val = v2Events.sortToggle;
-		if (val > lastSortToggle) {
-			if (!sortFilter.sortMenuOpen) {
-				const btn = document.querySelector('.v2-sort-btn') as HTMLElement;
-				if (btn) {
-					const rect = btn.getBoundingClientRect();
-					sortMenuPos = { left: rect.left, top: rect.bottom + 4 };
-				}
-			}
-			sortFilter.sortMenuOpen = !sortFilter.sortMenuOpen;
-		}
-		lastSortToggle = val;
-	});
-
-	let lastBulkToggle = 0;
-	$effect(() => {
-		const val = v2Events.bulkToggle;
-		if (val > lastBulkToggle) {
-			if (bulkMode) { clearBulkSelection(); } else { explicitBulkMode = true; }
-		}
-		lastBulkToggle = val;
-	});
-
-	let lastAddListSignal = v2Events.addListSignal;
-	$effect(() => {
-		const val = v2Events.addListSignal;
-		if (val > lastAddListSignal) { handleAddList(); }
-		lastAddListSignal = val;
 	});
 
 	// ==========================================
@@ -408,17 +411,11 @@
 		ctx.handleTaskContext(e, task);
 	}
 
-	async function handleAddList() {
-		const idx = await store.createList();
-		if (idx < 0) return;
-		const newList = store.lists[idx];
-		if (!newList) return;
-		nav.selectList(newList.id);
-		requestAnimationFrame(() => {
-			document.querySelector(`[data-tab-list-id="${newList.id}"]`)?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
-		});
-		const name = await showInputDialog('Liste benennen', '', newList.title, 'Listenname');
-		if (name?.trim() && name.trim() !== newList.title) store.renameList(newList.id, name.trim());
+	/** Karte „Neue Liste": erst hier wird geschrieben, dann gleich hinspringen. */
+	async function neueListeAnlegen(title: string, icon: string) {
+		const id = await store.createList(title, icon);
+		if (!id) return;
+		nav.selectList(id);
 	}
 
 	function handleTaskOpen(task: Task) {
@@ -427,7 +424,41 @@
 
 	function handleSearchSelect(taskId: string) {
 		const task = tasks.find((t: Task) => t.id === taskId);
-		if (task) nav.selectTask(task.id);
+		if (!task) return;
+		// Erst die Liste — sie raeumt die alte Auswahl ab —, dann die Aufgabe.
+		nav.selectList(task.list_id);
+		nav.selectTask(task.id);
+	}
+
+	function sucheSchliessen() {
+		searchOpen = false;
+	}
+
+	function waehleTab(t: MobileTab) {
+		// Die Suche ist bis T9 das bestehende Overlay: der Tab oeffnet es,
+		// der bisherige Schirm bleibt darunter stehen.
+		if (t === 'suche') {
+			searchOpen = true;
+			return;
+		}
+		nav.setTab(t);
+	}
+
+	function zurueck() {
+		nav.back();
+	}
+
+	async function logout() {
+		await data.supabase.auth.signOut();
+		goto('/auth/login');
+	}
+
+	function sortMenuUmschalten(e: MouseEvent) {
+		if (!sortFilter.sortMenuOpen) {
+			const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+			sortMenuPos = { left: rect.left, top: rect.bottom + 4 };
+		}
+		sortFilter.sortMenuOpen = !sortFilter.sortMenuOpen;
 	}
 
 	// ---- Swipe between lists (mobile) ----
@@ -436,16 +467,14 @@
 	let swipeActive = false;
 
 	function handleSwipeTouchStart(e: TouchEvent) {
+		// Nur auf dem Unterschirm einer Liste — nicht in der Uebersicht und
+		// nicht in den Smart-Ansichten.
+		if (!nav.listOpenMobile || nav.smartView) return;
 		if (e.touches.length !== 1) return;
 		const touch = e.touches[0];
 		swipeStartX = touch.clientX;
 		swipeStartY = touch.clientY;
 		swipeActive = true;
-	}
-
-	function handleSwipeTouchMove(e: TouchEvent) {
-		if (!swipeActive || e.touches.length !== 1) return;
-		// We only detect — no preventDefault here (passive listener, keeps scrolling intact)
 	}
 
 	function handleSwipeTouchEnd(e: TouchEvent) {
@@ -466,91 +495,37 @@
 		if (ziel) nav.selectList(ziel.id);
 	}
 
-	// ---- List Tab Drag & Drop ----
-	let tabDragOverIdx: number | null = $state(null);
-	let draggingTabId: string | null = $state(null);
+	// ---- Listen in der Navigationsspalte umsortieren ----
+	let ziehIndex: number | null = $state(null);
+	let ziehListId: string | null = $state(null);
 
-	function handleTabDragStart(e: DragEvent, list: List, idx: number) {
+	function listDragStart(e: DragEvent, list: List) {
 		if (!e.dataTransfer) return;
-		draggingTabId = list.id;
+		ziehListId = list.id;
 		e.dataTransfer.effectAllowed = 'move';
-		e.dataTransfer.setData('application/x-list-tab', JSON.stringify({ listId: list.id }));
-		const el = e.currentTarget as HTMLElement;
-		requestAnimationFrame(() => { el.style.opacity = '0.4'; });
+		e.dataTransfer.setData('application/x-list', JSON.stringify({ listId: list.id }));
 	}
 
-	function handleTabDragEnd(e: DragEvent) {
-		draggingTabId = null;
-		tabDragOverIdx = null;
-		const el = e.currentTarget as HTMLElement;
-		el.style.opacity = '';
-	}
-
-	function handleTabDragOver(e: DragEvent, idx: number) {
+	function listDragOver(e: DragEvent, idx: number) {
+		if (!ziehListId) return;
 		e.preventDefault();
 		if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-		const isAfter = e.clientX > rect.left + rect.width / 2;
-		tabDragOverIdx = isAfter ? idx + 1 : idx;
+		ziehIndex = e.clientY > rect.top + rect.height / 2 ? idx + 1 : idx;
 	}
 
-	function handleTabDrop(e: DragEvent) {
+	function listDrop(e: DragEvent) {
 		e.preventDefault();
-		if (!e.dataTransfer) return;
-		const dropIdx = tabDragOverIdx ?? 0;
-		tabDragOverIdx = null;
-		draggingTabId = null;
-		try {
-			const raw = e.dataTransfer.getData('application/x-list-tab');
-			if (raw) {
-				const data = JSON.parse(raw);
-				if (data.listId) {
-					// Die Auswahl haengt an der ID — Umsortieren laesst sie unberuehrt
-					store.reorderList(data.listId, dropIdx);
-				}
-			}
-		} catch { /* ignore */ }
+		const ziel = ziehIndex;
+		const id = ziehListId;
+		ziehIndex = null;
+		ziehListId = null;
+		if (id !== null && ziel !== null) store.reorderList(id, ziel);
 	}
 
-	// Long-press on list tabs (mobile touch-and-hold, 300ms)
-	let tabLongPressTimer: ReturnType<typeof setTimeout> | null = null;
-	let tabLongPressFiredAt = 0;
-	let tabTouchStartX = 0;
-	let tabTouchStartY = 0;
-
-	function handleTabTouchStart(e: TouchEvent, list: List) {
-		const touch = e.touches[0];
-		tabTouchStartX = touch.clientX;
-		tabTouchStartY = touch.clientY;
-		tabLongPressTimer = setTimeout(() => {
-			tabLongPressTimer = null;
-			tabLongPressFiredAt = Date.now();
-			const syntheticEvent = new MouseEvent('contextmenu', {
-				clientX: tabTouchStartX,
-				clientY: tabTouchStartY,
-				bubbles: true
-			});
-			ctx.handleListContext(syntheticEvent, list);
-		}, 300);
-	}
-	function handleTabTouchMove(e: TouchEvent) {
-		if (!tabLongPressTimer) return;
-		const touch = e.touches[0];
-		// 10px-Toleranz statt Sofort-Abbruch — minimale Fingerbewegung killt den
-		// Long-Press nicht mehr
-		if (Math.abs(touch.clientX - tabTouchStartX) > 10 || Math.abs(touch.clientY - tabTouchStartY) > 10) {
-			clearTimeout(tabLongPressTimer);
-			tabLongPressTimer = null;
-		}
-	}
-	function handleTabTouchEnd(e: TouchEvent) {
-		if (tabLongPressTimer) { clearTimeout(tabLongPressTimer); tabLongPressTimer = null; }
-		// Nach gefeuertem Long-Press: emulierten Ghost-Click unterdrücken, der
-		// sonst das frisch geöffnete Menü über dessen Backdrop sofort schließt
-		if (Date.now() - tabLongPressFiredAt < 700) e.preventDefault();
-	}
-	function handleTabTouchCancel() {
-		if (tabLongPressTimer) { clearTimeout(tabLongPressTimer); tabLongPressTimer = null; }
+	function listDragEnd() {
+		ziehIndex = null;
+		ziehListId = null;
 	}
 
 	// Bulk handlers
@@ -575,56 +550,9 @@
 	}
 </script>
 
-<!-- Pinboard -->
-<Pinboard
-	{tasks}
-	{lists}
-	currentUserId={data.user?.id ?? ''}
-	onUnpin={(id) => { store.togglePin(id); }}
-	onUnpinAll={() => { for (const t of pinnedTasks) store.togglePin(t.id); }}
-	onTaskClick={(task) => { nav.selectTask(task.id); }}
-	onPin={(taskId) => { const t = tasks.find((x: Task) => x.id === taskId); if (t && !t.pinned) store.togglePin(taskId); }}
-/>
+<svelte:window bind:innerWidth={fensterBreite} />
 
-<!-- List Tabs -->
-{#if lists.length > 0}
-	<div class="v2-list-tabs">
-		{#each lists as list, i (list.id)}
-			<!-- svelte-ignore a11y_no_static_element_interactions -->
-			<button
-				class="v2-list-tab"
-				class:active={list.id === nav.activeListId}
-				class:tab-drag-over-left={tabDragOverIdx === i && draggingTabId && draggingTabId !== list.id}
-				class:tab-drag-over-right={tabDragOverIdx === i + 1 && draggingTabId && draggingTabId !== list.id}
-				onclick={() => nav.selectList(list.id)}
-				oncontextmenu={(e) => { e.preventDefault(); if (Date.now() - tabLongPressFiredAt > 700) ctx.handleListContext(e, list); }}
-				ontouchstart={(e) => handleTabTouchStart(e, list)}
-				ontouchend={handleTabTouchEnd}
-				ontouchmove={handleTabTouchMove}
-				ontouchcancel={handleTabTouchCancel}
-				draggable="true"
-				ondragstart={(e) => handleTabDragStart(e, list, i)}
-				ondragend={handleTabDragEnd}
-				ondragover={(e) => handleTabDragOver(e, i)}
-				ondrop={handleTabDrop}
-				data-tab-list-id={list.id}
-			>
-				<span class="v2-tab-icon">{list.icon}</span>
-				{list.title}
-			</button>
-		{/each}
-		<button class="v2-list-tab v2-add-list-tab" onclick={handleAddList} aria-label="Neue Liste erstellen">+</button>
-	</div>
-{/if}
-
-<!-- Single List View (one list at a time) -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-	class="v2-single-list-container"
-	ontouchstart={handleSwipeTouchStart}
-	ontouchmove={handleSwipeTouchMove}
-	ontouchend={handleSwipeTouchEnd}
->
+{#snippet listenInhalt()}
 	{#if activeList}
 		<ListPanel
 			list={activeList}
@@ -644,63 +572,243 @@
 			onBulkToggle={toggleBulkSelect}
 		/>
 	{/if}
+{/snippet}
+
+{#snippet smartInhalt(aufgaben: Task[], leerText: string)}
+	<SmartList
+		{aufgaben}
+		{lists}
+		{subtasksFor}
+		onToggle={handleToggleTask}
+		onOpen={handleTaskOpen}
+		onContextMenu={handleContextMenu}
+		{leerText}
+	/>
+{/snippet}
+
+<div class="tf-app" class:mobil={isMobile}>
+	{#if !isMobile}
+		<!-- Spalte 1 — Navigation -->
+		<NavColumn
+			{lists}
+			activeListId={nav.activeListId}
+			smartView={nav.smartView}
+			{offeneJeListe}
+			pinAnzahl={pinnedTasks.length}
+			dringendAnzahl={dringendTasks.length}
+			benutzer={benutzerName}
+			initiale={benutzerInitiale}
+			isDark={theme.isDark}
+			onSelectList={(id) => nav.selectList(id)}
+			onSelectSmart={(v) => nav.selectSmart(v)}
+			onSuche={() => (searchOpen = true)}
+			onNeueListe={neueListeAnlegen}
+			onListContext={(e, list) => ctx.handleListContext(e, list)}
+			onToggleTheme={() => theme.toggle()}
+			onLogout={logout}
+			onListDragStart={listDragStart}
+			onListDragOver={listDragOver}
+			onListDrop={listDrop}
+			onListDragEnd={listDragEnd}
+			{ziehIndex}
+			{ziehListId}
+		/>
+	{/if}
+
+	<!-- Spalte 2 — Liste (Desktop) bzw. der gesamte Schirm (Mobile) -->
+	<main class="tf-main">
+		{#if isMobile}
+			<header class="tf-mobile-header" class:unterschirm={nav.mobileTab === 'listen' && unterschirm}>
+				{#if nav.mobileTab === 'listen' && unterschirm}
+					<button class="tf-ib gross" onclick={zurueck} aria-label="Zur&uuml;ck zur &Uuml;bersicht">
+						<Icon name="chevron-links" />
+					</button>
+					{#if nav.smartView}
+						<h2>
+							<Icon name={nav.smartView === 'pins' ? 'pin' : 'blitz'} />
+							<span class="name">{smartTitel}</span>
+							<span class="cnt">{smartAufgaben.length}</span>
+						</h2>
+					{:else if activeList}
+						<h2>
+							<span>{activeList.icon}</span>
+							<span class="name">{activeList.title}</span>
+							<span class="cnt">{offeneJeListe.get(activeList.id) ?? 0}</span>
+						</h2>
+						<button
+							class="tf-ib gross"
+							aria-label="Listenmen&uuml; &ouml;ffnen"
+							onclick={(e) => ctx.handleListContext(e, activeList!)}
+						>
+							<Icon name="mehr" />
+						</button>
+					{/if}
+				{:else if nav.mobileTab === 'pins'}
+					<h2>
+						<Icon name="pin" />
+						<span class="name">Angepinnt</span>
+						<span class="cnt">{pinnedTasks.length}</span>
+					</h2>
+				{:else}
+					<h2><span class="name">Listen</span></h2>
+				{/if}
+			</header>
+
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="tf-liste"
+				ontouchstart={handleSwipeTouchStart}
+				ontouchend={handleSwipeTouchEnd}
+			>
+				{#if nav.mobileTab === 'pins'}
+					{@render smartInhalt(pinnedTasks, 'Nichts angepinnt.')}
+				{:else if unterschirm}
+					{#if nav.smartView}
+						{@render smartInhalt(smartAufgaben, 'Nichts Dringendes. Gute Lage.')}
+					{:else}
+						{@render listenInhalt()}
+					{/if}
+				{:else}
+					<ListsOverview
+						{lists}
+						activeListId={nav.activeListId}
+						{offeneJeListe}
+						dringendAnzahl={dringendTasks.length}
+						benutzer={benutzerName}
+						initiale={benutzerInitiale}
+						isDark={theme.isDark}
+						onSelectList={(id) => nav.selectList(id)}
+						onSelectSmart={(v) => nav.selectSmart(v)}
+						onNeueListe={neueListeAnlegen}
+						onListContext={(e, list) => ctx.handleListContext(e, list)}
+						onToggleTheme={() => theme.toggle()}
+						onLogout={logout}
+					/>
+				{/if}
+			</div>
+		{:else if nav.smartView}
+			<header class="tf-lh">
+				<h2>
+					<Icon name={nav.smartView === 'pins' ? 'pin' : 'blitz'} />
+					<span class="name">{smartTitel}</span>
+					<span class="cnt">{smartAufgaben.length}</span>
+				</h2>
+			</header>
+			<div class="tf-liste">
+				{@render smartInhalt(
+					smartAufgaben,
+					nav.smartView === 'pins' ? 'Nichts angepinnt.' : 'Nichts Dringendes. Gute Lage.'
+				)}
+			</div>
+		{:else if activeList}
+			<header class="tf-lh">
+				<h2>
+					<span>{activeList.icon}</span>
+					<span class="name">{activeList.title}</span>
+					<span class="cnt">{offeneJeListe.get(activeList.id) ?? 0} offen</span>
+				</h2>
+				<span class="sp"></span>
+				<button class="tf-sortbtn" onclick={sortMenuUmschalten}>
+					<Icon name="sortierung" size={16} />
+					{sortLabels[sortFilter.sortMode]}
+					<Icon name="chevron-ab" size={16} />
+				</button>
+				<button
+					class="tf-ib"
+					aria-label="Listenmen&uuml; &ouml;ffnen"
+					onclick={(e) => ctx.handleListContext(e, activeList!)}
+				>
+					<Icon name="mehr" />
+				</button>
+			</header>
+			<div class="tf-liste">
+				{@render listenInhalt()}
+			</div>
+		{:else}
+			<div class="tf-leer">
+				<h2>Noch keine Liste</h2>
+				<p>Lege links &uuml;ber &bdquo;Neue Liste&ldquo; deine erste Liste an.</p>
+			</div>
+		{/if}
+	</main>
+
+	{#if !isMobile}
+		<!-- Spalte 3 — Detail. Keine Huelle, kein Scrim, kein Klick daneben. -->
+		<aside class="tf-detail" aria-label="Aufgabendetail">
+			{#if selectedTask}
+				<div class="tf-detail-head">
+					<button
+						class="tf-ib"
+						onclick={() => nav.selectTask(null)}
+						aria-label="Auswahl aufheben"
+					>
+						<Icon name="chevron-links" />
+					</button>
+				</div>
+				{#key selectedTask.id}
+					<FocusOverlay
+						eingebettet
+						task={selectedTask}
+						subtasks={focusSubtasks}
+						onClose={() => nav.selectTask(null)}
+						onToggle={handleToggleTask}
+						onUpdate={handleEditTask}
+						onChangePriority={(id, p) => store.changeTaskPriority(id, p)}
+						onChangeTimeframe={(id, tf) => store.changeTaskTimeframe(id, tf)}
+						onUpdateNote={(id, note) => store.updateTaskNote(id, note)}
+						onOpenEmojiPicker={(taskId, x, y) => popovers.openEmojiPicker(taskId, x, y)}
+						onToggleSubtask={handleToggleTask}
+						onUpdateSubtask={handleEditTask}
+						onAddSubtask={(parentId, text) => store.addSubtask(parentId, text)}
+					/>
+				{/key}
+			{:else}
+				<div class="tf-detail-leer">Aufgabe ausw&auml;hlen</div>
+			{/if}
+		</aside>
+	{/if}
+
+	{#if isMobile}
+		<MobileTabBar tab={searchOpen ? 'suche' : nav.mobileTab} onTab={waehleTab} />
+	{/if}
 </div>
+
+<!-- Detail als Overlay — nur mobil (Bottom-Sheet baut T7) -->
+{#if isMobile && selectedTask}
+	{#key selectedTask.id}
+		<FocusOverlay
+			task={selectedTask}
+			subtasks={focusSubtasks}
+			onClose={() => nav.selectTask(null)}
+			onToggle={handleToggleTask}
+			onUpdate={handleEditTask}
+			onChangePriority={(id, p) => store.changeTaskPriority(id, p)}
+			onChangeTimeframe={(id, tf) => store.changeTaskTimeframe(id, tf)}
+			onUpdateNote={(id, note) => store.updateTaskNote(id, note)}
+			onOpenEmojiPicker={(taskId, x, y) => popovers.openEmojiPicker(taskId, x, y)}
+			onToggleSubtask={handleToggleTask}
+			onUpdateSubtask={handleEditTask}
+			onAddSubtask={(parentId, text) => store.addSubtask(parentId, text)}
+		/>
+	{/key}
+{/if}
 
 <!-- Sort Dropdown (floating) -->
 {#if sortFilter.sortMenuOpen}
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="fixed inset-0" style="z-index: 60;" onclick={() => { sortFilter.sortMenuOpen = false; }} role="presentation"></div>
-	<div class="v2-glass-card" style="position: fixed; z-index: 61; top: {sortMenuPos.top}px; left: {sortMenuPos.left}px; padding: 8px; min-width: 160px;">
-		<div style="font-size: .55rem; text-transform: uppercase; letter-spacing: 2px; color: var(--ink-3); padding: 4px 8px; margin-bottom: 4px;">Sortierung</div>
-		{#each validSortModes as mode}
+	<div class="tf-popmenu" style="position: fixed; right: auto; bottom: auto; z-index: 61; top: {sortMenuPos.top}px; left: {sortMenuPos.left}px;">
+		{#each validSortModes as mode (mode)}
 			<button
-				onclick={() => { sortFilter.sortMode = mode; sortFilter.sortMenuOpen = false; }}
-				style="width: 100%; display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--v2-radius); font-size: .65rem; color: var(--ink-2); background: {sortFilter.sortMode === mode ? 'var(--accent-glow)' : 'transparent'}; border: none; cursor: pointer; transition: all .15s ease; text-align: left; min-height: 44px;"
-				aria-label="Sortierung: {sortLabels[mode]}"
+				class="tf-mi"
+				onclick={() => { sortFilter.sortMode = mode as SortMode; sortFilter.sortMenuOpen = false; }}
 			>
-				<span>{sortLabels[mode]}</span>
+				<span style="flex:1">{sortLabels[mode]}</span>
 				{#if sortFilter.sortMode === mode}
-					<span style="margin-left: auto; font-size: .6rem; color: var(--accent);">&#x2713;</span>
+					<Icon name="haken" size={16} />
 				{/if}
 			</button>
 		{/each}
 	</div>
-{/if}
-
-<!-- Empty state -->
-{#if lists.length === 0}
-	<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center;">
-		<div style="font-size: 2.5rem; margin-bottom: 16px;" aria-hidden="true">&#x1F98A;</div>
-		<h2 style="font-size: 1rem; font-weight: 700; color: var(--ink); margin-bottom: 8px;">Willkommen bei TaskFuchs v2</h2>
-		<p style="font-size: .75rem; color: var(--ink-3); max-width: 320px; line-height: 1.6;">
-			Erstelle deine erste Liste um loszulegen.
-		</p>
-		<button
-			onclick={handleAddList}
-			style="margin-top: 16px; padding: 10px 20px; border: 1px dashed var(--accent); border-radius: var(--v2-radius); background: var(--accent-glow); color: var(--accent); font-size: .75rem; font-weight: 600; cursor: pointer; font-family: var(--font-ui); min-height: 44px;"
-			aria-label="Neue Liste erstellen"
-		>
-			+ Neue Liste
-		</button>
-	</div>
-{/if}
-
-<!-- Focus Overlay -->
-{#if selectedTask}
-	<FocusOverlay
-		task={selectedTask}
-		subtasks={focusSubtasks}
-		onClose={() => { nav.selectTask(null); }}
-		onToggle={handleToggleTask}
-		onUpdate={handleEditTask}
-		onChangePriority={(id, p) => store.changeTaskPriority(id, p)}
-		onChangeTimeframe={(id, tf) => store.changeTaskTimeframe(id, tf)}
-		onUpdateNote={(id, note) => store.updateTaskNote(id, note)}
-		onOpenEmojiPicker={(taskId, x, y) => popovers.openEmojiPicker(taskId, x, y)}
-		onToggleSubtask={handleToggleTask}
-		onUpdateSubtask={handleEditTask}
-		onAddSubtask={(parentId, text) => store.addSubtask(parentId, text)}
-	/>
 {/if}
 
 <!-- Search Overlay -->
@@ -709,7 +817,7 @@
 		{tasks}
 		lists={lists}
 		onSelect={handleSearchSelect}
-		onClose={() => { searchOpen = false; }}
+		onClose={sucheSchliessen}
 	/>
 {/if}
 

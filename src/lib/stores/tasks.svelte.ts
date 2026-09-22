@@ -47,20 +47,31 @@ export function createTaskStore() {
 	// ==========================================
 	// LIST CRUD
 	// ==========================================
-	async function createList() {
+	/**
+	 * Legt eine Liste mit fertigem Namen und Symbol an und gibt ihre ID zurueck.
+	 *
+	 * Vorher legte diese Funktion sofort eine Liste namens „Neue Liste" an und
+	 * fragte erst danach nach dem Namen — bricht der Nutzer dort ab, bleibt eine
+	 * namenlose Leiche stehen (8 von 24 Listen in der Produktivdatenbank).
+	 * Jetzt sammelt die Oberflaeche Name und Symbol vorher ein; geschrieben wird
+	 * erst beim Bestaetigen.
+	 */
+	async function createList(title: string, icon: string): Promise<string | null> {
+		const name = title.trim() || 'Neue Liste';
 		const position = lists.length;
 		pendingListIds.add('creating');
-		const { data: newList, error } = await crud.createList(sb, userId, position);
+		const { data: newList, error } = await crud.createList(sb, userId, position, name, icon);
 		pendingListIds.delete('creating');
 		if (error) {
 			console.error('Liste erstellen fehlgeschlagen:', error);
 			toasts.error('Fehler beim Erstellen der Liste.');
-			return -1;
+			return null;
 		}
-		if (newList && !lists.some((l) => l.id === newList.id)) {
+		if (!newList) return null;
+		if (!lists.some((l) => l.id === newList.id)) {
 			lists = [...lists, newList as List];
 		}
-		return newList ? lists.findIndex((l) => l.id === newList.id) : lists.length - 1;
+		return newList.id;
 	}
 
 	async function renameList(id: string, title: string) {
