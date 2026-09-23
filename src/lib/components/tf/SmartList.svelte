@@ -10,12 +10,22 @@
 	type Task = Database['public']['Tables']['tasks']['Row'];
 
 	/**
-	 * Smart-Ansichten „Angepinnt" und „Dringend", nach Liste gruppiert.
+	 * Pinnwand und Dringend — A-klar-spec.md, Abschnitt 6 („Pinnwand").
 	 *
-	 * Die Zeilen sind dieselben wie in der Liste (Spezifikation Abschnitt 5),
-	 * nur ohne ⋮ — auf der Pinnwand traegt keine Zeile ein Menue. Den
-	 * endgueltigen Feinschliff der Pinnwand (Gruppenkopf, Sektionen) baut
-	 * Task 10.
+	 * Beide Smart-Ansichten teilen sich diese Darstellung: nach Liste
+	 * gruppiert, Gruppenkopf `.tf-pinh` mit Listen-Emoji und Namen, darunter
+	 * die normalen Aufgabenzeilen aus Abschnitt 5 — mit Prioritaetsbalken,
+	 * Pin-Icon im Titel und Chip „gepinnt von …" bei fremden Pins.
+	 *
+	 * Zwei Unterschiede zur Liste, beide aus der Spezifikation:
+	 * - **Kein ⋮ in den Zeilen.** Am Zeiger bleibt der Rechtsklick, am Finger
+	 *   das lange Tippen — die Zeile traegt nur keinen sichtbaren Knopf.
+	 * - **Kein Quick-Add, kein Erledigt-Balken.** Beides gehoert zu genau
+	 *   einer Liste; die Pinnwand steht quer ueber allen.
+	 *
+	 * Die Gruppen folgen der Reihenfolge der Navigationsspalte, die Zeilen
+	 * innerhalb einer Gruppe der Reihenfolge ihrer Liste (`position`) — nicht
+	 * der Zufallsreihenfolge des Bestands, in der sie bis T9 standen.
 	 */
 	let {
 		aufgaben,
@@ -24,9 +34,13 @@
 		mitnutzer = {},
 		eigeneId = null,
 		mobil = false,
+		selectedTaskId = null,
+		bulkMode = false,
+		bulkSelectedIds = new Set<string>(),
 		onToggle,
 		onOpen,
 		onContextMenu,
+		onBulkToggle,
 		leerText
 	}: {
 		aufgaben: Task[];
@@ -35,9 +49,14 @@
 		mitnutzer?: Record<string, Mitnutzer[]>;
 		eigeneId?: string | null;
 		mobil?: boolean;
+		/** Offenes Detail: die Zeile traegt `.sel` wie in der Liste. */
+		selectedTaskId?: string | null;
+		bulkMode?: boolean;
+		bulkSelectedIds?: Set<string>;
 		onToggle: (id: string) => void;
 		onOpen: (task: Task) => void;
 		onContextMenu: (e: Zeigerpunkt, task: Task) => void;
+		onBulkToggle?: (id: string) => void;
 		leerText: string;
 	} = $props();
 
@@ -48,7 +67,10 @@
 		}
 		return lists
 			.filter((l) => nachListe[l.id])
-			.map((l) => ({ list: l, tasks: nachListe[l.id] }));
+			.map((l) => ({
+				list: l,
+				tasks: [...nachListe[l.id]].sort((a, b) => a.position - b.position)
+			}));
 	});
 
 	const eigeneWahl = new SvelteMap<string, boolean>();
@@ -70,31 +92,37 @@
 	}
 </script>
 
-{#if gruppen.length === 0}
-	<div class="tf-leer">
-		<p>{leerText}</p>
-	</div>
-{:else}
-	{#each gruppen as gruppe (gruppe.list.id)}
-		<div class="tf-gruppe">
-			<span class="em">{gruppe.list.icon}</span>
-			{gruppe.list.title}
+<div class="tf-pinnwand">
+	{#if gruppen.length === 0}
+		<div class="tf-leer">
+			<p>{leerText}</p>
 		</div>
-		{#each gruppe.tasks as task (task.id)}
-			<TaskRow
-				{task}
-				subtasks={subtasksFor(task.id)}
-				subsOpen={subsOffen(task.id)}
-				{mobil}
-				ohneMenue
-				herkunft={fremder(gruppe.list.id, task.user_id)}
-				pinner={task.pinned ? fremder(gruppe.list.id, task.pinned_by) : null}
-				{onToggle}
-				onSelect={onOpen}
-				onMenu={onContextMenu}
-				onToggleSubs={() => subsUmschalten(task.id)}
-				onToggleSubtask={onToggle}
-			/>
+	{:else}
+		{#each gruppen as gruppe (gruppe.list.id)}
+			<div class="tf-pinh">
+				<span class="em">{gruppe.list.icon}</span>
+				{gruppe.list.title}
+			</div>
+			{#each gruppe.tasks as task (task.id)}
+				<TaskRow
+					{task}
+					subtasks={subtasksFor(task.id)}
+					selected={selectedTaskId === task.id}
+					subsOpen={subsOffen(task.id)}
+					{mobil}
+					ohneMenue
+					{bulkMode}
+					bulkSelected={bulkSelectedIds.has(task.id)}
+					herkunft={fremder(gruppe.list.id, task.user_id)}
+					pinner={task.pinned ? fremder(gruppe.list.id, task.pinned_by) : null}
+					{onToggle}
+					onSelect={onOpen}
+					onMenu={onContextMenu}
+					onToggleSubs={() => subsUmschalten(task.id)}
+					onToggleSubtask={onToggle}
+					{onBulkToggle}
+				/>
+			{/each}
 		{/each}
-	{/each}
-{/if}
+	{/if}
+</div>

@@ -8,6 +8,9 @@ type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
 type Sb = SupabaseClient<Database>;
 
+/** Wer hatte eine Aufgabe angepinnt — Merkzettel fuer das Rueckgaengig von „Alle loesen". */
+export type PinStand = { id: string; pinned_by: string | null };
+
 export function createTaskStore() {
 	let tasks = $state<Task[]>([]);
 	let lists = $state<List[]>([]);
@@ -246,13 +249,53 @@ export function createTaskStore() {
 		if (error) tasks = oldTasks;
 	}
 
-	async function clearPinboard() {
-		const pinnedIds = tasks.filter((t) => t.pinned).map((t) => t.id);
-		if (pinnedIds.length === 0) return;
+	/**
+	 * Alle Pins loesen („Alle loesen" im Pinnwand-Menue).
+	 *
+	 * Gibt zurueck, WER jede Aufgabe angepinnt hatte. Nur damit laesst sich
+	 * der Schritt zurueckrollen, ohne `pinned_by` auf denjenigen
+	 * umzuschreiben, der „Rueckgaengig" drueckt. Drei fremde Leser
+	 * (G2-Startbildschirm, InkyPi `pins.py`, Webhook `taskfuchs-read`) lesen
+	 * `pinned` und `pinned_by` direkt aus der Datenbank — ein falscher Pinner
+	 * waere dort sofort sichtbar.
+	 */
+	async function clearPinboard(): Promise<PinStand[]> {
+		const vorher: PinStand[] = tasks
+			.filter((t) => t.pinned)
+			.map((t) => ({ id: t.id, pinned_by: t.pinned_by }));
+		if (vorher.length === 0) return [];
 		const oldTasks = tasks;
 		tasks = tasks.map((t) => (t.pinned ? { ...t, pinned: false, pinned_by: null } : t));
-		const { error } = await crud.bulkUpdateField(sb, pinnedIds, { pinned: false, pinned_by: null });
-		if (error) tasks = oldTasks;
+		const { error } = await crud.bulkUpdateField(
+			sb,
+			vorher.map((p) => p.id),
+			{ pinned: false, pinned_by: null }
+		);
+		if (error) {
+			tasks = oldTasks;
+			return [];
+		}
+		return vorher;
+	}
+
+	/** Gegenstueck zu `clearPinboard`: stellt Pin UND Pinner wieder her. */
+	async function restorePins(stand: PinStand[]) {
+		if (stand.length === 0) return;
+		// Nachschlagewerk ohne Prototyp — eine Map waere hier ein reiner
+		// Zwischenwert, die Lint-Regel `prefer-svelte-reactivity` verlangt
+		// dafuer aber SvelteMap.
+		const pinnerVon: Record<string, string | null> = Object.create(null);
+		for (const p of stand) pinnerVon[p.id] = p.pinned_by;
+		const oldTasks = tasks;
+		tasks = tasks.map((t) =>
+			t.id in pinnerVon ? { ...t, pinned: true, pinned_by: pinnerVon[t.id] } : t
+		);
+		// Je Aufgabe ein eigener Schreibvorgang — `pinned_by` unterscheidet
+		// sich von Zeile zu Zeile, ein bulk-Update koennte nur einen Wert.
+		const ergebnisse = await Promise.all(
+			stand.map((p) => crud.updateTaskField(sb, p.id, { pinned: true, pinned_by: p.pinned_by }))
+		);
+		if (ergebnisse.some((r) => r.error)) tasks = oldTasks;
 	}
 
 	async function updateTaskNote(id: string, note: string) {
@@ -728,7 +771,7 @@ export function createTaskStore() {
 		// Task operations
 		addTask, addTaskAfter, toggleTask, updateTask, deleteTaskDirect,
 		changeTaskPriority, changeTaskTimeframe,
-		togglePin, clearPinboard,
+		togglePin, clearPinboard, restorePins,
 		updateTaskNote, assignTask, moveTaskToList,
 		updateTaskEmoji, updateTaskDate,
 		// Subtask operations

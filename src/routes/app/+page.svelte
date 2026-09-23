@@ -153,7 +153,19 @@
 	let aktiveBeteiligte = $derived(activeList ? (mitnutzer[activeList.id] ?? []) : []);
 	let aktiveFremde = $derived(aktiveBeteiligte.filter((m: Mitnutzer) => !m.ich));
 
-	let pinnedTasks = $derived(tasks.filter((t: Task) => t.pinned && !t.done && !t.parent_id));
+	// ==========================================
+	// SMART-ANSICHTEN (Spezifikation Abschnitt 6)
+	// ==========================================
+	/**
+	 * Angepinnt: `pinned && !done`, oberste Ebene, ohne Trenner. Die drei
+	 * fremden Leser (G2-Startbildschirm, InkyPi `pins.py`, Webhook
+	 * `taskfuchs-read`) holen dieselbe Menge direkt aus der Datenbank —
+	 * geschrieben werden `pinned` und `pinned_by` unveraendert in
+	 * `tasks.svelte.ts` (`togglePin`, `clearPinboard`, `restorePins`).
+	 */
+	let pinnedTasks = $derived(
+		tasks.filter((t: Task) => t.pinned && !t.done && !t.parent_id && t.type !== 'divider')
+	);
 
 	/** Dringend: ASAP/High oder heute faellig bzw. ueberfaellig, jeweils offen. */
 	let dringendTasks = $derived.by(() => {
@@ -298,6 +310,21 @@
 		if (ok) store.deleteList(list.id);
 	}
 
+	/**
+	 * „Alle lösen" aus dem Pinnwand-Menü. Kein Dialog, sondern ein Undo-Toast
+	 * (Spezifikation Abschnitt 6) — und das Rückgängig stellt auch wieder
+	 * her, WER angepinnt hatte; `pinned_by` darf nicht auf denjenigen
+	 * umspringen, der den Toast anklickt.
+	 */
+	async function pinnwandLeeren() {
+		const vorher = await store.clearPinboard();
+		if (vorher.length === 0) return;
+		toasts.undo(
+			vorher.length === 1 ? 'Pin gelöst' : `${vorher.length} Pins gelöst`,
+			() => store.restorePins(vorher)
+		);
+	}
+
 	// Context Menus — vier Eintraege an der Aufgabe, sieben an der Liste.
 	// Die Bruecke ist mit ihnen geschrumpft: von 24 Rueckrufen auf das, was
 	// die beiden Menues wirklich noch ausloesen.
@@ -319,6 +346,7 @@
 		openShareDialog: (list: List, x: number, y: number) => share.openShareDialog(list, x, y),
 		openListIconPicker: (listId: string, x: number, y: number) => openListIconPicker(listId, x, y),
 		listeLoeschen,
+		pinnwandLeeren,
 		beteiligteAnzahl: (listId: string) => (mitnutzer[listId] ?? []).length,
 		sortierung: {
 			get aktuell() { return sortFilter.sortMode; },
@@ -377,6 +405,9 @@
 	/** Kopfzeile und Inhalt der Mitte: Smart-Ansicht schlaegt die Liste. */
 	let smartTitel = $derived(nav.smartView === 'pins' ? 'Angepinnt' : 'Dringend');
 	let smartAufgaben = $derived(nav.smartView === 'pins' ? pinnedTasks : dringendTasks);
+	let smartLeerText = $derived(
+		nav.smartView === 'pins' ? 'Nichts angepinnt.' : 'Nichts Dringendes. Gute Lage.'
+	);
 
 	let benutzerName = $derived.by(() => {
 		const mail = data.user?.email ?? '';
@@ -668,9 +699,13 @@
 		{mitnutzer}
 		eigeneId={data.user?.id ?? null}
 		mobil={isMobile}
+		selectedTaskId={nav.selectedTaskId}
+		{bulkMode}
+		{bulkSelectedIds}
 		onToggle={handleToggleTask}
 		onOpen={handleTaskOpen}
 		onContextMenu={handleContextMenu}
+		onBulkToggle={toggleBulkSelect}
 		{leerText}
 	/>
 {/snippet}
@@ -740,6 +775,13 @@
 						<span class="name">Angepinnt</span>
 						<span class="cnt">{pinnedTasks.length}</span>
 					</h2>
+					<button
+						class="tf-ib gross"
+						aria-label="Pinnwandmen&uuml; &ouml;ffnen"
+						onclick={(e) => ctx.handlePinboardContext(e, pinnedTasks.length)}
+					>
+						<Icon name="mehr" />
+					</button>
 				{:else if nav.mobileTab === 'suche'}
 					<h2><span class="name">Suche</span></h2>
 				{:else}
@@ -762,7 +804,7 @@
 						{@render smartInhalt(pinnedTasks, 'Nichts angepinnt.')}
 					{:else if unterschirm}
 						{#if nav.smartView}
-							{@render smartInhalt(smartAufgaben, 'Nichts Dringendes. Gute Lage.')}
+							{@render smartInhalt(smartAufgaben, smartLeerText)}
 						{:else}
 							{@render listenInhalt()}
 						{/if}
@@ -793,12 +835,19 @@
 					<span class="name">{smartTitel}</span>
 					<span class="cnt">{smartAufgaben.length}</span>
 				</h2>
+				<span class="sp"></span>
+				{#if nav.smartView === 'pins'}
+					<button
+						class="tf-ib"
+						aria-label="Pinnwandmen&uuml; &ouml;ffnen"
+						onclick={(e) => ctx.handlePinboardContext(e, pinnedTasks.length)}
+					>
+						<Icon name="mehr" />
+					</button>
+				{/if}
 			</header>
 			<div class="tf-liste">
-				{@render smartInhalt(
-					smartAufgaben,
-					nav.smartView === 'pins' ? 'Nichts angepinnt.' : 'Nichts Dringendes. Gute Lage.'
-				)}
+				{@render smartInhalt(smartAufgaben, smartLeerText)}
 			</div>
 		{:else if activeList}
 			<header class="tf-lh">

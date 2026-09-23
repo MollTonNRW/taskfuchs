@@ -152,6 +152,12 @@ function createNav() {
 
 		setTab(tab: MobileTab) {
 			mobileTab = tab;
+			// Das Sheet gehoert zu dem Schirm, auf dem es geoeffnet wurde.
+			// Seit die Pinnwand ein eigener Tab mit oeffenbaren Zeilen ist,
+			// stuende es sonst beim Tabwechsel ueber dem neuen Schirm.
+			// Wer aus der Suche in eine Liste springt, waehlt die Aufgabe
+			// danach (siehe `sucheOeffnenMobil`) — die Reihenfolge stimmt.
+			selectedTaskId = null;
 			if (tab !== 'listen') {
 				listOpenMobile = false;
 				smartView = null;

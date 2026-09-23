@@ -60,6 +60,8 @@ export interface ContextMenuDeps {
 	openListIconPicker: (listId: string, x: number, y: number) => void;
 	/** Liste loeschen — mit Bestaetigungsdialog beim Aufrufer. */
 	listeLoeschen: (list: List) => void;
+	/** „Alle loesen" der Pinnwand — mit Undo-Toast beim Aufrufer. */
+	pinnwandLeeren: () => void;
 	/** Anzahl der sichtbaren Beteiligten einer Liste (Zusatz bei „Teilen"). */
 	beteiligteAnzahl: (listId: string) => number;
 	/** Sortierung: aktueller Wert, alle Moeglichkeiten, Auswahl. */
@@ -214,6 +216,35 @@ export function createContextMenus(deps: ContextMenuDeps) {
 		]);
 	}
 
+	/**
+	 * Menue der Pinnwand (⋮ im Kopf, Spezifikation Abschnitt 4) — genau zwei
+	 * Eintraege. Beide gab es schon: „Auswaehlen" ist derselbe Eintrag wie im
+	 * Aufgaben- und im Listenmenue, „Alle loesen" der Nachfolger des
+	 * gleichnamigen Knopfes aus `components/v2/Pinboard.svelte`, den der
+	 * Rueckbau mitgenommen hatte.
+	 *
+	 * Kein Bestaetigungsdialog: der steht laut Abschnitt 6 nur dort, wo es
+	 * kein Rueckgaengig gibt — „Alle loesen" bekommt einen Undo-Toast.
+	 */
+	function handlePinboardContext(e: Zeigerpunkt, anzahl: number) {
+		e.preventDefault();
+		oeffnen(
+			e,
+			[
+				{ label: 'Auswählen', icon: 'auswahl', action: () => deps.startBulkSelect() },
+				{ divider: true, label: '' },
+				{
+					label: 'Alle lösen',
+					icon: 'pin',
+					extra: anzahl > 0 ? String(anzahl) : undefined,
+					inaktiv: anzahl === 0,
+					action: () => deps.pinnwandLeeren()
+				}
+			],
+			deps.mobil ? 232 : 220
+		);
+	}
+
 	function close() {
 		contextMenu = { show: false, x: 0, y: 0, breite: 220, items: [] };
 	}
@@ -227,6 +258,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 		},
 		handleListContext,
 		handleTaskContext,
+		handlePinboardContext,
 		close
 	};
 }

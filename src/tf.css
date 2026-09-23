@@ -830,8 +830,14 @@
 	max-width: 320px;
 }
 
-/* Gruppenkopf der Smart-Ansichten (Uebergang bis T10) */
-.tf-gruppe {
+/* ---------------------------------------------------------------------
+   Pinnwand und Dringend — Spezifikation Abschnitt 6 („Pinnwand")
+
+   Gruppenkopf und Zeilen, sonst nichts: die Zeilen selbst sind die aus
+   Abschnitt 5 und bringen ihre Masse mit. Kein Quick-Add, kein
+   Erledigt-Balken, kein ⋮ in den Zeilen.
+   --------------------------------------------------------------------- */
+.tf-pinh {
 	display: flex;
 	align-items: center;
 	gap: 8px;
@@ -840,8 +846,24 @@
 	font-weight: 600;
 	color: var(--ink-2);
 }
-.tf-gruppe .em {
+.tf-pinh .em {
 	font-size: 15px;
+}
+/* Am Finger beginnt der Inhalt 2 px unter der Kopfzeile (Mockup Frame 9). */
+.tf-app.mobil .tf-pinnwand {
+	padding-top: 2px;
+}
+/* Abschnitt 5: der ausgeklappte Unteraufgaben-Block rueckt in der Pinnwand
+   am Finger auf 52 px statt 56 px. */
+.tf-app.mobil .tf-pinnwand .tf-subs {
+	padding-left: 52px;
+}
+
+/* Das Icon der Smart-Ansicht traegt die Akzentfarbe — im Listenkopf steht
+   dort das Listen-Emoji, ein Icon hat nur „Angepinnt"/„Dringend". */
+.tf-lh h2 .tf-ico,
+.tf-mobile-header h2 .tf-ico {
+	color: var(--accent);
 }
 
 /* Einfuegestelle beim Umsortieren der Listen in der Navigationsspalte */
