@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import type { Database } from '$lib/types/database';
-	import SubtaskCard from './SubtaskCard.svelte';
+	import SubtaskRow from '$lib/components/tf/SubtaskRow.svelte';
 	import {
 		priorityLabels,
 		priorityOrder,
@@ -210,10 +210,10 @@
 			</div>
 			<div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;">
 				{#each subtasks as sub (sub.id)}
-					<SubtaskCard
+					<SubtaskRow
 						subtask={sub}
-						ontoggle={onToggleSubtask}
-						onedit={onUpdateSubtask}
+						onToggle={onToggleSubtask}
+						onEdit={onUpdateSubtask}
 					/>
 				{/each}
 			</div>

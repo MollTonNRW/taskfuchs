@@ -998,3 +998,550 @@
 		max-width: none;
 	}
 }
+
+/* =====================================================================
+   AUFGABENZEILE, UNTERAUFGABEN, ERLEDIGT-BEREICH, QUICK-ADD
+   Verbindliche Quelle: A-klar-spec.md, Abschnitt 5 (Masse woertlich).
+
+   Nicht vorhanden und auch nicht nachzuruesten: ein Prioritaets-Textlabel
+   ausser dem ASAP-Chip, ein „NORMAL"-Tag, ein Fortschrittsbalken auf der
+   Zeile, ein gestrichelter Rahmen, jede Animation.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   Quick-Add — die erste Zeile jeder Liste, nie im Menue versteckt.
+   --------------------------------------------------------------------- */
+.tf-qa {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	height: 48px;
+	padding: 0 12px 0 14px;
+	border-radius: var(--r-row);
+	margin-bottom: 6px;
+	color: var(--ink-3);
+	cursor: text;
+}
+.tf-qa .plus {
+	width: 44px;
+	height: 44px;
+	margin: 0 -4px 0 -8px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: none;
+}
+.tf-qa .plus > span {
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	border: 1.75px solid var(--accent);
+	color: var(--accent);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.tf-qa .in {
+	flex: 1;
+	min-width: 0;
+	font-size: 15px;
+	background: none;
+	border: 0;
+	outline: none;
+	color: inherit;
+	padding: 0;
+}
+.tf-qa.active {
+	background: var(--surface);
+	box-shadow: inset 0 0 0 1.5px var(--accent);
+	color: var(--ink);
+	caret-color: var(--accent);
+}
+/* Mobil bei offener Tastatur: die Zeile in der Liste tritt zurueck,
+   getippt wird im angedockten Feld darunter. */
+.tf-qa.ghost {
+	opacity: 0.4;
+}
+/* Der Sendeknopf traegt seine Grundlage selbst: `position:fixed` hebt den
+   Knopf optisch aus der App heraus, und der Reset in `:where(.tf-root)` hat
+   Spezifitaet 0 — schon eine UA-Regel wuerde ihn sonst grau hinterlegen. */
+.tf-qa .send {
+	appearance: none;
+	-webkit-appearance: none;
+	background: none;
+	border: 0;
+	cursor: pointer;
+	width: 44px;
+	height: 44px;
+	margin-right: -8px;
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--r-icon);
+	color: var(--accent);
+}
+
+/* Angedocktes Feld ueber der Tastatur (Spezifikation Abschnitt 4,
+   Screen „mobile-quickadd"). Die Hoehe der Tastatur misst
+   stores/tf/tastatur.svelte.ts; ohne sie sitzt das Feld ueber der
+   Tab-Leiste. */
+.tf-qa-sticky {
+	position: fixed;
+	left: 0;
+	right: 0;
+	z-index: 60;
+	padding: 6px 12px;
+	background: var(--surface);
+	border-top: 1px solid var(--line);
+}
+.tf-qa-sticky .tf-qa {
+	margin-bottom: 0;
+}
+
+/* ---------------------------------------------------------------------
+   Die Zeile
+   --------------------------------------------------------------------- */
+.tf-rows {
+	display: flex;
+	flex-direction: column;
+}
+.tf-rowwrap {
+	position: relative;
+}
+.tf-rowwrap.zieht {
+	opacity: 0.4;
+}
+
+.tf-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+	padding: 10px 12px 10px 14px;
+	min-height: 48px;
+	border-radius: var(--r-row);
+	position: relative;
+	margin-top: 2px;
+	cursor: pointer;
+	user-select: none;
+	-webkit-user-select: none;
+	/* iOS zeigt beim langen Tippen sonst die Systemlupe; das Halten gehoert
+	   hier dem Menue bzw. dem Ziehen. */
+	-webkit-touch-callout: none;
+}
+@media (hover: hover) {
+	.tf-row:hover {
+		background: var(--line-2);
+	}
+}
+.tf-row.sel,
+.tf-row.sel:hover {
+	background: var(--sel);
+}
+.tf-row.neu,
+.tf-row.neu:hover {
+	background: var(--new);
+}
+.tf-row.gewaehlt,
+.tf-row.gewaehlt:hover {
+	background: var(--accent-soft);
+}
+
+/* Prioritaetsbalken — die Prioritaet steht nirgends sonst in der Zeile. */
+.tf-bar {
+	position: absolute;
+	left: 4px;
+	top: 14px;
+	width: 3px;
+	height: 22px;
+	border-radius: 2px;
+}
+.tf-bar.low {
+	background: var(--low);
+}
+.tf-bar.normal {
+	background: var(--normal);
+}
+.tf-bar.high {
+	background: var(--high);
+}
+/* Einzige Abweichung im Balken: ASAP ist breiter. */
+.tf-bar.asap {
+	background: var(--asap);
+	width: 4px;
+	left: 3px;
+}
+
+/* Checkbox: Trefferflaeche 44 x 44, sichtbarer Kreis 22 x 22. Der
+   negative Rand haelt die Optik kompakt, ohne das Ziel zu verkleinern. */
+.tf-cb {
+	width: 44px;
+	height: 44px;
+	margin: -11px -4px -11px -8px;
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.tf-cb > span {
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	border: 1.75px solid var(--ink-3);
+	background: transparent;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--surface);
+}
+.tf-cb.done > span {
+	background: var(--ink-3);
+	border-color: var(--ink-3);
+}
+
+.tf-body {
+	flex: 1;
+	min-width: 0;
+}
+
+.tf-t {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 15px;
+	line-height: 22px;
+	font-weight: 500;
+	min-width: 0;
+}
+.tf-t .tx {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+.tf-t .em {
+	flex: none;
+}
+.tf-t .pin {
+	display: flex;
+	color: var(--accent);
+	flex: none;
+}
+.tf-row.erledigt .tf-t .tx {
+	color: var(--ink-2);
+	text-decoration: line-through;
+	font-weight: 400;
+}
+
+/* Metazeile — nur wenn es etwas zu zeigen gibt.
+
+   Platzordnung auf schmalen Schirmen: Faelligkeit und Zaehler stehen immer
+   ganz da (sie sind kurz und tragen die Information), Notizvorschau und
+   Herkunft geben Platz ab und enden mit Auslassungspunkten. Die Notiz behaelt
+   einen Rest, damit sie nicht auf Breite 0 schrumpft und unsichtbar wird —
+   genau das passierte, als nur sie schrumpfen durfte. `overflow:hidden` haelt
+   die Zeile in jedem Fall in der Karte. */
+.tf-m {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-top: 2px;
+	font-size: 13px;
+	line-height: 18px;
+	color: var(--ink-2);
+	min-width: 0;
+	overflow: hidden;
+}
+.tf-m .el {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	flex: none;
+	white-space: nowrap;
+	color: inherit;
+	min-width: 0;
+}
+.tf-m .over {
+	color: var(--high);
+	font-weight: 500;
+}
+.tf-m .zaehler {
+	cursor: pointer;
+}
+/* Die Notizvorschau nimmt den Restplatz und bleibt einzeilig. */
+.tf-m .note {
+	flex: 1 1 auto;
+	min-width: 4em;
+}
+.tf-m .note em {
+	font-style: normal;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+.tf-m .von {
+	flex: 0 1 auto;
+}
+.tf-m .von .tx {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+.tf-m .von .tf-avatar {
+	width: 20px;
+	height: 20px;
+	font-size: 11px;
+	margin-right: 2px;
+}
+
+/* Rechte Seite: ⋮ nur bei Hover oder Auswahl; mobil gar nicht. */
+.tf-side {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	margin: -4px -4px -4px 0;
+	color: var(--ink-3);
+	flex: none;
+}
+.tf-more {
+	width: 32px;
+	height: 32px;
+	border-radius: 8px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0;
+}
+.tf-row:hover .tf-more,
+.tf-row.sel .tf-more,
+.tf-more:focus-visible,
+.tf-more.on {
+	opacity: 1;
+}
+.tf-more.on {
+	background: var(--surface-2);
+	color: var(--ink);
+}
+
+/* Trenner in der Liste */
+.tf-divider {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 12px 6px 14px;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--ink-3);
+	position: relative;
+}
+.tf-divider .li {
+	flex: 1;
+	height: 1px;
+	background: var(--line);
+}
+.tf-divider .lbl {
+	flex: none;
+}
+
+/* Einfuegestelle beim Umsortieren */
+.tf-rowwrap.ziel-oben::before,
+.tf-divider.ziel-oben::before,
+.tf-rowwrap.ziel-unten::after,
+.tf-divider.ziel-unten::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	height: 2px;
+	border-radius: 1px;
+	background: var(--accent);
+	z-index: 2;
+}
+.tf-rowwrap.ziel-oben::before,
+.tf-divider.ziel-oben::before {
+	top: 0;
+}
+.tf-rowwrap.ziel-unten::after,
+.tf-divider.ziel-unten::after {
+	bottom: 0;
+}
+.tf-dropend {
+	min-height: 24px;
+}
+.tf-dropend.an {
+	min-height: 40px;
+	border-top: 2px solid var(--accent);
+}
+
+/* ---------------------------------------------------------------------
+   Unteraufgaben — eigener Block unter der Zeile, genau eine Ebene.
+   --------------------------------------------------------------------- */
+.tf-subs {
+	padding: 0 12px 6px 56px;
+}
+.tf-subwrap {
+	position: relative;
+}
+.tf-subwrap.ziel-oben::before,
+.tf-subwrap.ziel-unten::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	height: 2px;
+	border-radius: 1px;
+	background: var(--accent);
+	z-index: 2;
+}
+.tf-subwrap.ziel-oben::before {
+	top: 0;
+}
+.tf-subwrap.ziel-unten::after {
+	bottom: 0;
+}
+
+.tf-sub {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 36px;
+	font-size: 14px;
+	color: var(--ink);
+	cursor: pointer;
+	-webkit-touch-callout: none;
+}
+.tf-sub.mobil {
+	height: 44px;
+}
+.tf-sub .tf-cb {
+	width: 36px;
+	height: 36px;
+	margin: 0 -9px 0 -9px;
+}
+.tf-sub.mobil .tf-cb {
+	width: 44px;
+	height: 44px;
+	margin: 0 -13px 0 -13px;
+}
+.tf-sub .tf-cb > span {
+	width: 18px;
+	height: 18px;
+	border-width: 1.5px;
+}
+.tf-sub .tf-cb .tf-ico {
+	width: 12px;
+	height: 12px;
+}
+.tf-sub .tx {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.tf-sub.done .tx {
+	color: var(--ink-2);
+	text-decoration: line-through;
+}
+.tf-sub.done .tf-cb > span {
+	background: var(--ink-3);
+	border-color: var(--ink-3);
+}
+/* Umbenennen an Ort und Stelle */
+.tf-inline {
+	flex: 1;
+	min-width: 0;
+	font-size: 14px;
+	background: var(--surface-2);
+	border: 0;
+	outline: none;
+	border-radius: 7px;
+	padding: 0 8px;
+	height: 28px;
+	color: var(--ink);
+	caret-color: var(--accent);
+}
+
+/* ---------------------------------------------------------------------
+   Erledigt-Balken. Bei Zaehler 0 entfaellt die Loeschen-Aktion.
+   --------------------------------------------------------------------- */
+.tf-donebar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 44px;
+	padding: 0 6px 0 14px;
+	margin-top: 8px;
+	border-top: 1px solid var(--line-2);
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--ink-2);
+}
+.tf-donebar .auf {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	color: inherit;
+	font-weight: inherit;
+}
+.tf-donebar .cnt {
+	color: var(--ink-3);
+	font-weight: 500;
+}
+.tf-donebar .clr {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 32px;
+	padding: 0 10px;
+	border-radius: 8px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--ink-2);
+	flex: none;
+}
+.tf-donebar.mobil .clr {
+	height: 44px;
+}
+.tf-donebar .clr:hover {
+	background: var(--surface-2);
+	color: var(--ink);
+}
+
+/* ---------------------------------------------------------------------
+   Chips (Spezifikation Abschnitt 6)
+   --------------------------------------------------------------------- */
+.tf-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 20px;
+	padding: 0 7px;
+	border-radius: var(--r-chip);
+	font-size: 12px;
+	line-height: 1;
+	flex: none;
+	white-space: nowrap;
+}
+.tf-chip.asap {
+	background: var(--asap);
+	color: var(--on-accent);
+	font-weight: 600;
+	letter-spacing: 0.02em;
+}
+.tf-chip.neu {
+	background: var(--accent-soft);
+	color: var(--accent-ink);
+	font-weight: 500;
+}
+.tf-chip.from,
+.tf-chip.shared {
+	background: var(--surface-2);
+	color: var(--ink-2);
+	font-weight: 500;
+}

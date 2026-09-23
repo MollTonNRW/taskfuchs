@@ -17,8 +17,8 @@
 	import MobileTabBar from '$lib/components/tf/MobileTabBar.svelte';
 	import SmartList from '$lib/components/tf/SmartList.svelte';
 	import AvatarStack from '$lib/components/tf/AvatarStack.svelte';
+	import TaskList from '$lib/components/tf/TaskList.svelte';
 
-	import ListPanel from '$lib/components/v2/ListPanel.svelte';
 	import ToastContainer from '$lib/components/v2/ToastContainer.svelte';
 	import ConfirmDialog from '$lib/components/v2/ConfirmDialog.svelte';
 	import InputDialog from '$lib/components/v2/InputDialog.svelte';
@@ -31,7 +31,11 @@
 	import BulkToolbar from '$lib/components/v2/BulkToolbar.svelte';
 	import ShareDialog from '$lib/components/v2/ShareDialog.svelte';
 
-	import { createContextMenus, type ContextMenuDeps } from '$lib/composables/v2/useContextMenus.svelte';
+	import {
+		createContextMenus,
+		type ContextMenuDeps,
+		type Zeigerpunkt
+	} from '$lib/composables/v2/useContextMenus.svelte';
 	import { createSortFilter, sortLabels, validSortModes, type SortMode } from '$lib/composables/v2/useSortFilter.svelte';
 	import { createPopovers } from '$lib/composables/v2/usePopovers.svelte';
 	import { createShareDialog } from '$lib/composables/v2/useShareDialog.svelte';
@@ -95,7 +99,7 @@
 	let fensterBreite = $state(1200);
 	let isMobile = $derived(fensterBreite < 900);
 
-	// Force subtasks open/closed per list (null = TaskCard controls itself)
+	// Unteraufgaben je Liste erzwingen (null = die Liste entscheidet je Zeile)
 	let subtasksForceState = $state<Map<string, boolean>>(new Map());
 	// Legacy compat: collapsedSubtasksListIds derived from forceState for context menu deps
 	let collapsedSubtasksListIds = $derived.by(() => {
@@ -425,7 +429,7 @@
 		store.updateTask(id, text);
 	}
 
-	function handleContextMenu(e: MouseEvent, task: Task) {
+	function handleContextMenu(e: Zeigerpunkt, task: Task) {
 		ctx.handleTaskContext(e, task);
 	}
 
@@ -577,21 +581,27 @@
 
 {#snippet listenInhalt()}
 	{#if activeList}
-		<ListPanel
+		<TaskList
 			list={activeList}
 			tasks={sortedActiveListTasks}
-			isActive={true}
+			mobil={isMobile}
 			forceSubtasksOpen={getForceSubtasksOpen(activeList.id)}
+			selectedTaskId={nav.selectedTaskId}
+			beteiligte={aktiveBeteiligte}
+			eigeneId={data.user?.id ?? null}
 			onQuickAdd={handleQuickAdd}
 			onToggleTask={handleToggleTask}
-			onToggleSubtask={handleToggleTask}
 			onEditSubtask={handleEditTask}
-			onContextMenu={handleContextMenu}
+			onMenu={handleContextMenu}
+			onSubMenu={handleContextMenu}
 			onTaskOpen={handleTaskOpen}
-			onReorderTask={(taskId, targetListId, newPos) => store.reorderTask(taskId, targetListId, newPos)}
-			onReorderSubtask={(subtaskId, parentId, newPos) => store.reorderSubtask(subtaskId, parentId, newPos)}
+			onReorderTask={(taskId, targetListId, newPos) =>
+				sortFilter.handleReorderTask(taskId, targetListId, newPos)}
+			onReorderSubtask={(subtaskId, parentId, newPos) =>
+				store.reorderSubtask(subtaskId, parentId, newPos)}
+			onClearDone={(listId) => store.deleteDoneInList(listId)}
 			{bulkMode}
-			bulkSelectedIds={bulkSelectedIds}
+			{bulkSelectedIds}
 			onBulkToggle={toggleBulkSelect}
 		/>
 	{/if}
@@ -602,6 +612,9 @@
 		{aufgaben}
 		{lists}
 		{subtasksFor}
+		{mitnutzer}
+		eigeneId={data.user?.id ?? null}
+		mobil={isMobile}
 		onToggle={handleToggleTask}
 		onOpen={handleTaskOpen}
 		onContextMenu={handleContextMenu}

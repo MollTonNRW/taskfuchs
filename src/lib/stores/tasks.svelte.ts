@@ -449,7 +449,7 @@ export function createTaskStore() {
 		const sourceListId = task.list_id;
 		const isMoving = sourceListId !== targetListId;
 
-		// Visuelle Sortierung (gleich wie activeTasks in ListPanel): nach position
+		// Visuelle Sortierung (gleich wie die offenen Zeilen in TaskList): nach position
 		const visualSort = (a: Task, b: Task) => a.position - b.position;
 
 		// 1. Off-by-one Fix: Bei Same-List-Moves den visuellen Ursprungsindex ermitteln

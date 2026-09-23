@@ -1,6 +1,10 @@
 <script lang="ts">
 	import type { Database } from '$lib/types/database';
-	import TaskCard from '$lib/components/v2/TaskCard.svelte';
+	import type { Mitnutzer } from '$lib/utils/mitnutzer';
+	import type { Zeigerpunkt } from '$lib/composables/v2/useContextMenus.svelte';
+	import { SvelteMap } from 'svelte/reactivity';
+	import { subtasksCollapsedByDefault } from '$lib/stores/filters';
+	import TaskRow from './TaskRow.svelte';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -8,16 +12,18 @@
 	/**
 	 * Smart-Ansichten „Angepinnt" und „Dringend", nach Liste gruppiert.
 	 *
-	 * UEBERGANG: Die endgueltige Fassung (Gruppenkopf, „gepinnt von"-Chip,
-	 * Zeilen nach Spezifikation Abschnitt 5) baut Task 10 als `PinnedView`.
-	 * Hier steht nur so viel, dass die beiden Eintraege der Navigationsspalte
-	 * ab sofort etwas Sinnvolles zeigen — bisher war ein Pin auf dem Desktop
-	 * nur ueber die alte Pinnwand erreichbar, und die ist mit der Shell weg.
+	 * Die Zeilen sind dieselben wie in der Liste (Spezifikation Abschnitt 5),
+	 * nur ohne ⋮ — auf der Pinnwand traegt keine Zeile ein Menue. Den
+	 * endgueltigen Feinschliff der Pinnwand (Gruppenkopf, Sektionen) baut
+	 * Task 10.
 	 */
 	let {
 		aufgaben,
 		lists,
 		subtasksFor,
+		mitnutzer = {},
+		eigeneId = null,
+		mobil = false,
 		onToggle,
 		onOpen,
 		onContextMenu,
@@ -26,23 +32,42 @@
 		aufgaben: Task[];
 		lists: List[];
 		subtasksFor: (taskId: string) => Task[];
+		mitnutzer?: Record<string, Mitnutzer[]>;
+		eigeneId?: string | null;
+		mobil?: boolean;
 		onToggle: (id: string) => void;
 		onOpen: (task: Task) => void;
-		onContextMenu: (e: MouseEvent, task: Task) => void;
+		onContextMenu: (e: Zeigerpunkt, task: Task) => void;
 		leerText: string;
 	} = $props();
 
 	let gruppen = $derived.by(() => {
-		const nachListe = new Map<string, Task[]>();
+		const nachListe: Record<string, Task[]> = {};
 		for (const t of aufgaben) {
-			const bestand = nachListe.get(t.list_id);
-			if (bestand) bestand.push(t);
-			else nachListe.set(t.list_id, [t]);
+			(nachListe[t.list_id] ??= []).push(t);
 		}
 		return lists
-			.filter((l) => nachListe.has(l.id))
-			.map((l) => ({ list: l, tasks: nachListe.get(l.id)! }));
+			.filter((l) => nachListe[l.id])
+			.map((l) => ({ list: l, tasks: nachListe[l.id] }));
 	});
+
+	const eigeneWahl = new SvelteMap<string, boolean>();
+	let standardOffen = $derived(!$subtasksCollapsedByDefault);
+
+	function subsOffen(id: string): boolean {
+		return eigeneWahl.get(id) ?? standardOffen;
+	}
+
+	function subsUmschalten(id: string) {
+		eigeneWahl.set(id, !subsOffen(id));
+	}
+
+	/** „gepinnt von" und die Herkunft zeigen nur fremde Personen. */
+	function fremder(listId: string, id: string | null): Mitnutzer | null {
+		if (!id || id === eigeneId) return null;
+		const m = (mitnutzer[listId] ?? []).find((p) => p.id === id);
+		return m && !m.ich ? m : null;
+	}
 </script>
 
 {#if gruppen.length === 0}
@@ -56,16 +81,19 @@
 			{gruppe.list.title}
 		</div>
 		{#each gruppe.tasks as task (task.id)}
-			{@const subs = subtasksFor(task.id)}
-			<TaskCard
+			<TaskRow
 				{task}
-				subtasks={subs}
-				subtaskCount={subs.length}
-				subtaskDoneCount={subs.filter((s) => s.done).length}
-				ontoggle={onToggle}
-				ontogglesubtask={onToggle}
-				onopen={onOpen}
-				oncontextmenu={onContextMenu}
+				subtasks={subtasksFor(task.id)}
+				subsOpen={subsOffen(task.id)}
+				{mobil}
+				ohneMenue
+				herkunft={fremder(gruppe.list.id, task.user_id)}
+				pinner={task.pinned ? fremder(gruppe.list.id, task.pinned_by) : null}
+				{onToggle}
+				onSelect={onOpen}
+				onMenu={onContextMenu}
+				onToggleSubs={() => subsUmschalten(task.id)}
+				onToggleSubtask={onToggle}
 			/>
 		{/each}
 	{/each}

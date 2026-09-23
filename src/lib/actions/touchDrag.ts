@@ -92,7 +92,7 @@ function findScrollContainer(_clientY: number): HTMLElement | null {
 
 // ── Ghost element ──────────────────────────────────────────────────
 function createGhost(sourceEl: HTMLElement): HTMLElement {
-	const taskEl = sourceEl.closest('.task-item, .subtask-item, .list-panel, .v2-task-drop-wrapper, .v2-task-card');
+	const taskEl = sourceEl.closest('.tf-rowwrap, .tf-row, .task-item, .subtask-item, .v2-task-drop-wrapper');
 	const cloneSource = taskEl || sourceEl;
 	const rect = cloneSource.getBoundingClientRect();
 
@@ -116,7 +116,7 @@ function createGhost(sourceEl: HTMLElement): HTMLElement {
 	// Simple text preview inside ghost
 	const label = document.createElement('div');
 	label.style.cssText = 'padding: 8px 12px; font-size: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
-	const textEl = cloneSource.querySelector('.task-text, .v2-task-text, span.text-xs, h2');
+	const textEl = cloneSource.querySelector('.tf-t .tx, .task-text, .v2-task-text, h2');
 	label.textContent = textEl?.textContent?.trim() || 'Verschieben...';
 	ghost.appendChild(label);
 
@@ -180,7 +180,7 @@ export function touchDragHandle(
 			dragStarted = true;
 
 			const ghost = createGhost(node);
-			node.closest('.task-item, .subtask-item, .list-panel, .v2-task-drop-wrapper, .v2-task-card')?.classList.add('touch-dragging-source');
+			node.closest('.tf-rowwrap, .tf-row, .task-item, .subtask-item, .v2-task-drop-wrapper')?.classList.add('touch-dragging-source');
 			dragState.set({
 				active: true,
 				type: currentParams.type,
@@ -274,7 +274,7 @@ export function touchDragHandle(
 		}
 
 		if (state.ghost) state.ghost.remove();
-		state.sourceEl?.closest('.task-item, .subtask-item, .list-panel, .v2-task-drop-wrapper, .v2-task-card')?.classList.remove('touch-dragging-source');
+		state.sourceEl?.closest('.tf-rowwrap, .tf-row, .task-item, .subtask-item, .v2-task-drop-wrapper')?.classList.remove('touch-dragging-source');
 		if (state.currentDropZone) {
 			const oldZone = dropZones.find((z) => z.el === state.currentDropZone);
 			oldZone?.onDragLeave?.(state.currentDropZone);

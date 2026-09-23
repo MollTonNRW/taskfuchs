@@ -9,6 +9,22 @@ type Profile = Database['public']['Tables']['profiles']['Row'];
 
 export type ContextMenuState = { show: boolean; x: number; y: number; items: MenuItem[] };
 
+/**
+ * Was ein Menue vom ausloesenden Ereignis wirklich braucht: einen Punkt auf
+ * dem Schirm und die Moeglichkeit, das native Menue abzubestellen.
+ *
+ * Ein `MouseEvent` erfuellt das von selbst. Auf dem Mobilgeraet gibt es aber
+ * keinen Rechtsklick: dort oeffnet langes Tippen das Menue, und die Zeile
+ * reicht die Fingerposition aus `TouchEvent.changedTouches[0]` herein
+ * (siehe components/tf/TaskRow.svelte). Ohne diesen Typ muesste sie ein
+ * MouseEvent erfinden.
+ */
+export type Zeigerpunkt = {
+	clientX: number;
+	clientY: number;
+	preventDefault(): void;
+};
+
 // Priority colored dot indicators (matching PoC v6)
 const PRIORITY_ICONS: Record<string, string> = {
 	low: '\uD83D\uDFE2',    // green circle
@@ -54,7 +70,7 @@ export interface ContextMenuDeps {
 export function createContextMenus(deps: ContextMenuDeps) {
 	let contextMenu = $state<ContextMenuState>({ show: false, x: 0, y: 0, items: [] });
 
-	function handleListContext(e: MouseEvent, list: List) {
+	function handleListContext(e: Zeigerpunkt, list: List) {
 		e.preventDefault();
 		const { store, setSubtasksForceState, openShareDialog, openListIconPicker } = deps;
 		contextMenu = {
@@ -111,7 +127,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 		};
 	}
 
-	function handleTaskContext(e: MouseEvent, task: Task) {
+	function handleTaskContext(e: Zeigerpunkt, task: Task) {
 		e.preventDefault();
 		const { store, openDatePicker, openEmojiPicker } = deps;
 
