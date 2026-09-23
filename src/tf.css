@@ -2489,3 +2489,232 @@
 		height: 44px;
 	}
 }
+
+/* =====================================================================
+   SUCHE — Palette (Desktop) und eigener Tab (Mobile)
+   Verbindliche Quelle: A-klar-spec.md, Abschnitt 6 („Suche Desktop",
+   „Suche Mobile") und Abschnitt 7, Frames 3 und 8.
+
+   Beide Fassungen teilen sich die Trefferzeile `.tf-hit`; sie benutzt
+   dieselben Bausteine wie die Aufgabenzeile (.tf-body/.tf-t/.tf-m) und
+   unterscheidet sich nur in Hoehe, Polster und Radius.
+
+   Bewusst ohne Animation und ohne backdrop-filter (Abschnitt 9, Punkt 3).
+   Stapelung: Scrim 170, Palette 171 — ueber Menue (150) und Teilen (160),
+   unter Bestaetigungsdialog (200) und Toast (9999).
+   ===================================================================== */
+
+.tf-such-scrim {
+	position: fixed;
+	inset: 0;
+	background: var(--scrim-soft);
+	z-index: 170;
+}
+
+.tf-palette {
+	position: fixed;
+	left: 50%;
+	top: 96px;
+	transform: translateX(-50%);
+	width: 560px;
+	max-width: calc(100vw - 32px);
+	/* Die Palette waechst mit den Treffern, bleibt aber im Bild; die
+	   Trefferliste darin bekommt den Bildlauf, Kopf und Fuss stehen fest. */
+	max-height: calc(100vh - 140px);
+	display: flex;
+	flex-direction: column;
+	background: var(--surface);
+	color: var(--ink);
+	border: 1px solid var(--line);
+	border-radius: var(--r-palette);
+	box-shadow: var(--sh-palette);
+	overflow: hidden;
+	z-index: 171;
+}
+.tf-palette .in {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex: none;
+	height: 52px;
+	padding: 0 16px;
+	font-size: 16px;
+	border-bottom: 1px solid var(--line-2);
+}
+.tf-palette .in .tf-ico {
+	color: var(--ink-2);
+}
+.tf-palette .in input {
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	background: transparent;
+	border: 0;
+	outline: none;
+	font-size: 16px;
+}
+.tf-palette .in kbd {
+	flex: none;
+	font: inherit;
+	font-size: 12px;
+	color: var(--ink-2);
+	border: 1px solid var(--line);
+	border-radius: 5px;
+	padding: 1px 6px;
+}
+.tf-palette .res {
+	padding: 6px;
+	min-height: 0;
+	overflow-y: auto;
+}
+.tf-palette .hint {
+	display: flex;
+	gap: 14px;
+	flex: none;
+	padding: 8px 16px 10px;
+	font-size: 12px;
+	color: var(--ink-2);
+	border-top: 1px solid var(--line-2);
+}
+.tf-palette .hint kbd {
+	font: inherit;
+	font-size: 11px;
+	color: var(--ink-2);
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	padding: 0 4px;
+	margin-right: 4px;
+}
+
+/* Trefferzeile — Grundmass ist die mobile Fassung (min-height 56). */
+.tf-hit {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	width: 100%;
+	text-align: left;
+	min-height: 56px;
+	padding: 10px 12px;
+	border-radius: 10px;
+	color: var(--ink);
+}
+.tf-hit .em {
+	flex: none;
+	width: 24px;
+	text-align: center;
+	font-size: 18px;
+	padding-top: 1px;
+}
+.tf-hit .tf-m .path {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: block;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: var(--ink-2);
+}
+.tf-hit mark {
+	background: var(--accent-soft);
+	color: var(--accent-ink);
+	border-radius: 3px;
+	padding: 0 1px;
+}
+.tf-hit .chev {
+	flex: none;
+	align-self: center;
+	color: var(--ink-3);
+}
+.tf-hit.erledigt .tf-t .tx {
+	color: var(--ink-2);
+	text-decoration: line-through;
+	font-weight: 400;
+}
+.tf-hit.on {
+	background: var(--sel);
+}
+@media (hover: hover) {
+	.tf-hit:hover {
+		background: var(--surface-2);
+	}
+	.tf-hit.on:hover {
+		background: var(--sel);
+	}
+}
+
+/* Engere Fassung in der Palette (Spezifikation: min-height 48, Radius 9). */
+.tf-palette .tf-hit {
+	min-height: 48px;
+	padding: 6px 10px;
+	border-radius: 9px;
+}
+.tf-palette .tf-hit .tf-t {
+	font-size: 14px;
+}
+.tf-palette .tf-hit .tf-m {
+	margin-top: 0;
+}
+.tf-palette .tf-hit .ret {
+	flex: none;
+	align-self: center;
+	font-size: 13px;
+	color: var(--ink-3);
+}
+.tf-palette .tf-lsec {
+	padding: 10px 10px 4px;
+}
+
+.tf-such-hinweis {
+	margin: 0;
+	padding: 28px 16px;
+	text-align: center;
+	font-size: 14px;
+	color: var(--ink-3);
+}
+
+/* Mobiler Tab „Suche": Feld ueber der Trefferliste, beide im Hauptbereich. */
+.tf-suche {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+.tf-sfield {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex: none;
+	height: 44px;
+	margin: 4px 12px 8px;
+	padding: 0 12px;
+	border-radius: 12px;
+	background: var(--surface-2);
+	font-size: 16px;
+	/* Akzentrahmen nach innen — kein zusaetzlicher Platzbedarf. */
+	box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.tf-sfield .tf-ico {
+	flex: none;
+	color: var(--ink-2);
+}
+.tf-sfield input {
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	background: transparent;
+	border: 0;
+	outline: none;
+	/* 16 px, sonst zoomt iOS beim Fokus in das Feld. */
+	font-size: 16px;
+}
+/* Loesch-X: 44 x 44 Trefferflaeche, das Polster des Feldes aufgehoben. */
+.tf-sfield .x {
+	flex: none;
+	width: 44px;
+	height: 44px;
+	margin-right: -12px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--ink-2);
+}

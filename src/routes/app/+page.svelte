@@ -19,6 +19,8 @@
 	import TaskList from '$lib/components/tf/TaskList.svelte';
 	import TaskDetail from '$lib/components/tf/TaskDetail.svelte';
 	import DetailSheet from '$lib/components/tf/DetailSheet.svelte';
+	import SearchPalette from '$lib/components/tf/SearchPalette.svelte';
+	import SearchMobile from '$lib/components/tf/SearchMobile.svelte';
 
 	import ToastContainer from '$lib/components/tf/ToastContainer.svelte';
 	import ConfirmDialog from '$lib/components/tf/ConfirmDialog.svelte';
@@ -27,7 +29,6 @@
 	import BulkToolbar from '$lib/components/tf/BulkToolbar.svelte';
 
 	import InputDialog from '$lib/components/v2/InputDialog.svelte';
-	import SearchOverlay from '$lib/components/v2/SearchOverlay.svelte';
 	import EmojiPicker from '$lib/components/v2/EmojiPicker.svelte';
 
 	import {
@@ -200,8 +201,25 @@
 		});
 	});
 
-	// Search overlay
+	// ==========================================
+	// SUCHE
+	// ==========================================
+	// Zwei Fassungen, ein Suchwerk (`utils/suche.ts`): auf dem Zeigergeraet
+	// die ⌘K-Palette ueber allem, am Finger ein eigener Tab. `searchOpen`
+	// gilt nur fuer die Palette — der mobile Tab ist ein Schirm, kein
+	// Overlay, und steht in `nav.mobileTab`.
 	let searchOpen = $state(false);
+	// Der Suchbegriff des mobilen Tabs lebt hier, nicht in der Komponente:
+	// wer einen Treffer antippt, wechselt in den Tab „Listen" — kommt er
+	// zurueck, soll seine Eingabe noch dastehen.
+	let mobileSuche = $state('');
+
+	// Wird das Fenster unter den Umbruch gezogen, waehrend die Palette offen
+	// steht, uebernimmt der Tab. Ohne das bliebe `searchOpen` unsichtbar
+	// stehen und verschluckte drueben den naechsten Escape.
+	$effect(() => {
+		if (isMobile && searchOpen) searchOpen = false;
+	});
 
 	// List Icon Picker state
 	let listIconPicker = $state<{ show: boolean; listId: string; x: number; y: number }>({ show: false, listId: '', x: 0, y: 0 });
@@ -396,11 +414,14 @@
 		}
 
 		// Keyboard shortcuts — genau eine Ctrl+K-Registrierung (die zweite im
-		// Layout ist mit der alten Kopfzeile entfallen).
+		// Layout ist mit der alten Kopfzeile entfallen, nachgeprueft in T9).
 		function handleGlobalKeydown(e: KeyboardEvent) {
 			if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
 				e.preventDefault();
-				searchOpen = !searchOpen;
+				// Am Finger gibt es keine Palette, sondern den Tab „Suche" —
+				// eine angeschlossene Tastatur soll trotzdem dort landen.
+				if (isMobile) nav.setTab('suche');
+				else searchOpen = !searchOpen;
 			}
 			// Escape: close all overlays
 			if (e.key === 'Escape') {
@@ -481,12 +502,19 @@
 		nav.selectTask(task.id);
 	}
 
-	function handleSearchSelect(taskId: string) {
-		const task = tasks.find((t: Task) => t.id === taskId);
-		if (!task) return;
-		// Erst die Liste — sie raeumt die alte Auswahl ab —, dann die Aufgabe.
-		nav.selectList(task.list_id);
-		nav.selectTask(task.id);
+	/**
+	 * Die Liste hinter der Palette mitfuehren (Spezifikation Frame 3).
+	 * Erst die Liste — sie raeumt die alte Auswahl ab —, dann die Aufgabe.
+	 */
+	function sucheVorschau(listId: string, taskId: string) {
+		nav.selectList(listId);
+		nav.selectTask(taskId);
+	}
+
+	/** Mobiler Treffer angetippt: zurueck in den Listen-Tab und hinspringen. */
+	function sucheOeffnenMobil(listId: string, taskId: string) {
+		nav.setTab('listen');
+		sucheVorschau(listId, taskId);
 	}
 
 	function sucheSchliessen() {
@@ -494,12 +522,6 @@
 	}
 
 	function waehleTab(t: MobileTab) {
-		// Die Suche ist bis T9 das bestehende Overlay: der Tab oeffnet es,
-		// der bisherige Schirm bleibt darunter stehen.
-		if (t === 'suche') {
-			searchOpen = true;
-			return;
-		}
 		nav.setTab(t);
 	}
 
@@ -718,44 +740,52 @@
 						<span class="name">Angepinnt</span>
 						<span class="cnt">{pinnedTasks.length}</span>
 					</h2>
+				{:else if nav.mobileTab === 'suche'}
+					<h2><span class="name">Suche</span></h2>
 				{:else}
 					<h2><span class="name">Listen</span></h2>
 				{/if}
 			</header>
 
-			<!-- svelte-ignore a11y_no_static_element_interactions -->
-			<div
-				class="tf-liste"
-				ontouchstart={handleSwipeTouchStart}
-				ontouchend={handleSwipeTouchEnd}
-			>
-				{#if nav.mobileTab === 'pins'}
-					{@render smartInhalt(pinnedTasks, 'Nichts angepinnt.')}
-				{:else if unterschirm}
-					{#if nav.smartView}
-						{@render smartInhalt(smartAufgaben, 'Nichts Dringendes. Gute Lage.')}
+			{#if nav.mobileTab === 'suche'}
+				<!-- Eigener Schirm: Suchfeld und Treffer, kein Overlay ueber
+				     einem fremden Schirm wie bis T8. -->
+				<SearchMobile {tasks} {lists} bind:begriff={mobileSuche} onOeffnen={sucheOeffnenMobil} />
+			{:else}
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
+				<div
+					class="tf-liste"
+					ontouchstart={handleSwipeTouchStart}
+					ontouchend={handleSwipeTouchEnd}
+				>
+					{#if nav.mobileTab === 'pins'}
+						{@render smartInhalt(pinnedTasks, 'Nichts angepinnt.')}
+					{:else if unterschirm}
+						{#if nav.smartView}
+							{@render smartInhalt(smartAufgaben, 'Nichts Dringendes. Gute Lage.')}
+						{:else}
+							{@render listenInhalt()}
+						{/if}
 					{:else}
-						{@render listenInhalt()}
+						<ListsOverview
+							{lists}
+							activeListId={nav.activeListId}
+							{offeneJeListe}
+							{mitnutzer}
+							dringendAnzahl={dringendTasks.length}
+							benutzer={benutzerName}
+							initiale={benutzerInitiale}
+							isDark={theme.isDark}
+							onSelectList={(id) => nav.selectList(id)}
+							onSelectSmart={(v) => nav.selectSmart(v)}
+							onNeueListe={neueListeAnlegen}
+							onListContext={(e, list) => ctx.handleListContext(e, list)}
+							onToggleTheme={() => theme.toggle()}
+							onLogout={logout}
+						/>
 					{/if}
-				{:else}
-					<ListsOverview
-						{lists}
-						activeListId={nav.activeListId}
-						{offeneJeListe}
-						{mitnutzer}
-						dringendAnzahl={dringendTasks.length}
-						benutzer={benutzerName}
-						initiale={benutzerInitiale}
-						isDark={theme.isDark}
-						onSelectList={(id) => nav.selectList(id)}
-						onSelectSmart={(v) => nav.selectSmart(v)}
-						onNeueListe={neueListeAnlegen}
-						onListContext={(e, list) => ctx.handleListContext(e, list)}
-						onToggleTheme={() => theme.toggle()}
-						onLogout={logout}
-					/>
-				{/if}
-			</div>
+				</div>
+			{/if}
 		{:else if nav.smartView}
 			<header class="tf-lh">
 				<h2>
@@ -836,7 +866,7 @@
 	{/if}
 
 	{#if isMobile}
-		<MobileTabBar tab={searchOpen ? 'suche' : nav.mobileTab} onTab={waehleTab} />
+		<MobileTabBar tab={nav.mobileTab} onTab={waehleTab} />
 	{/if}
 </div>
 
@@ -870,14 +900,10 @@
 	</div>
 {/if}
 
-<!-- Search Overlay -->
-{#if searchOpen}
-	<SearchOverlay
-		{tasks}
-		lists={lists}
-		onSelect={handleSearchSelect}
-		onClose={sucheSchliessen}
-	/>
+<!-- Suche (Desktop): ⌘K-Palette ueber hellem Scrim. Am Finger uebernimmt
+     der Tab „Suche" — dort gibt es kein Overlay. -->
+{#if searchOpen && !isMobile}
+	<SearchPalette {tasks} {lists} onVorschau={sucheVorschau} onClose={sucheSchliessen} />
 {/if}
 
 <!-- Context Menu -->
