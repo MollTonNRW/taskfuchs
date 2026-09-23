@@ -25,17 +25,20 @@
 	let {
 		tasks,
 		lists,
+		startBegriff = '',
 		onVorschau,
 		onClose
 	}: {
 		tasks: Task[];
 		lists: List[];
+		/** Vorbelegter Suchbegriff — nur die Vorschau-Route setzt das. */
+		startBegriff?: string;
 		/** Liste und Aufgabe hinter der Palette mitfuehren. */
 		onVorschau: (listId: string, taskId: string) => void;
 		onClose: () => void;
 	} = $props();
 
-	let begriff = $state('');
+	let begriff = $state(untrack(() => startBegriff));
 	let aktiv = $state(0);
 	let feld = $state<HTMLInputElement | undefined>();
 	let zeilen: (HTMLElement | undefined)[] = [];

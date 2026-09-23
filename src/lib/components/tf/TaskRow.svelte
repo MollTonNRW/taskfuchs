@@ -221,6 +221,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions, a11y_click_events_have_key_events -->
 <div
 	class="tf-row"
+	data-tf-task={task.id}
 	class:sel={selected}
 	class:neu
 	class:erledigt={task.done}

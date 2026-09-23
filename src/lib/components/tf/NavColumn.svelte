@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import Icon from './Icon.svelte';
 	import Logo from './Logo.svelte';
@@ -42,7 +43,8 @@
 		onListDrop,
 		onListDragEnd,
 		ziehIndex,
-		ziehListId
+		ziehListId,
+		neueListeOffen = false
 	}: {
 		lists: List[];
 		activeListId: string | null;
@@ -69,9 +71,11 @@
 		/** Einfuegestelle beim Umsortieren (Index zwischen den Zeilen). */
 		ziehIndex: number | null;
 		ziehListId: string | null;
+		/** Startet mit ausgeklappter Karte „Neue Liste" — nur die Vorschau-Route. */
+		neueListeOffen?: boolean;
 	} = $props();
 
-	let neueListeAuf = $state(false);
+	let neueListeAuf = $state(untrack(() => neueListeOffen));
 	let menueAuf = $state(false);
 
 	/** Die Zeile zeigt nur die ANDEREN — der eigene Avatar steht in der Fusszeile. */

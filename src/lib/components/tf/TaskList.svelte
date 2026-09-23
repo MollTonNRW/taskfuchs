@@ -38,7 +38,8 @@
 		onClearDone,
 		bulkMode = false,
 		bulkSelectedIds = new Set<string>(),
-		onBulkToggle
+		onBulkToggle,
+		quickAddVorgabe = ''
 	}: {
 		list: List;
 		/** Alle Aufgaben der Liste, bereits sortiert (Unteraufgaben inbegriffen). */
@@ -64,6 +65,8 @@
 		bulkMode?: boolean;
 		bulkSelectedIds?: Set<string>;
 		onBulkToggle?: (id: string) => void;
+		/** Quick-Add aktiv mit diesem Text — nur die Vorschau-Route. */
+		quickAddVorgabe?: string;
 	} = $props();
 
 	// ------------------------------------------------------------------
@@ -105,7 +108,13 @@
 		eigeneWahl.set(id, !subsOffen(id));
 	}
 
-	let erledigtOffen = $state(true);
+	/**
+	 * Der Erledigt-Bereich startet EINGEKLAPPT — so zeigen ihn alle Frames
+	 * des Mockups (Chevron nach rechts, „Erledigt 8"), und so verlangt es
+	 * Punkt 8 der Checkliste in kernfunktionen.md. Die offenen Aufgaben
+	 * sollen den Schirm tragen, nicht die abgehakten.
+	 */
+	let erledigtOffen = $state(false);
 
 	// ------------------------------------------------------------------
 	// Umsortieren — HTML5-Drag (Zeigergeraet) und touchDrag (Finger)
@@ -185,7 +194,7 @@
 	}
 </script>
 
-<QuickAdd listId={list.id} {mobil} onAdd={onQuickAdd} />
+<QuickAdd listId={list.id} {mobil} vorgabe={quickAddVorgabe} onAdd={onQuickAdd} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div

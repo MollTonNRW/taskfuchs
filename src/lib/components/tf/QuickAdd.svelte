@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import Icon from './Icon.svelte';
 	import { beobachteTastatur, tastatur } from '$lib/stores/tf/tastatur.svelte';
 
@@ -16,15 +16,22 @@
 	let {
 		listId,
 		mobil = false,
+		vorgabe = '',
 		onAdd
 	}: {
 		listId: string;
 		mobil?: boolean;
+		/**
+		 * Startet das Feld aktiv mit diesem Text. Nur die Vorschau-Route
+		 * setzt das — sie muss den Zustand „wird gerade getippt" ohne
+		 * Tastatur herstellen koennen (Frame `mobile-quickadd`).
+		 */
+		vorgabe?: string;
 		onAdd: (listId: string, text: string) => void;
 	} = $props();
 
-	let aktiv = $state(false);
-	let text = $state('');
+	let aktiv = $state(untrack(() => !!vorgabe));
+	let text = $state(untrack(() => vorgabe));
 	let feld = $state<HTMLInputElement | undefined>(undefined);
 
 	// Die Tastaturhoehe wird nur beobachtet, solange mobil getippt wird.
@@ -33,11 +40,17 @@
 		return beobachteTastatur();
 	});
 
-	// Listenwechsel raeumt einen angefangenen Eintrag ab.
+	// Listenwechsel raeumt einen angefangenen Eintrag ab. Der ERSTE Durchlauf
+	// zaehlt nicht als Wechsel — sonst loeschte er die Vorgabe gleich wieder.
+	let letzteListe = untrack(() => listId);
 	$effect(() => {
-		listId;
-		aktiv = false;
-		text = '';
+		const jetzt = listId;
+		untrack(() => {
+			if (jetzt === letzteListe) return;
+			letzteListe = jetzt;
+			aktiv = false;
+			text = '';
+		});
 	});
 
 	/** Angedockt wird nur mobil und nur, solange wirklich getippt wird. */

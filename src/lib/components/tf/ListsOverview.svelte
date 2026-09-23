@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import Icon from './Icon.svelte';
 	import NewListCard from './NewListCard.svelte';
@@ -30,7 +31,8 @@
 		onNeueListe,
 		onListContext,
 		onToggleTheme,
-		onLogout
+		onLogout,
+		neueListeOffen = false
 	}: {
 		lists: List[];
 		activeListId: string | null;
@@ -47,9 +49,11 @@
 		onListContext: (e: MouseEvent, list: List) => void;
 		onToggleTheme: () => void;
 		onLogout: () => void;
+		/** Startet mit ausgeklappter Karte „Neue Liste" — nur die Vorschau-Route. */
+		neueListeOffen?: boolean;
 	} = $props();
 
-	let neueListeAuf = $state(false);
+	let neueListeAuf = $state(untrack(() => neueListeOffen));
 
 	/** Die Zeile zeigt nur die ANDEREN — der eigene Avatar steht in der Fusszeile. */
 	function fremde(listId: string): Mitnutzer[] {
