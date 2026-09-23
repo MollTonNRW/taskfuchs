@@ -1,13 +1,17 @@
 import type { Database } from '$lib/types/database';
-import type { MenuItem } from '$lib/components/v2/ContextMenu.svelte';
-import { priorityLabels, type Priority, timeframeLabels, type Timeframe } from '$lib/constants';
+import type { MenuEintrag } from '$lib/components/tf/ContextMenu.svelte';
 import { showInputDialog } from '$lib/stores/toast';
 
 type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
-type Profile = Database['public']['Tables']['profiles']['Row'];
 
-export type ContextMenuState = { show: boolean; x: number; y: number; items: MenuItem[] };
+export type ContextMenuState = {
+	show: boolean;
+	x: number;
+	y: number;
+	breite: number;
+	items: MenuEintrag[];
+};
 
 /**
  * Was ein Menue vom ausloesenden Ereignis wirklich braucht: einen Punkt auf
@@ -25,249 +29,202 @@ export type Zeigerpunkt = {
 	preventDefault(): void;
 };
 
-// Priority colored dot indicators (matching PoC v6)
-const PRIORITY_ICONS: Record<string, string> = {
-	low: '\uD83D\uDFE2',    // green circle
-	normal: '\uD83D\uDFE1', // yellow circle
-	high: '\uD83D\uDD34',   // red circle
-	asap: '\uD83D\uDD34'    // red circle (blinks via CSS)
-};
-
+/**
+ * Die Menues der Richtung A „Klar" — A-klar-spec.md, Abschnitt 6.
+ *
+ * **Aufgabenmenue: genau vier Eintraege.** In Liste verschieben (Untermenue) ·
+ * Auswaehlen · Anpinnen · ⸺ · Loeschen (danger).
+ * **Listenmenue: genau sieben.** Umbenennen · Icon aendern · Teilen (Zahl) ·
+ * Auswaehlen · Sortierung (Wert ›) · ⸺ · Erledigte loeschen (Zahl) ·
+ * Liste loeschen (danger).
+ *
+ * Alles Uebrige lebt seit T7 im Aufgabendetail: Terminieren, Prioritaet,
+ * Zeitrahmen, Umbenennen, Unteraufgabe anlegen, Unteraufgaben loeschen,
+ * Symbol, Neue Aufgabe darunter. Icons kommen aus dem Stroke-Set
+ * (components/tf/Icon.svelte) — keine Emoji fuer Funktionen.
+ */
 export interface ContextMenuDeps {
 	store: {
 		tasks: Task[];
 		lists: List[];
-		addTask: (listId: string, text: string) => void;
-		addTaskAfter: (taskId: string, text: string) => void;
-		addSubtask: (taskId: string, text: string) => void;
-		createDivider: (listId: string, position: number, label: string) => void;
-		checkAllInList: (listId: string) => void;
-		deleteDoneInList: (listId: string) => void;
-		deleteAllSubtasksOfTask: (taskId: string) => void;
 		renameList: (listId: string, name: string) => void;
-		deleteList: (listId: string) => void;
-		changeTaskPriority: (taskId: string, priority: Priority) => void;
-		changeTaskTimeframe: (taskId: string, timeframe: Timeframe | null) => void;
+		deleteDoneInList: (listId: string) => void;
 		togglePin: (taskId: string) => void;
 		updateTask: (taskId: string, text: string) => void;
-		updateTaskEmoji: (taskId: string, emoji: string) => void;
 		moveTaskToList: (taskId: string, listId: string) => void;
 		deleteTaskDirect: (taskId: string) => void;
 	};
-	collapsedSubtasksListIds: Set<string>;
-	toggleCollapseSubtasks: (listId: string) => void;
-	setSubtasksForceState: (listId: string, open: boolean) => void;
-	profileMap: Map<string, Profile>;
-	userId: string | undefined;
-	userEmail: string | undefined;
-	startBulkSelect: (taskId: string) => void;
-	openDatePicker: (taskId: string, x: number, y: number) => void;
-	openEmojiPicker: (taskId: string, x: number, y: number) => void;
-	openShareDialog: (list: List) => void;
+	/** Mehrfachauswahl starten; ohne Aufgabe nur den Modus einschalten. */
+	startBulkSelect: (taskId?: string) => void;
+	openShareDialog: (list: List, x: number, y: number) => void;
 	openListIconPicker: (listId: string, x: number, y: number) => void;
+	/** Liste loeschen — mit Bestaetigungsdialog beim Aufrufer. */
+	listeLoeschen: (list: List) => void;
+	/** Anzahl der sichtbaren Beteiligten einer Liste (Zusatz bei „Teilen"). */
+	beteiligteAnzahl: (listId: string) => number;
+	/** Sortierung: aktueller Wert, alle Moeglichkeiten, Auswahl. */
+	sortierung: {
+		aktuell: string;
+		optionen: { wert: string; label: string }[];
+		waehlen: (wert: string) => void;
+	};
+	/** Breite des Listenmenues: 220 am Zeiger, 232 am Finger. */
+	mobil: boolean;
 }
 
 export function createContextMenus(deps: ContextMenuDeps) {
-	let contextMenu = $state<ContextMenuState>({ show: false, x: 0, y: 0, items: [] });
+	let contextMenu = $state<ContextMenuState>({ show: false, x: 0, y: 0, breite: 220, items: [] });
+
+	function oeffnen(e: Zeigerpunkt, items: MenuEintrag[], breite = 220) {
+		contextMenu = { show: true, x: e.clientX, y: e.clientY, breite, items };
+	}
 
 	function handleListContext(e: Zeigerpunkt, list: List) {
 		e.preventDefault();
-		const { store, setSubtasksForceState, openShareDialog, openListIconPicker } = deps;
-		contextMenu = {
-			show: true, x: e.clientX, y: e.clientY,
-			items: [
-				{ label: 'Neue Aufgabe', icon: '\u2795', action: () => store.addTask(list.id, 'Neue Aufgabe') },
+		const { store, sortierung } = deps;
+		const erledigte = store.tasks.filter((t) => t.list_id === list.id && t.done && !t.parent_id).length;
+		const geteilt = deps.beteiligteAnzahl(list.id);
+		const x = e.clientX;
+		const y = e.clientY;
+
+		oeffnen(
+			e,
+			[
 				{
-					label: 'Trenner erstellen',
-					icon: '\u2796',
-					action: () => {
-						const listTasks = store.tasks.filter((t) => t.list_id === list.id && !t.parent_id);
-						store.createDivider(list.id, listTasks.length, 'Neuer Trenner');
-					}
-				},
-				{ divider: true, label: '' },
-				{ label: 'Alle Aufgaben abhaken', icon: '\u2705', action: () => store.checkAllInList(list.id) },
-				{ label: 'Erledigte Eintr\u00E4ge l\u00F6schen', icon: '\uD83E\uDDF9', action: () => store.deleteDoneInList(list.id) },
-					{ divider: true, label: '' },
-				{
-					label: 'Unteraufgaben einklappen',
-					icon: '\uD83D\uDCC1',
-					action: () => {
-						setSubtasksForceState(list.id, false);
-					}
-				},
-				{
-					label: 'Unteraufgaben ausklappen',
-					icon: '\uD83D\uDCC2',
-					action: () => {
-						setSubtasksForceState(list.id, true);
-					}
-				},
-				{ divider: true, label: '' },
-				{
-					label: 'Liste teilen',
-					icon: '\uD83D\uDC65',
-					action: () => openShareDialog(list)
-				},
-				{
-					label: 'Liste umbenennen',
-					icon: '\u270F\uFE0F',
+					label: 'Umbenennen',
+					icon: 'umbenennen',
 					action: async () => {
-						const newName = await showInputDialog('Liste umbenennen', '', list.title, 'Neuer Listenname');
-						if (newName?.trim()) store.renameList(list.id, newName.trim());
+						const neu = await showInputDialog('Liste umbenennen', '', list.title, 'Neuer Listenname');
+						if (neu?.trim()) store.renameList(list.id, neu.trim());
 					}
 				},
 				{
-					label: 'Icon \u00E4ndern',
-					icon: '\uD83C\uDFA8',
-					action: () => openListIconPicker(list.id, e.clientX, e.clientY)
+					label: 'Icon ändern',
+					icon: 'emoji',
+					action: () => deps.openListIconPicker(list.id, x, y)
 				},
-				{ label: 'Liste l\u00F6schen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteList(list.id), danger: true }
-			]
-		};
+				{
+					label: 'Teilen',
+					icon: 'teilen',
+					// Der Zusatz zaehlt alle Beteiligten inklusive der eigenen
+					// Person — so wie die Geteilt-Pille im Listen-Header.
+					extra: geteilt > 1 ? String(geteilt) : undefined,
+					action: () => deps.openShareDialog(list, x, y)
+				},
+				{ label: 'Auswählen', icon: 'auswahl', action: () => deps.startBulkSelect() },
+				{
+					label: 'Sortierung',
+					icon: 'sortierung-menue',
+					extra: sortierung.optionen.find((o) => o.wert === sortierung.aktuell)?.label ?? '',
+					submenu: sortierung.optionen.map((o) => ({
+						label: o.label,
+						action: () => sortierung.waehlen(o.wert),
+						active: o.wert === sortierung.aktuell
+					}))
+				},
+				{ divider: true, label: '' },
+				{
+					label: 'Erledigte löschen',
+					icon: 'loeschen',
+					extra: erledigte > 0 ? String(erledigte) : undefined,
+					inaktiv: erledigte === 0,
+					// Kein Dialog: `deleteDoneInList` legt einen Undo-Toast nach.
+					action: () => store.deleteDoneInList(list.id)
+				},
+				{
+					label: 'Liste löschen',
+					icon: 'loeschen',
+					danger: true,
+					action: () => deps.listeLoeschen(list)
+				}
+			],
+			deps.mobil ? 232 : 220
+		);
 	}
 
 	function handleTaskContext(e: Zeigerpunkt, task: Task) {
 		e.preventDefault();
-		const { store, openDatePicker, openEmojiPicker } = deps;
+		const { store } = deps;
 
-		// Divider context menu
+		// Trenner: ein Restbestand aus der Zeit vor dem Umbau. Neue Trenner
+		// legt die Oberflaeche nicht mehr an, vorhandene bleiben bedienbar.
 		if (task.type === 'divider') {
-			contextMenu = {
-				show: true, x: e.clientX, y: e.clientY,
-				items: [
-					{
-						label: 'Trenner umbenennen',
-						icon: '\u270F',
-						action: async () => {
-							const newName = await showInputDialog('Trenner umbenennen', '', task.text, 'Neuer Trenner-Name');
-							if (newName?.trim()) store.updateTask(task.id, newName.trim());
-						}
-					},
-					{ label: 'Trenner l\u00F6schen', icon: '\uD83D\uDDD1', action: () => store.deleteTaskDirect(task.id), danger: true }
-				]
-			};
-			return;
-		}
-
-		// Subtask context menu
-		if (task.parent_id) {
-			contextMenu = {
-				show: true, x: e.clientX, y: e.clientY,
-				items: [
-					{
-						label: 'Umbenennen',
-						icon: '\u270F\uFE0F',
-						action: async () => {
-							const newName = await showInputDialog('Unteraufgabe umbenennen', '', task.text, 'Neuer Text');
-							if (newName?.trim()) store.updateTask(task.id, newName.trim());
-						}
-					},
-					{
-						label: 'Priorit\u00E4t',
-						icon: '\uD83D\uDD34',
-						submenu: (['low', 'normal', 'high', 'asap'] as Priority[]).map((p) => ({
-							label: priorityLabels[p],
-							icon: PRIORITY_ICONS[p],
-							action: () => store.changeTaskPriority(task.id, p),
-							active: task.priority === p
-						}))
-					},
-					{ label: 'Unteraufgabe l\u00F6schen', icon: '\uD83D\uDDD1\uFE0F', action: () => store.deleteTaskDirect(task.id), danger: true }
-				]
-			};
-			return;
-		}
-
-		const otherLists = store.lists.filter((l) => l.id !== task.list_id);
-		const taskSubtaskCount = store.tasks.filter(t => t.parent_id === task.id).length;
-
-		const items: MenuItem[] = [
-			{
-				label: 'Umbenennen',
-				icon: '\u270F\uFE0F',
-				action: async () => {
-					const newName = await showInputDialog('Aufgabe umbenennen', '', task.text, 'Neuer Text');
-					if (newName?.trim()) store.updateTask(task.id, newName.trim());
+			oeffnen(e, [
+				{
+					label: 'Umbenennen',
+					icon: 'umbenennen',
+					action: async () => {
+						const neu = await showInputDialog('Trenner umbenennen', '', task.text, 'Neuer Trenner-Name');
+						if (neu?.trim()) store.updateTask(task.id, neu.trim());
+					}
+				},
+				{
+					label: 'Löschen',
+					icon: 'loeschen',
+					danger: true,
+					action: () => store.deleteTaskDirect(task.id)
 				}
-			},
-			{ label: 'Neue Aufgabe darunter', icon: '\u2795', action: () => store.addTaskAfter(task.id, 'Neue Aufgabe') },
-			{ label: 'Unteraufgabe erstellen', icon: '\u2795', action: () => store.addSubtask(task.id, 'Neue Unteraufgabe') },
-			...(taskSubtaskCount > 0 ? [{
-				label: `Unteraufgaben l\u00F6schen (${taskSubtaskCount})`,
-				icon: '\uD83D\uDDD1',
-				action: () => store.deleteAllSubtasksOfTask(task.id)
-			} as MenuItem] : []),
-			{ label: 'Ausw\u00E4hlen', icon: '\u2611', action: () => deps.startBulkSelect(task.id) },
-			{ divider: true, label: '' },
+			]);
+			return;
+		}
+
+		// Unteraufgabe: Umbenennen und Prioritaet stehen im Detail, hier bleibt
+		// nur der Griff, den die Zeile selbst nicht hat.
+		if (task.parent_id) {
+			oeffnen(e, [
+				{
+					label: 'Löschen',
+					icon: 'loeschen',
+					danger: true,
+					action: () => store.deleteTaskDirect(task.id)
+				}
+			]);
+			return;
+		}
+
+		const andereListen = store.lists.filter((l) => l.id !== task.list_id);
+
+		oeffnen(e, [
 			{
-				label: 'In andere Liste',
-				icon: '\uD83D\uDCCB',
-				submenu: otherLists.length > 0
-					? otherLists.map((l) => ({
-						label: `${l.icon} ${l.title}`,
-						action: () => store.moveTaskToList(task.id, l.id)
-					}))
-					: [{ label: 'Keine weiteren Listen', action: () => {} }]
+				label: 'In Liste verschieben',
+				icon: 'verschieben',
+				submenu:
+					andereListen.length > 0
+						? andereListen.map((l) => ({
+								label: l.title,
+								emoji: l.icon,
+								action: () => store.moveTaskToList(task.id, l.id)
+							}))
+						: [{ label: 'Keine weitere Liste', action: () => {} }]
 			},
+			{ label: 'Auswählen', icon: 'auswahl', action: () => deps.startBulkSelect(task.id) },
 			{
-				label: 'Priorit\u00E4t',
-				icon: '\uD83D\uDD34',
-				submenu: (['low', 'normal', 'high', 'asap'] as Priority[]).map((p) => ({
-					label: priorityLabels[p],
-					icon: PRIORITY_ICONS[p],
-					action: () => store.changeTaskPriority(task.id, p),
-					active: task.priority === p
-				}))
-			},
-			{
-				label: 'Zeitrahmen',
-				icon: '\u23F1',
-				submenu: [
-					{ label: 'Keiner', action: () => store.changeTaskTimeframe(task.id, null), active: !task.timeframe },
-					...(['akut', 'zeitnah', 'mittelfristig', 'langfristig'] as Timeframe[]).map((tf) => ({
-						label: timeframeLabels[tf],
-						action: () => store.changeTaskTimeframe(task.id, tf),
-						active: task.timeframe === tf
-					}))
-				]
-			},
-			{ divider: true, label: '' },
-			{
-				label: task.pinned ? 'Von Pinnwand l\u00F6sen' : 'An Pinnwand pinnen',
-				icon: '\uD83D\uDCCD',
+				label: task.pinned ? 'Loslösen' : 'Anpinnen',
+				icon: 'pin',
 				action: () => store.togglePin(task.id)
 			},
+			{ divider: true, label: '' },
 			{
-				label: 'Terminieren',
-				icon: '\uD83D\uDCC5',
-				action: () => openDatePicker(task.id, contextMenu.x, contextMenu.y)
-			},
-			{
-				label: task.emoji ? 'Symbol \u00E4ndern' : 'Mit Symbol versehen',
-				icon: '\uD83D\uDE00',
-				action: () => openEmojiPicker(task.id, contextMenu.x, contextMenu.y)
+				label: 'Löschen',
+				icon: 'loeschen',
+				danger: true,
+				// Kein Dialog: `deleteTaskDirect` legt einen Undo-Toast nach.
+				action: () => store.deleteTaskDirect(task.id)
 			}
-		];
-
-		items.push({ divider: true, label: '' });
-		items.push({
-			label: 'Aufgabe l\u00F6schen',
-			icon: '\uD83D\uDDD1\uFE0F',
-			action: () => store.deleteTaskDirect(task.id),
-			danger: true
-		});
-
-		contextMenu = { show: true, x: e.clientX, y: e.clientY, items };
+		]);
 	}
 
 	function close() {
-		contextMenu = { show: false, x: 0, y: 0, items: [] };
+		contextMenu = { show: false, x: 0, y: 0, breite: 220, items: [] };
 	}
 
 	return {
-		get contextMenu() { return contextMenu; },
-		set contextMenu(v: ContextMenuState) { contextMenu = v; },
+		get contextMenu() {
+			return contextMenu;
+		},
+		set contextMenu(v: ContextMenuState) {
+			contextMenu = v;
+		},
 		handleListContext,
 		handleTaskContext,
 		close

@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database';
 import type { Priority } from '$lib/constants';
 import * as crud from '$lib/services/supabase-crud';
-import { toasts, confirmAction } from '$lib/stores/toast';
+import { toasts } from '$lib/stores/toast';
 
 type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
@@ -81,8 +81,16 @@ export function createTaskStore() {
 		if (error) lists = oldLists;
 	}
 
+	/**
+	 * Loescht eine Liste samt Aufgaben — OHNE eigene Rueckfrage.
+	 *
+	 * Den Bestaetigungsdialog fuehrt der Aufrufer (routes/app/+page.svelte),
+	 * denn nur dort sind die konkreten Zahlen und die Mitnutzer bekannt, die
+	 * laut Spezifikation Abschnitt 6 im Text stehen muessen. Hier stand
+	 * frueher ein `confirmAction` mit dem pauschalen Satz „Liste wirklich
+	 * loeschen? Alle Aufgaben werden geloescht."
+	 */
 	async function deleteList(id: string): Promise<boolean> {
-		if (!await confirmAction('Liste wirklich löschen? Alle Aufgaben werden gelöscht.')) return false;
 		const oldLists = lists;
 		const oldTasks = tasks;
 		lists = lists.filter((l) => l.id !== id);
@@ -209,38 +217,6 @@ export function createTaskStore() {
 		tasks = tasks.map((t) => (t.id === id ? { ...t, ...fields } : t));
 		const { error } = await crud.updateTaskField(sb, id, fields);
 		if (error) tasks = oldTasks;
-	}
-
-	async function deleteTask(id: string) {
-		if (!await confirmAction('Aufgabe wirklich löschen?')) return;
-		const deletedTask = tasks.find((t) => t.id === id);
-		const deletedSubtasks = tasks.filter((t) => t.parent_id === id);
-		const subtaskIds = deletedSubtasks.map((t) => t.id);
-		tasks = tasks.filter((t) => t.id !== id && t.parent_id !== id);
-		const { error } = await crud.deleteTaskWithSubtasks(sb, id, subtaskIds);
-		if (error) {
-			if (deletedTask) tasks = [...tasks, deletedTask, ...deletedSubtasks];
-			return;
-		}
-		if (deletedTask) {
-			toasts.undo('Aufgabe gelöscht', async () => {
-				pendingTaskIds.add(deletedTask.id);
-				for (const sub of deletedSubtasks) pendingTaskIds.add(sub.id);
-				const { error: reErr } = await crud.reinsertTask(sb, deletedTask);
-				if (reErr) {
-					pendingTaskIds.delete(deletedTask.id);
-					for (const sub of deletedSubtasks) pendingTaskIds.delete(sub.id);
-					toasts.error('Wiederherstellen fehlgeschlagen.');
-					return;
-				}
-				if (deletedSubtasks.length > 0) await crud.reinsertTasks(sb, deletedSubtasks);
-				tasks = [...tasks, deletedTask, ...deletedSubtasks];
-				setTimeout(() => {
-					pendingTaskIds.delete(deletedTask.id);
-					for (const sub of deletedSubtasks) pendingTaskIds.delete(sub.id);
-				}, 3000);
-			});
-		}
 	}
 
 	async function changeTaskPriority(id: string, priority: Priority) {
@@ -404,13 +380,24 @@ export function createTaskStore() {
 		if (error) tasks = oldTasks;
 	}
 
-	async function bulkDelete(ids: string[]) {
-		if (!await confirmAction(`${ids.length} Aufgaben wirklich löschen?`)) return;
-		const oldTasks = tasks;
+	/**
+	 * Mehrfachauswahl loeschen — mit Undo-Toast statt Rueckfrage.
+	 *
+	 * Spezifikation Abschnitt 6: ein Dialog steht nur dort, wo es kein
+	 * Rueckgaengig gibt. Das Loeschen von Aufgaben laesst sich rueckgaengig
+	 * machen, also uebernimmt `undoableBulkDelete` — dieselbe Mechanik wie
+	 * bei „Erledigte loeschen": erst nach acht Sekunden geht die Loeschung
+	 * wirklich an die Datenbank.
+	 */
+	function bulkDelete(ids: string[]) {
 		const idSet = new Set(ids);
+		const deleted = tasks.filter((t) => idSet.has(t.id) || idSet.has(t.parent_id ?? ''));
+		if (deleted.length === 0) return;
 		tasks = tasks.filter((t) => !idSet.has(t.id) && !idSet.has(t.parent_id ?? ''));
-		const { error } = await crud.bulkDeleteTasks(sb, ids);
-		if (error) tasks = oldTasks;
+		undoableBulkDelete(
+			deleted,
+			ids.length === 1 ? 'Aufgabe gelöscht' : `${ids.length} Aufgaben gelöscht`
+		);
 	}
 
 	async function bulkMoveToList(ids: string[], targetListId: string) {
@@ -739,7 +726,7 @@ export function createTaskStore() {
 		// List operations
 		createList, renameList, deleteList, changeListIcon, reorderList,
 		// Task operations
-		addTask, addTaskAfter, toggleTask, updateTask, deleteTask, deleteTaskDirect,
+		addTask, addTaskAfter, toggleTask, updateTask, deleteTaskDirect,
 		changeTaskPriority, changeTaskTimeframe,
 		togglePin, clearPinboard,
 		updateTaskNote, assignTask, moveTaskToList,

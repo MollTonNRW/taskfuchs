@@ -8,7 +8,7 @@ export type SortMode = 'position' | 'priority' | 'name' | 'date' | 'created' | '
 export const validSortModes: SortMode[] = ['position', 'priority', 'name', 'date', 'created', 'progress'];
 
 export const sortLabels: Record<SortMode, string> = {
-	position: 'Frei',
+	position: 'Manuell',
 	priority: 'Priorität',
 	name: 'Name',
 	date: 'Fälligkeitsdatum',
@@ -36,7 +36,7 @@ export function createSortFilter(
 	function handleReorderTask(taskId: string, targetListId: string, newPosition: number) {
 		if (sortMode !== 'position') {
 			sortMode = 'position';
-			toasts.show('Sortierung auf \u201eFrei\u201c gewechselt', 'info', 2000);
+			toasts.show('Sortierung auf \u201eManuell\u201c gewechselt', 'info', 2000);
 		}
 		store.reorderTask(taskId, targetListId, newPosition);
 	}

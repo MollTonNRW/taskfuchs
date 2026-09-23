@@ -42,34 +42,63 @@ export const toasts = {
 };
 
 // ==========================================
-// CONFIRM DIALOG (ersetzt window.confirm)
+// BESTAETIGUNGSDIALOG
 // ==========================================
+// Nur dort, wo es kein Rueckgaengig gibt — praktisch nur „Liste loeschen".
+// Eine einzelne Aufgabe und „Erledigte loeschen" bekommen einen Undo-Toast
+// (A-klar-spec.md, Abschnitt 6). Darum traegt der Zustand jetzt Titel, Text,
+// die Beschriftung des bestaetigenden Knopfes und dessen Gefaehrlichkeit —
+// die alte Fassung hatte nur eine Meldung und einen Knopf „Bestaetigen".
 export interface ConfirmState {
 	show: boolean;
-	message: string;
+	titel: string;
+	text: string;
+	knopf: string;
+	destruktiv: boolean;
 	resolve: ((value: boolean) => void) | null;
 }
 
-export const confirmStore = writable<ConfirmState>({ show: false, message: '', resolve: null });
+const LEER: ConfirmState = {
+	show: false,
+	titel: '',
+	text: '',
+	knopf: '',
+	destruktiv: false,
+	resolve: null
+};
+
+export const confirmStore = writable<ConfirmState>({ ...LEER });
 
 /**
- * Zeigt einen nicht-blockierenden Bestaetigungsdialog.
- * Gibt ein Promise<boolean> zurueck (true = bestaetigt, false = abgebrochen).
+ * Zeigt den Bestaetigungsdialog und wartet auf die Antwort.
+ * true = bestaetigt, false = abgebrochen.
  */
-export function confirmAction(message: string): Promise<boolean> {
-	// Falls bereits ein Dialog offen ist, vorherigen ablehnen
+export function bestaetigen(opt: {
+	titel: string;
+	text?: string;
+	knopf?: string;
+	destruktiv?: boolean;
+}): Promise<boolean> {
+	// Falls bereits ein Dialog offen ist, den vorherigen ablehnen.
 	const current = get(confirmStore);
 	if (current.resolve) current.resolve(false);
 
 	return new Promise<boolean>((resolve) => {
-		confirmStore.set({ show: true, message, resolve });
+		confirmStore.set({
+			show: true,
+			titel: opt.titel,
+			text: opt.text ?? '',
+			knopf: opt.knopf ?? 'Bestaetigen',
+			destruktiv: opt.destruktiv ?? false,
+			resolve
+		});
 	});
 }
 
 export function resolveConfirm(value: boolean) {
 	const current = get(confirmStore);
 	if (current.resolve) current.resolve(value);
-	confirmStore.set({ show: false, message: '', resolve: null });
+	confirmStore.set({ ...LEER });
 }
 
 // ==========================================
@@ -85,7 +114,12 @@ export interface InputDialogState {
 }
 
 export const inputDialogStore = writable<InputDialogState>({
-	show: false, title: '', message: '', defaultValue: '', placeholder: '', resolve: null
+	show: false,
+	title: '',
+	message: '',
+	defaultValue: '',
+	placeholder: '',
+	resolve: null
 });
 
 /**

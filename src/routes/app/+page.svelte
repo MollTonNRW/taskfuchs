@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { createTaskStore } from '$lib/stores/tasks.svelte';
-	import { toasts } from '$lib/stores/toast';
 	import { goto } from '$app/navigation';
 	import { onMount, untrack } from 'svelte';
 	import type { Database } from '$lib/types/database';
@@ -21,16 +20,15 @@
 	import TaskDetail from '$lib/components/tf/TaskDetail.svelte';
 	import DetailSheet from '$lib/components/tf/DetailSheet.svelte';
 
-	import ToastContainer from '$lib/components/v2/ToastContainer.svelte';
-	import ConfirmDialog from '$lib/components/v2/ConfirmDialog.svelte';
+	import ToastContainer from '$lib/components/tf/ToastContainer.svelte';
+	import ConfirmDialog from '$lib/components/tf/ConfirmDialog.svelte';
+	import ContextMenu from '$lib/components/tf/ContextMenu.svelte';
+	import ShareDialog from '$lib/components/tf/ShareDialog.svelte';
+	import BulkToolbar from '$lib/components/tf/BulkToolbar.svelte';
+
 	import InputDialog from '$lib/components/v2/InputDialog.svelte';
 	import SearchOverlay from '$lib/components/v2/SearchOverlay.svelte';
-	import ContextMenu from '$lib/components/v2/ContextMenu.svelte';
 	import EmojiPicker from '$lib/components/v2/EmojiPicker.svelte';
-	import DatePicker from '$lib/components/v2/DatePicker.svelte';
-	import PriorityPicker from '$lib/components/v2/PriorityPicker.svelte';
-	import BulkToolbar from '$lib/components/v2/BulkToolbar.svelte';
-	import ShareDialog from '$lib/components/v2/ShareDialog.svelte';
 
 	import {
 		createContextMenus,
@@ -38,12 +36,11 @@
 		type Zeigerpunkt
 	} from '$lib/composables/v2/useContextMenus.svelte';
 	import { createSortFilter, sortLabels, validSortModes, type SortMode } from '$lib/composables/v2/useSortFilter.svelte';
-	import { createPopovers } from '$lib/composables/v2/usePopovers.svelte';
 	import { createShareDialog } from '$lib/composables/v2/useShareDialog.svelte';
+	import { bestaetigen, toasts } from '$lib/stores/toast';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 	type Task = Database['public']['Tables']['tasks']['Row'];
-	type Profile = Database['public']['Tables']['profiles']['Row'];
 
 	let { data } = $props();
 
@@ -100,34 +97,10 @@
 	let fensterBreite = $state(1200);
 	let isMobile = $derived(fensterBreite < 900);
 
-	// Unteraufgaben je Liste erzwingen (null = die Liste entscheidet je Zeile)
-	let subtasksForceState = $state<Map<string, boolean>>(new Map());
-	// Legacy compat: collapsedSubtasksListIds derived from forceState for context menu deps
-	let collapsedSubtasksListIds = $derived.by(() => {
-		const set = new Set<string>();
-		for (const [id, open] of subtasksForceState) {
-			if (!open) set.add(id);
-		}
-		return set;
-	});
-	function toggleCollapseSubtasks(listId: string) {
-		const next = new Map(subtasksForceState);
-		const current = next.get(listId);
-		if (current === false) {
-			// Currently forced closed -> force open
-			next.set(listId, true);
-		} else {
-			// Currently forced open or not set -> force closed
-			next.set(listId, false);
-		}
-		subtasksForceState = next;
-	}
-	function getForceSubtasksOpen(listId: string): boolean | null {
-		return subtasksForceState.has(listId) ? subtasksForceState.get(listId)! : null;
-	}
-
-	// Profile map (for assign submenu)
-	let profileMap = $state(new Map<string, Profile>());
+	// Das Listenmenue hat mit dem Umbau auf sieben Eintraege sein
+	// „Unteraufgaben ein-/ausklappen" verloren (Spezifikation Abschnitt 6);
+	// damit entfaellt der erzwungene Klappzustand je Liste ersatzlos. Jede
+	// Zeile entscheidet wieder selbst, TaskList bekommt kein forceSubtasksOpen.
 
 	// Bulk selection
 	let bulkSelectedIds = $state(new Set<string>());
@@ -168,7 +141,14 @@
 	// Zuordnung listId -> Beteiligte aus `+page.ts` (list_shares + profiles).
 	// Die Navigationszeile und die mobile Uebersicht zeigen nur die ANDEREN,
 	// die Geteilt-Pille im Listen-Header alle — inklusive des eigenen Avatars.
-	let mitnutzer = $derived<Record<string, Mitnutzer[]>>(data.mitnutzer ?? {});
+	// Aenderungen aus dem Teilen-Dialog legen sich ueber den Ladezustand,
+	// damit neue Avatare ohne Neuladen erscheinen (T5b hatte das offen
+	// gelassen). Die Ladedaten bleiben unangetastet.
+	let mitnutzerLaufzeit = $state<Record<string, Mitnutzer[]>>({});
+	let mitnutzer = $derived<Record<string, Mitnutzer[]>>({
+		...(data.mitnutzer ?? {}),
+		...mitnutzerLaufzeit
+	});
 	let aktiveBeteiligte = $derived(activeList ? (mitnutzer[activeList.id] ?? []) : []);
 	let aktiveFremde = $derived(aktiveBeteiligte.filter((m: Mitnutzer) => !m.ich));
 
@@ -240,14 +220,6 @@
 	// COMPOSABLES
 	// ==========================================
 
-	// Popovers
-	const popovers = createPopovers({
-		get tasks() { return tasks; },
-		updateTaskEmoji: (id: string, emoji: string) => store.updateTaskEmoji(id, emoji),
-		updateTaskDate: (id: string, date: string | null) => store.updateTaskDate(id, date),
-		changeTaskPriority: (id: string, p: Priority) => store.changeTaskPriority(id, p)
-	});
-
 	// Sort/Filter
 	const sortFilter = createSortFilter(
 		{
@@ -259,50 +231,83 @@
 
 	// Share Dialog
 	const share = createShareDialog(
-		{ get sb() { return data.supabase; } },
-		{ error: (msg: string) => toasts.error(msg) }
+		{
+			get sb() { return data.supabase; },
+			get eigeneId() { return data.user?.id ?? null; },
+			get eigeneEmail() { return data.user?.email ?? null; }
+		},
+		{ error: (msg: string) => toasts.error(msg) },
+		// Ohne diese Rueckmeldung erschiene ein neuer Mitnutzer erst nach
+		// einem Neuladen in Navigationsspalte, Uebersicht und Geteilt-Pille.
+		(listId: string, beteiligte: Mitnutzer[]) => {
+			mitnutzerLaufzeit = { ...mitnutzerLaufzeit, [listId]: beteiligte };
+		}
 	);
 
-	// Context Menus
+	/**
+	 * Liste loeschen — der einzige Ort mit Bestaetigungsdialog.
+	 *
+	 * Spezifikation Abschnitt 6: ein Dialog steht nur, wo es kein
+	 * Rueckgaengig gibt. Der Text nennt die konkreten Zahlen und die
+	 * Mitnutzer, denen die Liste ebenfalls verschwindet.
+	 */
+	async function listeLoeschen(list: List) {
+		const offen = tasks.filter((t: Task) => t.list_id === list.id && !t.done && !t.parent_id && t.type !== 'divider').length;
+		const erledigt = tasks.filter((t: Task) => t.list_id === list.id && t.done && !t.parent_id).length;
+		const andere = (mitnutzer[list.id] ?? []).filter((m: Mitnutzer) => !m.ich);
+
+		const teile: string[] = [];
+		if (offen + erledigt > 0) {
+			teile.push(
+				`${offen} offene und ${erledigt} erledigte ${offen + erledigt === 1 ? 'Aufgabe wird' : 'Aufgaben werden'} mit gelöscht.`
+			);
+		}
+		if (andere.length > 0) {
+			const namen =
+				andere.length === 1
+					? andere[0].name
+					: `${andere.slice(0, -1).map((m: Mitnutzer) => m.name).join(', ')} und ${andere[andere.length - 1].name}`;
+			teile.push(`Die Liste ist mit ${namen} geteilt und verschwindet auch bei ihnen.`);
+		}
+		teile.push('Das lässt sich nicht rückgängig machen.');
+
+		const ok = await bestaetigen({
+			titel: `Liste \u201e${list.title}\u201c löschen?`,
+			text: teile.join(' '),
+			knopf: 'Liste löschen',
+			destruktiv: true
+		});
+		if (ok) store.deleteList(list.id);
+	}
+
+	// Context Menus — vier Eintraege an der Aufgabe, sieben an der Liste.
+	// Die Bruecke ist mit ihnen geschrumpft: von 24 Rueckrufen auf das, was
+	// die beiden Menues wirklich noch ausloesen.
 	const ctxDeps: ContextMenuDeps = {
 		store: {
 			get tasks() { return tasks; },
 			get lists() { return lists; },
-			addTask: (listId: string, text: string) => store.addTask(listId, text),
-			addTaskAfter: (taskId: string, text: string) => store.addTaskAfter(taskId, text),
-			addSubtask: (taskId: string, text: string) => store.addSubtask(taskId, text),
-			createDivider: (listId: string, position: number, label: string) => store.createDivider(listId, position, label),
-			checkAllInList: (listId: string) => store.checkAllInList(listId),
-			deleteDoneInList: (listId: string) => store.deleteDoneInList(listId),
-			deleteAllSubtasksOfTask: (taskId: string) => store.deleteAllSubtasksOfTask(taskId),
 			renameList: (listId: string, name: string) => store.renameList(listId, name),
-			deleteList: (listId: string) => store.deleteList(listId),
-			changeTaskPriority: (taskId: string, priority: Priority) => store.changeTaskPriority(taskId, priority),
-			changeTaskTimeframe: (taskId: string, timeframe: 'akut' | 'zeitnah' | 'mittelfristig' | 'langfristig' | null) => store.changeTaskTimeframe(taskId, timeframe),
+			deleteDoneInList: (listId: string) => store.deleteDoneInList(listId),
 			togglePin: (taskId: string) => store.togglePin(taskId),
 			updateTask: (taskId: string, text: string) => store.updateTask(taskId, text),
-			updateTaskEmoji: (taskId: string, emoji: string) => store.updateTaskEmoji(taskId, emoji),
 			moveTaskToList: (taskId: string, listId: string) => store.moveTaskToList(taskId, listId),
 			deleteTaskDirect: (taskId: string) => store.deleteTaskDirect(taskId)
 		},
-		get collapsedSubtasksListIds() { return collapsedSubtasksListIds; },
-		toggleCollapseSubtasks,
-		setSubtasksForceState: (listId: string, open: boolean) => {
-			const next = new Map(subtasksForceState);
-			next.set(listId, open);
-			subtasksForceState = next;
-		},
-		get profileMap() { return profileMap; },
-		get userId() { return data.user?.id; },
-		get userEmail() { return data.user?.email; },
-		startBulkSelect: (taskId: string) => {
+		startBulkSelect: (taskId?: string) => {
 			explicitBulkMode = true;
-			bulkSelectedIds = new Set([...bulkSelectedIds, taskId]);
+			if (taskId) bulkSelectedIds = new Set([...bulkSelectedIds, taskId]);
 		},
-		openDatePicker: (taskId: string, x: number, y: number) => popovers.openDatePicker(taskId, x, y),
-		openEmojiPicker: (taskId: string, x: number, y: number) => popovers.openEmojiPicker(taskId, x, y),
-		openShareDialog: (list: List) => share.openShareDialog(list),
-		openListIconPicker: (listId: string, x: number, y: number) => openListIconPicker(listId, x, y)
+		openShareDialog: (list: List, x: number, y: number) => share.openShareDialog(list, x, y),
+		openListIconPicker: (listId: string, x: number, y: number) => openListIconPicker(listId, x, y),
+		listeLoeschen,
+		beteiligteAnzahl: (listId: string) => (mitnutzer[listId] ?? []).length,
+		sortierung: {
+			get aktuell() { return sortFilter.sortMode; },
+			optionen: validSortModes.map((m) => ({ wert: m, label: sortLabels[m] })),
+			waehlen: (wert: string) => { sortFilter.sortMode = wert as SortMode; }
+		},
+		get mobil() { return isMobile; }
 	};
 	const ctx = createContextMenus(ctxDeps);
 
@@ -400,10 +405,7 @@
 			// Escape: close all overlays
 			if (e.key === 'Escape') {
 				if (ctx.contextMenu.show) { ctx.close(); return; }
-				if (popovers.emojiPicker.show) { popovers.emojiPicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
 				if (listIconPicker.show) { listIconPicker = { show: false, listId: '', x: 0, y: 0 }; return; }
-				if (popovers.datePicker.show) { popovers.datePicker = { show: false, taskId: '', x: 0, y: 0 }; return; }
-				if (popovers.priorityPicker.show) { popovers.priorityPicker = { show: false, taskId: '', x: 0, y: 0, current: 'normal' }; return; }
 				if (share.shareDialog.show) { share.close(); return; }
 				if (searchOpen) { searchOpen = false; return; }
 				if (nav.selectedTaskId) { nav.selectTask(null); return; }
@@ -615,7 +617,6 @@
 			list={activeList}
 			tasks={sortedActiveListTasks}
 			mobil={isMobile}
-			forceSubtasksOpen={getForceSubtasksOpen(activeList.id)}
 			selectedTaskId={nav.selectedTaskId}
 			beteiligte={aktiveBeteiligte}
 			eigeneId={data.user?.id ?? null}
@@ -778,10 +779,18 @@
 				</h2>
 				<span class="sp"></span>
 				{#if aktiveBeteiligte.length > 1}
-					<span class="tf-shared">
+					<!-- Die Pille ist zugleich der Anker des Teilen-Popovers
+					     (Spezifikation Abschnitt 3: „top:58px; right:20px"). -->
+					<button
+						class="tf-shared"
+						onclick={(e) => {
+							const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+							share.openShareDialog(activeList!, r.right, r.bottom + 6);
+						}}
+					>
 						<AvatarStack leute={aktiveBeteiligte} />
 						Geteilt &middot; {aktiveBeteiligte.length}
-					</span>
+					</button>
 				{/if}
 				<button class="tf-sortbtn" onclick={sortMenuUmschalten}>
 					<Icon name="sortierung" size={16} />
@@ -877,17 +886,8 @@
 		items={ctx.contextMenu.items}
 		x={ctx.contextMenu.x}
 		y={ctx.contextMenu.y}
+		breite={ctx.contextMenu.breite}
 		onclose={() => { ctx.close(); }}
-	/>
-{/if}
-
-<!-- Emoji Picker (Task) -->
-{#if popovers.emojiPicker.show}
-	<EmojiPicker
-		x={popovers.emojiPicker.x}
-		y={popovers.emojiPicker.y}
-		onSelect={(emoji) => { popovers.handleEmojiSelect(emoji); }}
-		onClose={() => { popovers.emojiPicker = { show: false, taskId: '', x: 0, y: 0 }; }}
 	/>
 {/if}
 
@@ -901,34 +901,15 @@
 	/>
 {/if}
 
-<!-- Date Picker -->
-{#if popovers.datePicker.show}
-	{@const dpTask = tasks.find((t) => t.id === popovers.datePicker.taskId)}
-	<DatePicker
-		x={popovers.datePicker.x}
-		y={popovers.datePicker.y}
-		current={dpTask?.due_date ?? null}
-		onSelect={(date) => { popovers.handleDateSelect(date); }}
-		onClose={() => { popovers.datePicker = { show: false, taskId: '', x: 0, y: 0 }; }}
-	/>
-{/if}
-
-<!-- Priority Picker -->
-{#if popovers.priorityPicker.show}
-	<PriorityPicker
-		x={popovers.priorityPicker.x}
-		y={popovers.priorityPicker.y}
-		current={popovers.priorityPicker.current}
-		onSelect={(p) => { popovers.handlePrioritySelect(p); }}
-		onClose={() => { popovers.priorityPicker = { show: false, taskId: '', x: 0, y: 0, current: 'normal' }; }}
-	/>
-{/if}
-
 <!-- Share Dialog -->
 {#if share.shareDialog.show && share.shareDialog.list}
 	<ShareDialog
 		list={share.shareDialog.list}
-		shares={share.shareDialog.shares}
+		beteiligte={share.shareDialog.beteiligte}
+		shareIdVon={new Map(share.shareDialog.shares.map((sh) => [sh.user_id, sh.id]))}
+		eigeneEmail={data.user?.email ?? null}
+		x={share.shareDialog.x}
+		y={share.shareDialog.y}
 		onClose={() => { share.close(); }}
 		onShare={(email, role) => { share.shareList(email, role); }}
 		onRemoveShare={(shareId) => { share.removeShare(shareId); }}
