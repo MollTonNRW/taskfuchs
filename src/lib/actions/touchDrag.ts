@@ -76,23 +76,23 @@ function autoScroll(clientY: number) {
 let lastTouchX = 0; // Track touch X for scroll container lookup
 
 function findScrollContainer(_clientY: number): HTMLElement | null {
-	// Finde den sichtbaren Scroll-Container (nicht den versteckten Desktop/Mobile-Container)
-	// `.tf-liste` ist der scrollende Container der neuen Shell (Mitte bzw.
-	// mobiler Schirm). `.v2-content` gab es bis zur Drei-Spalten-Shell.
-	const candidates = document.querySelectorAll('.tf-liste, .task-list-scroll, .v2-content');
+	// `.tf-liste` ist der einzige scrollende Container der Shell (mittlere
+	// Spalte bzw. mobiler Schirm). Die frueheren Kandidaten `.v2-content`,
+	// `.task-list-scroll` und der Fallback `.main-content` gehoerten zur
+	// v1/v2-Ebene und treffen seit T5 nichts mehr.
+	const candidates = document.querySelectorAll('.tf-liste');
 	for (const el of candidates) {
 		const htmlEl = el as HTMLElement;
 		if (htmlEl.offsetParent !== null || htmlEl.getClientRects().length > 0) {
 			return htmlEl;
 		}
 	}
-	// Fallback: main-content
-	return document.querySelector('.main-content') as HTMLElement ?? null;
+	return null;
 }
 
 // ── Ghost element ──────────────────────────────────────────────────
 function createGhost(sourceEl: HTMLElement): HTMLElement {
-	const taskEl = sourceEl.closest('.tf-rowwrap, .tf-row, .task-item, .subtask-item, .v2-task-drop-wrapper');
+	const taskEl = sourceEl.closest('.tf-rowwrap, .tf-row');
 	const cloneSource = taskEl || sourceEl;
 	const rect = cloneSource.getBoundingClientRect();
 
@@ -116,7 +116,7 @@ function createGhost(sourceEl: HTMLElement): HTMLElement {
 	// Simple text preview inside ghost
 	const label = document.createElement('div');
 	label.style.cssText = 'padding: 8px 12px; font-size: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
-	const textEl = cloneSource.querySelector('.tf-t .tx, .task-text, .v2-task-text, h2');
+	const textEl = cloneSource.querySelector('.tf-t .tx');
 	label.textContent = textEl?.textContent?.trim() || 'Verschieben...';
 	ghost.appendChild(label);
 
@@ -180,7 +180,7 @@ export function touchDragHandle(
 			dragStarted = true;
 
 			const ghost = createGhost(node);
-			node.closest('.tf-rowwrap, .tf-row, .task-item, .subtask-item, .v2-task-drop-wrapper')?.classList.add('touch-dragging-source');
+			node.closest('.tf-rowwrap, .tf-row')?.classList.add('touch-dragging-source');
 			dragState.set({
 				active: true,
 				type: currentParams.type,
@@ -274,7 +274,7 @@ export function touchDragHandle(
 		}
 
 		if (state.ghost) state.ghost.remove();
-		state.sourceEl?.closest('.tf-rowwrap, .tf-row, .task-item, .subtask-item, .v2-task-drop-wrapper')?.classList.remove('touch-dragging-source');
+		state.sourceEl?.closest('.tf-rowwrap, .tf-row')?.classList.remove('touch-dragging-source');
 		if (state.currentDropZone) {
 			const oldZone = dropZones.find((z) => z.el === state.currentDropZone);
 			oldZone?.onDragLeave?.(state.currentDropZone);

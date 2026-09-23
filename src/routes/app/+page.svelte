@@ -5,10 +5,9 @@
 	import type { Database } from '$lib/types/database';
 	import type { Priority, Timeframe } from '$lib/constants';
 	import { nav, type MobileTab } from '$lib/stores/tf/navigation.svelte';
-	import { theme } from '$lib/stores/v2/theme.svelte';
-	import { profilesStore } from '$lib/stores/profiles';
+	import { theme } from '$lib/stores/tf/theme.svelte';
 	import { getProfilesByIds } from '$lib/services/supabase-crud';
-	import type { Mitnutzer } from '$lib/utils/mitnutzer';
+	import { baueAusProfil, type Mitnutzer } from '$lib/utils/mitnutzer';
 
 	import Icon from '$lib/components/tf/Icon.svelte';
 	import NavColumn from '$lib/components/tf/NavColumn.svelte';
@@ -28,16 +27,16 @@
 	import ShareDialog from '$lib/components/tf/ShareDialog.svelte';
 	import BulkToolbar from '$lib/components/tf/BulkToolbar.svelte';
 
-	import InputDialog from '$lib/components/v2/InputDialog.svelte';
-	import EmojiPicker from '$lib/components/v2/EmojiPicker.svelte';
+	import InputDialog from '$lib/components/tf/InputDialog.svelte';
+	import EmojiPicker from '$lib/components/tf/EmojiPicker.svelte';
 
 	import {
 		createContextMenus,
 		type ContextMenuDeps,
 		type Zeigerpunkt
-	} from '$lib/composables/v2/useContextMenus.svelte';
-	import { createSortFilter, sortLabels, validSortModes, type SortMode } from '$lib/composables/v2/useSortFilter.svelte';
-	import { createShareDialog } from '$lib/composables/v2/useShareDialog.svelte';
+	} from '$lib/composables/tf/useContextMenus.svelte';
+	import { createSortFilter, sortLabels, validSortModes, type SortMode } from '$lib/composables/tf/useSortFilter.svelte';
+	import { createShareDialog } from '$lib/composables/tf/useShareDialog.svelte';
 	import { bestaetigen, toasts } from '$lib/stores/toast';
 
 	type List = Database['public']['Tables']['lists']['Row'];
@@ -186,30 +185,60 @@
 			.sort((a: Task, b: Task) => a.position - b.position);
 	}
 
-	// Profile der Pinner (pinned_by) fuer das "gepinnt von"-Badge vorladen --
-	// nur fremde IDs, die noch nicht geladen wurden. Befuellt den globalen
-	// profilesStore, aus dem das Badge liest.
-	let loadedPinnerIds = new Set<string>();
+	// ==========================================
+	// FREMDE PROFILE NACHLADEN
+	// ==========================================
+	/**
+	 * Wer in einer FREMDEN geteilten Liste angelegt oder angepinnt hat,
+	 * steht nicht in `mitnutzer`: RLS laesst dort nur den Besitzer und die
+	 * eigene Freigabezeile durch (Migration 003). Der Chip „gepinnt von
+	 * Ingo" aus Spezifikation Frame 9 fiel genau deshalb ersatzlos aus —
+	 * die Profile wurden zwar nachgeladen, aber in einen Store geschrieben,
+	 * den niemand las.
+	 *
+	 * Jetzt landen sie hier und gehen als Rueckfallebene an die Zeilen.
+	 */
+	let fremdeProfile = $state<Record<string, Mitnutzer>>({});
+	let angefragteIds = new Set<string>();
+
 	$effect(() => {
 		const sb = data.supabase;
-		const me = data.user?.id;
+		const me = data.user?.id ?? null;
 		if (!sb) return;
-		const missing = [
-			...new Set(
-				tasks
-					.map((t: Task) => t.pinned_by)
-					.filter((id): id is string => !!id && id !== me && !loadedPinnerIds.has(id))
-			)
-		];
-		if (missing.length === 0) return;
-		for (const id of missing) loadedPinnerIds.add(id);
-		getProfilesByIds(sb, missing).then(({ data: profiles }) => {
-			if (!profiles || profiles.length === 0) return;
-			profilesStore.update((existing) => {
-				const ids = new Set(existing.map((p) => p.id));
-				const added = profiles.filter((p) => !ids.has(p.id));
-				return added.length > 0 ? [...existing, ...added] : existing;
-			});
+		const bekannt = mitnutzer;
+		const fehlend = new Set<string>();
+		for (const t of tasks) {
+			for (const id of [t.pinned_by, t.user_id]) {
+				if (!id || id === me || angefragteIds.has(id)) continue;
+				if ((bekannt[t.list_id] ?? []).some((m: Mitnutzer) => m.id === id)) continue;
+				fehlend.add(id);
+			}
+		}
+		if (fehlend.size === 0) return;
+		for (const id of fehlend) angefragteIds.add(id);
+		getProfilesByIds(sb, [...fehlend]).then(({ data: profile }) => {
+			if (!profile || profile.length === 0) return;
+			const zusatz: Record<string, Mitnutzer> = {};
+			for (const pr of profile) zusatz[pr.id] = baueAusProfil(pr);
+			fremdeProfile = { ...fremdeProfile, ...zusatz };
+		});
+	});
+
+	// ==========================================
+	// „NEU" — gesehene Listen
+	// ==========================================
+	/**
+	 * Vermerkt wird die ZUVOR offene Liste, nicht die gerade geoeffnete:
+	 * wer eine Liste ansieht, soll ihre „neu"-Marker auch lesen koennen
+	 * (Spezifikation Frame 1 zeigt „Gluehbirnen Flur" mit Chip in der
+	 * offenen Liste). Erst beim Weitergehen faellt der Marker.
+	 */
+	let zuletztOffen: string | null = null;
+	$effect(() => {
+		const jetzt = nav.activeListId;
+		untrack(() => {
+			if (zuletztOffen && zuletztOffen !== jetzt) store.listeGesehen(zuletztOffen);
+			zuletztOffen = jetzt;
 		});
 	});
 
@@ -330,10 +359,13 @@
 	// die beiden Menues wirklich noch ausloesen.
 	const ctxDeps: ContextMenuDeps = {
 		store: {
-			get tasks() { return tasks; },
 			get lists() { return lists; },
 			renameList: (listId: string, name: string) => store.renameList(listId, name),
-			deleteDoneInList: (listId: string) => store.deleteDoneInList(listId),
+			deleteDoneInList: (listId: string) => void store.deleteDoneInList(listId),
+			// Dieselbe Regel wie Erledigt-Balken und Undo-Toast: oberste Ebene,
+			// ohne Trenner. Frueher zaehlte das Menue selbst und kam damit auf
+			// eine andere Zahl als der Toast anschliessend meldete.
+			erledigteAnzahl: (listId: string) => store.erledigteAnzahl(listId),
 			togglePin: (taskId: string) => store.togglePin(taskId),
 			updateTask: (taskId: string, text: string) => store.updateTask(taskId, text),
 			moveTaskToList: (taskId: string, listId: string) => store.moveTaskToList(taskId, listId),
@@ -390,7 +422,7 @@
 		// Kein Bestaetigungsdialog — `deleteTaskDirect` legt einen Undo-Toast
 		// nach (Spezifikation Abschnitt 6). Die Auswahl raeumt der Effekt
 		// oben ab, sobald die Aufgabe aus dem Bestand faellt.
-		onLoeschen: (id: string) => store.deleteTaskDirect(id),
+		onLoeschen: (id: string) => void store.deleteTaskDirect(id),
 		onUnterToggle: handleToggleTask,
 		onUnterUmbenennen: (id: string, text: string) => store.updateSubtask(id, text),
 		onUnterLoeschen: (id: string) => store.deleteSubtask(id),
@@ -429,19 +461,35 @@
 		const sb = data.supabase;
 		let listsChannel: any = null;
 		let tasksChannel: any = null;
+		/**
+		 * Realtime holt verpasste Ereignisse nicht nach — was waehrend einer
+		 * Unterbrechung geschah, war bisher dauerhaft verloren. Der
+		 * SUBSCRIBED-Rueckruf feuert beim ersten Verbinden UND nach jedem
+		 * Wiederverbinden; beide Kanaele melden sich einzeln, darum ein
+		 * kurzer Sammelpunkt gegen den doppelten Ladevorgang.
+		 */
+		let resyncUhr: ReturnType<typeof setTimeout> | null = null;
+		function nachVerbindung(status: string) {
+			if (status !== 'SUBSCRIBED') return;
+			if (resyncUhr) clearTimeout(resyncUhr);
+			resyncUhr = setTimeout(() => {
+				resyncUhr = null;
+				void store.resync();
+			}, 150);
+		}
 		if (sb) {
 			listsChannel = sb
-				.channel('v2-lists-realtime')
+				.channel('tf-lists-realtime')
 				.on('postgres_changes', { event: '*', schema: 'public', table: 'lists' }, (payload: any) => {
 					store.handleRealtimeList(payload.eventType, payload.eventType === 'DELETE' ? payload.old : payload.new);
 				})
-				.subscribe();
+				.subscribe(nachVerbindung);
 			tasksChannel = sb
-				.channel('v2-tasks-realtime')
+				.channel('tf-tasks-realtime')
 				.on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload: any) => {
 					store.handleRealtimeTask(payload.eventType, payload.eventType === 'DELETE' ? payload.old : payload.new);
 				})
-				.subscribe();
+				.subscribe(nachVerbindung);
 		}
 
 		// Keyboard shortcuts — genau eine Ctrl+K-Registrierung (die zweite im
@@ -481,7 +529,7 @@
 				!inEingabefeld(e.target)
 			) {
 				e.preventDefault();
-				store.bulkDelete([...bulkSelectedIds]);
+				void store.bulkDelete([...bulkSelectedIds]);
 				clearBulkSelection();
 			}
 		}
@@ -489,6 +537,7 @@
 
 		return () => {
 			window.removeEventListener('keydown', handleGlobalKeydown);
+			if (resyncUhr) clearTimeout(resyncUhr);
 			if (sb && listsChannel) sb.removeChannel(listsChannel);
 			if (sb && tasksChannel) sb.removeChannel(tasksChannel);
 		};
@@ -652,7 +701,7 @@
 	}
 
 	function handleBulkDelete() {
-		store.bulkDelete([...bulkSelectedIds]);
+		void store.bulkDelete([...bulkSelectedIds]);
 		clearBulkSelection();
 	}
 
@@ -672,7 +721,9 @@
 			mobil={isMobile}
 			selectedTaskId={nav.selectedTaskId}
 			beteiligte={aktiveBeteiligte}
+			zusatzProfile={fremdeProfile}
 			eigeneId={data.user?.id ?? null}
+			istNeu={(id) => store.istNeu(id)}
 			onQuickAdd={handleQuickAdd}
 			onToggleTask={handleToggleTask}
 			onEditSubtask={handleEditTask}
@@ -683,7 +734,7 @@
 				sortFilter.handleReorderTask(taskId, targetListId, newPos)}
 			onReorderSubtask={(subtaskId, parentId, newPos) =>
 				store.reorderSubtask(subtaskId, parentId, newPos)}
-			onClearDone={(listId) => store.deleteDoneInList(listId)}
+			onClearDone={(listId) => void store.deleteDoneInList(listId)}
 			{bulkMode}
 			{bulkSelectedIds}
 			onBulkToggle={toggleBulkSelect}
@@ -697,7 +748,9 @@
 		{lists}
 		{subtasksFor}
 		{mitnutzer}
+		zusatzProfile={fremdeProfile}
 		eigeneId={data.user?.id ?? null}
+		istNeu={(id) => store.istNeu(id)}
 		mobil={isMobile}
 		selectedTaskId={nav.selectedTaskId}
 		{bulkMode}
@@ -971,6 +1024,7 @@
 	<EmojiPicker
 		x={listIconPicker.x}
 		y={listIconPicker.y}
+		aktuell={lists.find((l: List) => l.id === listIconPicker.listId)?.icon ?? ''}
 		onSelect={(emoji) => { handleListIconSelect(emoji); }}
 		onClose={() => { listIconPicker = { show: false, listId: '', x: 0, y: 0 }; }}
 	/>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Database } from '$lib/types/database';
 	import type { Priority, Timeframe } from '$lib/constants';
-	import type { Zeigerpunkt } from '$lib/composables/v2/useContextMenus.svelte';
+	import type { Zeigerpunkt } from '$lib/composables/tf/useContextMenus.svelte';
 	import TaskDetail from './TaskDetail.svelte';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];

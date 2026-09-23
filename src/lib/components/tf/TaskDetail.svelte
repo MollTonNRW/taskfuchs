@@ -2,6 +2,7 @@
 	import { tick, untrack } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import Icon from './Icon.svelte';
+	import DatePicker from './DatePicker.svelte';
 	import {
 		priorityLabels,
 		priorityOrder,
@@ -11,7 +12,7 @@
 		type Timeframe
 	} from '$lib/constants';
 	import { formatFaelligLang, zerlegeFaellig, baueFaellig } from '$lib/utils/datum';
-	import type { Zeigerpunkt } from '$lib/composables/v2/useContextMenus.svelte';
+	import type { Zeigerpunkt } from '$lib/composables/tf/useContextMenus.svelte';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 	type List = Database['public']['Tables']['lists']['Row'];
@@ -150,6 +151,7 @@
 				unterEntwurf = '';
 				unterBearbeitetId = null;
 				listenwahl = null;
+				datumAuf = false;
 				return;
 			}
 			// Dieselbe Aufgabe, neuer Wert von aussen: nur uebernehmen,
@@ -216,25 +218,23 @@
 		}
 	}
 
-	function datumGesetzt(e: Event) {
-		const wert = (e.currentTarget as HTMLInputElement).value;
-		onFaellig(task.id, baueFaellig(wert, wert ? felder.zeit : ''));
+	/**
+	 * Faelligkeit: ein Waehler fuer Datum UND Uhrzeit, geschrieben wird erst
+	 * beim Bestaetigen. Vorher lagen zwei native Felder direkt im Feld und
+	 * schrieben bei jeder Aenderung einzeln — Datum und Uhrzeit nacheinander
+	 * zu setzen kostete zwei Schreibvorgaenge.
+	 */
+	let datumAuf = $state(false);
+	let datumPos = $state({ x: 0, y: 0 });
+
+	function datumOeffnen(e: MouseEvent) {
+		const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		datumPos = { x: r.left, y: r.bottom + 6 };
+		datumAuf = true;
 	}
 
-	function zeitGesetzt(e: Event) {
-		const wert = (e.currentTarget as HTMLInputElement).value;
-		if (!felder.datum) return;
-		onFaellig(task.id, baueFaellig(felder.datum, wert));
-	}
-
-	/** Zeigergeraete oeffnen den nativen Waehler sonst nur ueber das Symbol. */
-	function waehlerOeffnen(e: MouseEvent) {
-		const el = e.currentTarget as HTMLInputElement & { showPicker?: () => void };
-		try {
-			el.showPicker?.();
-		} catch {
-			/* ohne Nutzergeste oder nicht unterstuetzt — das Feld bleibt bedienbar */
-		}
+	function datumUebernehmen(wert: { datum: string; zeit: string } | null) {
+		onFaellig(task.id, wert ? baueFaellig(wert.datum, wert.zeit) : null);
 	}
 
 	async function unterNeuStarten() {
@@ -381,35 +381,21 @@
 		{#if !sheet}<div class="tf-lbl">F&auml;llig</div>{/if}
 		<div class="tf-field">
 			<Icon name="kalender" size={16} />
-			<span class="zone datum">
+			<button class="zone datum" onclick={datumOeffnen} aria-label="F&auml;lligkeit setzen">
 				{#if faellig}
 					<span class="val">{faellig.datum}</span>
 				{:else}
 					<span class="leer">Kein Datum</span>
 				{/if}
-				<input
-					type="date"
-					value={felder.datum}
-					aria-label="F&auml;lligkeitsdatum"
-					onclick={waehlerOeffnen}
-					onchange={datumGesetzt}
-				/>
-			</span>
+			</button>
 			{#if felder.datum}
-				<span class="zone zeit">
+				<button class="zone zeit" onclick={datumOeffnen} aria-label="Uhrzeit setzen">
 					{#if felder.zeit}
 						<span class="sub2">{felder.zeit}</span>
 					{:else}
 						<span class="leer">Zeit</span>
 					{/if}
-					<input
-						type="time"
-						value={felder.zeit}
-						aria-label="Uhrzeit"
-						onclick={waehlerOeffnen}
-						onchange={zeitGesetzt}
-					/>
-				</span>
+				</button>
 				<button
 					class="clr"
 					class:gross={sheet}
@@ -593,4 +579,16 @@
 {#if listenwahl}
 	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 	<div class="tf-backdrop" onclick={() => (listenwahl = null)}></div>
+{/if}
+
+{#if datumAuf}
+	<DatePicker
+		datum={felder.datum}
+		zeit={felder.zeit}
+		x={datumPos.x}
+		y={datumPos.y}
+		mobil={sheet}
+		onUebernehmen={datumUebernehmen}
+		onClose={() => (datumAuf = false)}
+	/>
 {/if}

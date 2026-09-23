@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Database } from '$lib/types/database';
 	import type { Mitnutzer } from '$lib/utils/mitnutzer';
-	import type { Zeigerpunkt } from '$lib/composables/v2/useContextMenus.svelte';
+	import type { Zeigerpunkt } from '$lib/composables/tf/useContextMenus.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { subtasksCollapsedByDefault } from '$lib/stores/filters';
 	import TaskRow from './TaskRow.svelte';
@@ -32,7 +32,9 @@
 		lists,
 		subtasksFor,
 		mitnutzer = {},
+		zusatzProfile = {},
 		eigeneId = null,
+		istNeu,
 		mobil = false,
 		selectedTaskId = null,
 		bulkMode = false,
@@ -47,7 +49,11 @@
 		lists: List[];
 		subtasksFor: (taskId: string) => Task[];
 		mitnutzer?: Record<string, Mitnutzer[]>;
+		/** Nachgeladene Profile fuer Personen, die RLS nicht als Beteiligte zeigt. */
+		zusatzProfile?: Record<string, Mitnutzer>;
 		eigeneId?: string | null;
+		/** Kam diese Zeile von aussen herein und wurde noch nicht gesehen? */
+		istNeu?: (id: string) => boolean;
 		mobil?: boolean;
 		/** Offenes Detail: die Zeile traegt `.sel` wie in der Liste. */
 		selectedTaskId?: string | null;
@@ -88,7 +94,10 @@
 	function fremder(listId: string, id: string | null): Mitnutzer | null {
 		if (!id || id === eigeneId) return null;
 		const m = (mitnutzer[listId] ?? []).find((p) => p.id === id);
-		return m && !m.ich ? m : null;
+		if (m) return m.ich ? null : m;
+		// Bei einer fremden geteilten Liste laesst RLS nur Besitzer und eigene
+		// Zeile durch — der Rest kommt aus den nachgeladenen Profilen.
+		return zusatzProfile[id] ?? null;
 	}
 </script>
 
@@ -108,6 +117,7 @@
 					{task}
 					subtasks={subtasksFor(task.id)}
 					selected={selectedTaskId === task.id}
+					neu={istNeu?.(task.id) ?? false}
 					subsOpen={subsOffen(task.id)}
 					{mobil}
 					ohneMenue

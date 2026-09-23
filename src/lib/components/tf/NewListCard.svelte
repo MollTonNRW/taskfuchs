@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import EmojiPicker from '$lib/components/v2/EmojiPicker.svelte';
+	import EmojiPicker from './EmojiPicker.svelte';
 
 	/**
 	 * Karte „Neue Liste" — der EINZIGE Einstieg zum Anlegen einer Liste.
@@ -102,6 +102,7 @@
 	<EmojiPicker
 		x={pickerPos.x}
 		y={pickerPos.y}
+		aktuell={icon}
 		onSelect={(e) => {
 			icon = e || '📋';
 		}}

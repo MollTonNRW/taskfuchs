@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Database } from '$lib/types/database';
 	import type { Mitnutzer } from '$lib/utils/mitnutzer';
-	import type { Zeigerpunkt } from '$lib/composables/v2/useContextMenus.svelte';
+	import type { Zeigerpunkt } from '$lib/composables/tf/useContextMenus.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { subtasksCollapsedByDefault } from '$lib/stores/filters';
 	import { touchDragHandle, touchDropZone } from '$lib/actions/touchDrag';
@@ -22,10 +22,11 @@
 		list,
 		tasks,
 		mobil = false,
-		forceSubtasksOpen = null,
 		selectedTaskId = null,
 		beteiligte = [],
+		zusatzProfile = {},
 		eigeneId = null,
+		istNeu,
 		onQuickAdd,
 		onToggleTask,
 		onEditSubtask,
@@ -43,12 +44,14 @@
 		/** Alle Aufgaben der Liste, bereits sortiert (Unteraufgaben inbegriffen). */
 		tasks: Task[];
 		mobil?: boolean;
-		/** Aus dem Listenmenue: alle auf- bzw. zuklappen. null = je Aufgabe. */
-		forceSubtasksOpen?: boolean | null;
 		selectedTaskId?: string | null;
 		/** Beteiligte dieser Liste, fuer Herkunft und „gepinnt von". */
 		beteiligte?: Mitnutzer[];
+		/** Nachgeladene Profile fuer Personen, die RLS nicht als Beteiligte zeigt. */
+		zusatzProfile?: Record<string, Mitnutzer>;
 		eigeneId?: string | null;
+		/** Kam diese Zeile von aussen herein und wurde noch nicht gesehen? */
+		istNeu?: (id: string) => boolean;
 		onQuickAdd: (listId: string, text: string) => void;
 		onToggleTask: (id: string) => void;
 		onEditSubtask: (id: string, text: string) => void;
@@ -78,20 +81,23 @@
 	function fremder(id: string | null): Mitnutzer | null {
 		if (!id || id === eigeneId) return null;
 		const m = nachId.get(id);
-		return m && !m.ich ? m : null;
+		if (m) return m.ich ? null : m;
+		// Bei einer fremden geteilten Liste zeigt `list_shares` nur Besitzer
+		// und eigene Zeile. Alles Weitere kommt aus den nachgeladenen Profilen
+		// — sonst fiele „gepinnt von Ingo" dort ersatzlos aus.
+		return zusatzProfile[id] ?? null;
 	}
 
 	// ------------------------------------------------------------------
 	// Unteraufgaben auf- und zuklappen
 	// ------------------------------------------------------------------
-	// Drei Quellen, in dieser Reihenfolge: das Listenmenue (forceSubtasksOpen)
-	// schlaegt alles, danach die Wahl an der einzelnen Zeile, zuletzt die
-	// Voreinstellung aus den Einstellungen.
+	// Zwei Quellen: die Wahl an der einzelnen Zeile, sonst die Voreinstellung
+	// aus den Einstellungen. Eine dritte kam bis T8 aus dem Listenmenue —
+	// mit dessen Kuerzung auf sieben Eintraege hat sie keinen Sender mehr.
 	const eigeneWahl = new SvelteMap<string, boolean>();
 	let standardOffen = $derived(!$subtasksCollapsedByDefault);
 
 	function subsOffen(id: string): boolean {
-		if (forceSubtasksOpen !== null) return forceSubtasksOpen;
 		return eigeneWahl.get(id) ?? standardOffen;
 	}
 
@@ -229,6 +235,7 @@
 					{task}
 					subtasks={unteraufgaben(task.id)}
 					selected={selectedTaskId === task.id}
+					neu={istNeu?.(task.id) ?? false}
 					subsOpen={subsOffen(task.id)}
 					{mobil}
 					{bulkMode}

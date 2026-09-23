@@ -1,7 +1,6 @@
 <script lang="ts">
-	import '../../v2.css';
 	import { browser } from '$app/environment';
-	import { theme } from '$lib/stores/v2/theme.svelte';
+	import { theme } from '$lib/stores/tf/theme.svelte';
 
 	/**
 	 * Rahmen der App: Wurzelelement, Theme-Klasse, Statusleistenfarbe.
@@ -14,7 +13,9 @@
 	 * Weggefallen sind mit dieser Fassung: die Off-Canvas-Sidebar samt
 	 * Burger-Knopf und Scrim, die Kopfzeile mit Sortier-, Auswahl- und
 	 * Suchknopf und die doppelte Ctrl+K-Registrierung (die Seite hat eine
-	 * eigene).
+	 * eigene). Mit T11 ist auch das letzte Uebergangs-Stylesheet
+	 * (src/v2.css) und die Klasse `.v2-root` entfallen — es rendert kein
+	 * `v2-*`-Markup mehr.
 	 */
 	let { children } = $props();
 
@@ -50,6 +51,6 @@
 	});
 </script>
 
-<div class="v2-root tf-root">
+<div class="tf-root">
 	{@render children()}
 </div>

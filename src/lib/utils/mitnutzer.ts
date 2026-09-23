@@ -110,3 +110,28 @@ export function baueMitnutzer(
 
 	return zuordnung;
 }
+
+/**
+ * Ein einzelner Mitnutzer aus einem nachgeladenen Profil.
+ *
+ * Bei einer FREMDEN geteilten Liste laesst RLS in `list_shares` nur den
+ * Besitzer und die eigene Zeile durch (Migration 003). Wer dort eine
+ * Aufgabe angelegt oder angepinnt hat, ist ueber die Freigaben also nicht
+ * zu finden — der Chip „gepinnt von Ingo" aus Spezifikation Frame 9 fiel
+ * genau deshalb aus. Sein Profil wird nachgeladen und hier in dieselbe
+ * Form gebracht, damit Zeile und Chip denselben Namen zeigen wie ueberall.
+ */
+export function baueAusProfil(profil: Pick<Profile, 'id' | 'display_name' | 'username'>): Mitnutzer {
+	const name = anzeigename(profil as Profile, null);
+	return {
+		id: profil.id,
+		name,
+		initialen: initialeAus(name),
+		farbe: PALETTE[streuung(profil.id)],
+		// Aus dieser Quelle ist die Rolle nicht bekannt. Sie wird an der Zeile
+		// auch nicht gezeigt — nur der Teilen-Dialog liest sie, und der
+		// arbeitet ausschliesslich mit `list_shares`.
+		rolle: 'viewer',
+		ich: false
+	};
+}

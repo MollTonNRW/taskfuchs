@@ -2,7 +2,7 @@
 	import { tick } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import Icon from './Icon.svelte';
-	import type { Zeigerpunkt } from '$lib/composables/v2/useContextMenus.svelte';
+	import type { Zeigerpunkt } from '$lib/composables/tf/useContextMenus.svelte';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 

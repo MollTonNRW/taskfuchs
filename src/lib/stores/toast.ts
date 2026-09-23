@@ -12,15 +12,30 @@ export interface Toast {
 const { subscribe, update } = writable<Toast[]>([]);
 
 let counter = 0;
+/** Laufende Ausblend-Uhren je Toast — ohne sie liefen abgeloeste weiter. */
+const uhren = new Map<string, ReturnType<typeof setTimeout>>();
+
+function entfernen(id: string) {
+	const uhr = uhren.get(id);
+	if (uhr) {
+		clearTimeout(uhr);
+		uhren.delete(id);
+	}
+	update((all) => all.filter((t) => t.id !== id));
+}
+
+function anzeigen(toast: Toast, duration: number) {
+	update((all) => [...all, toast]);
+	uhren.set(
+		toast.id,
+		setTimeout(() => entfernen(toast.id), duration)
+	);
+}
 
 export const toasts = {
 	subscribe,
 	show(message: string, type: ToastType = 'info', duration = 4000) {
-		const id = `toast-${++counter}`;
-		update((all) => [...all, { id, message, type }]);
-		setTimeout(() => {
-			update((all) => all.filter((t) => t.id !== id));
-		}, duration);
+		anzeigen({ id: `toast-${++counter}`, message, type }, duration);
 	},
 	error(message: string) {
 		this.show(message, 'error', 5000);
@@ -28,16 +43,33 @@ export const toasts = {
 	success(message: string) {
 		this.show(message, 'success', 3000);
 	},
+	/**
+	 * Undo-Toast — EIN Toast je Aktion, nicht pro Haekchen.
+	 *
+	 * Ein neuer Undo-Toast loest den vorherigen ab (Spezifikation
+	 * Abschnitt 6: „Ein Toast pro Aktion"). Vorher stapelten sich beim
+	 * Abhaken mehrerer Aufgaben bis zu acht Sekunden lang mehrere
+	 * uebereinander — und welcher davon welches Rueckgaengig trug, war der
+	 * Reihenfolge nach zu raten.
+	 */
 	undo(message: string, onUndo: () => void, duration = 8000) {
+		update((all) => {
+			for (const offen of all) {
+				if (offen.type !== 'undo') continue;
+				const uhr = uhren.get(offen.id);
+				if (uhr) {
+					clearTimeout(uhr);
+					uhren.delete(offen.id);
+				}
+			}
+			return all.filter((t) => t.type !== 'undo');
+		});
 		const id = `toast-${++counter}`;
-		update((all) => [...all, { id, message, type: 'undo' as ToastType, onUndo }]);
-		const timeout = setTimeout(() => {
-			update((all) => all.filter((t) => t.id !== id));
-		}, duration);
-		return { id, cancel: () => clearTimeout(timeout) };
+		anzeigen({ id, message, type: 'undo', onUndo }, duration);
+		return { id, cancel: () => entfernen(id) };
 	},
 	dismiss(id: string) {
-		update((all) => all.filter((t) => t.id !== id));
+		entfernen(id);
 	}
 };
 

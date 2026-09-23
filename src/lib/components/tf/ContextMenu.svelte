@@ -9,10 +9,10 @@
 	export type MenuEintrag = {
 		label: string;
 		icon?: IconName;
-		/** Zusatz rechts: Zahl („3", „8") oder Wert („Manuell") mit Chevron. */
+		/** Zusatz rechts: Zahl („3", „8") oder Wert („Manuell"). Den Chevron
+		    setzt das Untermenue selbst — ein eigenes Flag dafuer hatte nie
+		    einen Sender. */
 		extra?: string;
-		/** Chevron hinter dem Zusatz — Untermenue oder Weiterfuehrung. */
-		chevron?: boolean;
 		action?: () => void;
 		danger?: boolean;
 		divider?: boolean;
@@ -193,10 +193,7 @@
 				{#if item.icon}<Icon name={item.icon} size={20} />{/if}
 				<span class="lbl">{item.label}</span>
 				{#if item.extra}
-					<span class="r">
-						{item.extra}
-						{#if item.chevron}<Icon name="chevron-rechts" size={14} />{/if}
-					</span>
+					<span class="r">{item.extra}</span>
 				{/if}
 			</button>
 		{/if}

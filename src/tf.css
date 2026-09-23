@@ -37,7 +37,7 @@
 
 /* ---------------------------------------------------------------------
    Token — hell. Das ist der Default: ohne gespeicherte Wahl startet
-   die App hell (siehe src/lib/stores/v2/theme.svelte.ts).
+   die App hell (siehe src/lib/stores/tf/theme.svelte.ts).
    --------------------------------------------------------------------- */
 :root {
 	--bg: #f3eee4;
@@ -186,8 +186,7 @@
 	-moz-osx-font-smoothing: grayscale;
 }
 /* Der Reset steht bewusst in :where() und hat damit Spezifitaet 0.
-   Jede Klassenregel schlaegt ihn — auch die der Altkomponenten in
-   src/v2.css, die bis T10 weiterleben. */
+   Jede Klassenregel schlaegt ihn. */
 :where(.tf-root) :where(*, *::before, *::after) {
 	box-sizing: border-box;
 }
@@ -248,7 +247,7 @@
    Bewusst KEIN `contain` und kein `content-visibility` auf den
    Spalten-Containern: beides bricht `position: sticky` bei Kindern in
    echten Browsern, ohne dass headless Playwright es zeigt (der Befund
-   steht als Warnung in src/v2.css).
+   stand als Warnung im inzwischen entfernten src/v2.css).
    ===================================================================== */
 
 /* Das Wurzelelement der App fuellt den Body (der traegt bereits
@@ -1515,7 +1514,10 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	height: 44px;
+	/* 44 px Inhalt PLUS die 1-px-Oberlinie. Mit `height:44px` zog der
+	   border-box-Reset die Linie vom Inhalt ab, und das Auf-/Zuklapp-Ziel
+	   `.auf` (height:100%) mass nur 43 px — einen unter der 44-px-Regel. */
+	height: calc(44px + 1px);
 	padding: 0 6px 0 14px;
 	margin-top: 8px;
 	border-top: 1px solid var(--line-2);
@@ -1827,32 +1829,20 @@
 .tf-field > .tf-ico {
 	color: var(--ink-2);
 }
-/* Anzeigetext und nativer Waehler liegen uebereinander: die Oberflaeche
-   zeigt „Sa 20.09.2026" (nie ISO), getippt wird auf das unsichtbare
-   Eingabefeld darueber — auf dem Handy oeffnet das den Systemwaehler. */
+/* Datum und Uhrzeit sind zwei Griffe in EIN Fenster (tf/DatePicker.svelte).
+   Frueher lagen hier zwei unsichtbare native Felder uebereinander, die bei
+   jeder Aenderung sofort schrieben — beides nacheinander zu setzen kostete
+   zwei Schreibvorgaenge. Angezeigt wird weiterhin „Sa 20.09.2026", nie ISO. */
 .tf-field .zone {
-	position: relative;
 	display: flex;
 	align-items: center;
 	height: 100%;
 	min-width: 0;
+	text-align: left;
+	color: inherit;
 }
 .tf-field .zone.datum {
 	flex: 1;
-}
-.tf-field .zone input {
-	position: absolute;
-	inset: 0;
-	width: 100%;
-	height: 100%;
-	opacity: 0;
-	appearance: none;
-	-webkit-appearance: none;
-	background: none;
-	border: 0;
-	padding: 0;
-	margin: 0;
-	cursor: pointer;
 }
 .tf-field .val {
 	font-weight: 500;
@@ -2739,4 +2729,196 @@
 	align-items: center;
 	justify-content: center;
 	color: var(--ink-2);
+}
+
+/* ---------------------------------------------------------------------
+   Symbolwaehler (tf/EmojiPicker.svelte)
+
+   Sechs Spalten a 44 px: die Spezifikation verlangt am Finger mindestens
+   44 px (Abschnitt 9, Punkt 4), acht Spalten passten damit nicht mehr in
+   die 390 px des schmalsten Schirms. Die Auswahl ist eine Flaeche, kein
+   Wachsen — Animationen sind verboten (Punkt 3).
+   --------------------------------------------------------------------- */
+.tf-emoji-hinter {
+	position: fixed;
+	inset: 0;
+	z-index: 170;
+}
+.tf-emoji {
+	position: fixed;
+	display: grid;
+	grid-template-columns: repeat(6, 44px);
+	gap: 2px;
+	padding: 6px;
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--r-pop);
+	box-shadow: var(--sh-pop);
+	z-index: 171;
+}
+.tf-emoji .em {
+	width: 44px;
+	height: 44px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	font-size: 20px;
+	line-height: 1;
+}
+.tf-emoji .em:hover {
+	background: var(--surface-2);
+}
+.tf-emoji .em.on {
+	background: var(--accent-soft);
+}
+.tf-emoji .weg {
+	grid-column: 1 / -1;
+	height: 38px;
+	margin-top: 4px;
+	border-radius: 8px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--ink-2);
+	background: var(--surface-2);
+}
+
+/* ---------------------------------------------------------------------
+   Faelligkeits-Waehler (tf/DatePicker.svelte) — Datum UND Uhrzeit in
+   einem Schritt, geschrieben wird erst beim Bestaetigen.
+   --------------------------------------------------------------------- */
+.tf-datum-hinter {
+	position: fixed;
+	inset: 0;
+	background: transparent;
+	z-index: 170;
+}
+.tf-datum {
+	position: fixed;
+	width: 300px;
+	max-width: calc(100vw - 32px);
+	padding: 12px;
+	background: var(--surface);
+	color: var(--ink);
+	border: 1px solid var(--line);
+	border-radius: var(--r-pop);
+	box-shadow: var(--sh-pop);
+	z-index: 171;
+}
+/* Am Finger sitzt der Waehler ueber dem Sheet, nicht an einem Anker:
+   das Sheet reicht bis zum unteren Rand, ein Popover daneben haette
+   keinen Platz. */
+.tf-datum.mobil {
+	left: 16px;
+	right: 16px;
+	bottom: auto;
+	top: 50%;
+	transform: translateY(-50%);
+	width: auto;
+	max-width: none;
+	z-index: 231;
+}
+.tf-datum-hinter.mobil {
+	background: var(--scrim);
+	z-index: 230;
+}
+.tf-datum .zeile {
+	display: flex;
+	gap: 8px;
+}
+.tf-datum .fld {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	min-width: 0;
+	height: 44px;
+	padding: 0 10px;
+	border-radius: var(--r-row);
+	background: var(--surface-2);
+}
+.tf-datum .fld.zeit {
+	flex: 0 0 104px;
+}
+.tf-datum .fld.aus {
+	opacity: 0.5;
+}
+.tf-datum .fld .tf-ico {
+	flex: none;
+	color: var(--ink-2);
+}
+.tf-datum .fld input {
+	flex: 1;
+	min-width: 0;
+	background: none;
+	border: 0;
+	outline: none;
+	/* 16 px, sonst zoomt iOS beim Fokus in das Feld. */
+	font-size: 16px;
+	font-weight: 500;
+	color: inherit;
+}
+.tf-datum .acts {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 10px;
+}
+.tf-datum .acts .sp {
+	flex: 1;
+}
+.tf-datum .acts .tf-btn {
+	height: 40px;
+}
+
+/* Einzeiliger Eingabedialog (tf/InputDialog.svelte) — derselbe Rahmen wie
+   der Bestaetigungsdialog, nur mit einem Feld darin. */
+.tf-dialog .fld {
+	display: flex;
+	align-items: center;
+	height: 44px;
+	margin-bottom: 14px;
+	padding: 0 12px;
+	border-radius: var(--r-row);
+	background: var(--surface-2);
+}
+.tf-dialog .fld input {
+	flex: 1;
+	min-width: 0;
+	background: none;
+	border: 0;
+	outline: none;
+	/* 16 px, sonst zoomt iOS beim Fokus in das Feld. */
+	font-size: 16px;
+	color: var(--ink);
+}
+
+/* ---------------------------------------------------------------------
+   Reste aus src/v2.css, die den Rueckbau ueberdauern.
+
+   `.touch-dragging-source` ist bewusst geblieben: die Rueckmeldung, dass
+   die angefasste Zeile gerade gezogen wird, ist Affordanz, keine
+   Dekoration. Den Klassennamen setzt actions/touchDrag.ts an `.tf-rowwrap`
+   bzw. `.tf-row` — frueher an `.v2-task-drop-wrapper`.
+   --------------------------------------------------------------------- */
+.touch-dragging-source {
+	opacity: 0.3;
+	transform: scale(0.96);
+	transition:
+		opacity 0.2s,
+		transform 0.2s;
+}
+
+.tf-root *:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.tf-root,
+	.tf-root * {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
 }

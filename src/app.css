@@ -9,7 +9,8 @@
 
    Tailwind/daisyUI oben tragen ausschliesslich die beiden Auth-Seiten
    (/auth/login, /auth/register). Die App selbst laeuft auf src/tf.css
-   (Token, Schrift, Reset) und src/v2.css (Altkomponenten).
+   (Token, Schrift, Reset) — das Uebergangs-Stylesheet src/v2.css ist mit T11
+   entfallen.
 
    Alles Weitere — rund 900 Zeilen v1-Regeln fuer Pinnwand, Notiz-Popover,
    Emoji-Picker, Avatar-Stack, Tooltip, Sidebar, Micro-Interactions und

@@ -45,10 +45,16 @@ export type Zeigerpunkt = {
  */
 export interface ContextMenuDeps {
 	store: {
-		tasks: Task[];
 		lists: List[];
 		renameList: (listId: string, name: string) => void;
 		deleteDoneInList: (listId: string) => void;
+		/**
+		 * Zaehler fuer „Erledigte loeschen". Kommt aus dem Store, damit Menue,
+		 * Erledigt-Balken und Undo-Toast dieselbe Menge meinen: oberste Ebene,
+		 * ohne Trenner. Hier gezaehlt wurde frueher `done && !parent_id` —
+		 * Trenner inbegriffen, und geloescht wurde noch einmal etwas anderes.
+		 */
+		erledigteAnzahl: (listId: string) => number;
 		togglePin: (taskId: string) => void;
 		updateTask: (taskId: string, text: string) => void;
 		moveTaskToList: (taskId: string, listId: string) => void;
@@ -84,7 +90,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 	function handleListContext(e: Zeigerpunkt, list: List) {
 		e.preventDefault();
 		const { store, sortierung } = deps;
-		const erledigte = store.tasks.filter((t) => t.list_id === list.id && t.done && !t.parent_id).length;
+		const erledigte = store.erledigteAnzahl(list.id);
 		const geteilt = deps.beteiligteAnzahl(list.id);
 		const x = e.clientX;
 		const y = e.clientY;
@@ -220,8 +226,8 @@ export function createContextMenus(deps: ContextMenuDeps) {
 	 * Menue der Pinnwand (⋮ im Kopf, Spezifikation Abschnitt 4) — genau zwei
 	 * Eintraege. Beide gab es schon: „Auswaehlen" ist derselbe Eintrag wie im
 	 * Aufgaben- und im Listenmenue, „Alle loesen" der Nachfolger des
-	 * gleichnamigen Knopfes aus `components/v2/Pinboard.svelte`, den der
-	 * Rueckbau mitgenommen hatte.
+	 * gleichnamigen Knopfes aus der Pinnwand, den der Rueckbau mitgenommen
+	 * hatte.
 	 *
 	 * Kein Bestaetigungsdialog: der steht laut Abschnitt 6 nur dort, wo es
 	 * kein Rueckgaengig gibt — „Alle loesen" bekommt einen Undo-Toast.

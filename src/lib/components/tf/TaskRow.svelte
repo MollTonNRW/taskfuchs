@@ -6,7 +6,7 @@
 	import { formatFaellig, formatSeit } from '$lib/utils/datum';
 	import { dragState } from '$lib/actions/touchDrag';
 	import type { Mitnutzer } from '$lib/utils/mitnutzer';
-	import type { Zeigerpunkt } from '$lib/composables/v2/useContextMenus.svelte';
+	import type { Zeigerpunkt } from '$lib/composables/tf/useContextMenus.svelte';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 
