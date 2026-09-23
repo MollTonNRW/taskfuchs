@@ -8,8 +8,11 @@ import { error } from '@sveltejs/kit';
  * diese Route liest nichts aus der Produktivdatenbank und schreibt nichts
  * hinein. Sie mountet dieselbe Shell mit Demodaten im Arbeitsspeicher.
  *
- * `import.meta.env.DEV` ist zur Bauzeit bekannt; im Produktionsbuendel bleibt
- * von der Route nur dieses `error(404)` uebrig.
+ * Dieser Riegel laeuft wegen `ssr = false` erst im Browser und ist damit nur
+ * die zweite Reihe. Den Statuscode setzt `src/hooks.server.ts`: dort wird
+ * `/vorschau` ausserhalb des Dev-Modus vor dem Routing mit HTTP 404
+ * beantwortet. Die Demodaten selbst stecken nicht in diesem Buendel —
+ * `+page.svelte` laedt sie nur im Dev-Modus nach.
  */
 export function load() {
 	if (!import.meta.env.DEV) error(404, 'Nicht gefunden');

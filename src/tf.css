@@ -101,6 +101,11 @@
 	   Der Toast rechnet damit, statt eine Zahl zu raten. */
 	--tf-tabbar: 53px;
 	--on-danger: var(--on-accent);
+	/* Eigener Fokusring fuer den destruktiven Dialogknopf. Der globale Ring
+	   ist 2 px --accent (Orange); auf --asap (Rot) ist das die
+	   kontrastschwaechste Paarung des ganzen Farbsatzes. --ink traegt in
+	   beiden Themes gegen Dialogflaeche und Knopf. */
+	--ring-destr: var(--ink);
 	--scrim: rgba(40, 30, 20, 0.35);
 	--scrim-soft: rgba(40, 30, 20, 0.18);
 
@@ -2271,6 +2276,10 @@
 	background: var(--asap);
 	color: var(--on-danger);
 }
+/* Schlaegt den globalen Ring aus dem Fuss dieser Datei (4 Klassen + Pseudo). */
+.tf-dialog .acts .tf-btn.destr:focus-visible {
+	outline-color: var(--ring-destr);
+}
 
 /* ---------------------------------------------------------------------
    Teilen-Popover — Breite 332, verankert unter der Geteilt-Pille.
@@ -2781,6 +2790,14 @@
 	font-weight: 500;
 	color: var(--ink-2);
 	background: var(--surface-2);
+}
+/* Am Finger 44 px — die 38 px sind die Zeigergeraet-Ausnahme
+   (Spezifikation Abschnitt 9, Punkt 4). Die 44-px-Zellen darueber hatten
+   den Override schon, diese Zeile nicht. */
+@media (max-width: 899px) {
+	.tf-emoji .weg {
+		height: 44px;
+	}
 }
 
 /* ---------------------------------------------------------------------

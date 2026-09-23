@@ -4,30 +4,35 @@ Diese Datei dokumentiert Architektur, Komponenten und Konventionen von TaskFuchs
 
 Eine User-orientierte Kurzbeschreibung steht in [README.md](README.md). Setup-Schritte ebenfalls dort.
 
+> **Stand:** Redesign „A Klar". Die frühere v2-Ebene (`src/v2.css`, `src/lib/components/v2/`, `composables/v2/`, `stores/v2/`, die Theme-Presets und die drei Ansichts-Modi) ist gelöscht — nicht deaktiviert, sondern entfernt. Verbindliche Gestaltungsquelle ist `A-klar-spec.md` aus dem Redesign-Projekt; im Code ist `src/tf.css` die einzige Farb- und Maßquelle.
+
 ## Projekt-Überblick
 
-TaskFuchs ist eine Multi-User Task-Management-App (Mobile-First PWA + Android APK). Interaktive Checklisten mit Unteraufgaben, Prioritäten, Zeitrahmen, Fortschrittsbalken und Animationen bei allen Interaktionen.
+TaskFuchs ist eine Multi-User Task-Management-App (Mobile-First PWA + Android APK). Listen mit Unteraufgaben (genau eine Ebene), Prioritäten, Zeitrahmen, Pinnwand und Echtzeit-Sync.
 
 - **Zielgruppe:** Familien, WGs, kleine Teams — Einkaufslisten, Putzpläne, gemeinsame Aufgaben
 - **Plattformen:** Web (PWA) + Android (TWA)
+- **Keine Animationen.** Kein ASAP-Puls, kein Glow, kein `backdrop-filter`, keine gestrichelten Rahmen. Die Spezifikation verbietet sie ausdrücklich (Abschnitt 9, Punkt 3); das alte Keyframe-System ist mit der v2-Ebene entfallen. Übrig bleibt `prefers-reduced-motion` als Sicherung am Fuß von `src/tf.css`.
 
 ## Tech-Stack
 
 | Kategorie | Technologie | Version |
 |-----------|-------------|---------|
-| Framework | SvelteKit 2 + Svelte 5 | svelte ^5.51, @sveltejs/kit ^2.50 |
-| Styling | Tailwind CSS 4 + daisyUI 5 | tailwindcss ^4.2, daisyui ^5.5 |
+| Framework | SvelteKit 2 + Svelte 5 (Runes) | svelte ^5.51, @sveltejs/kit ^2.50 |
+| Styling der App | Eigenes Token-Stylesheet `src/tf.css` | — |
+| Styling der Auth-Seiten | Tailwind CSS 4 + daisyUI 5 | tailwindcss ^4.2, daisyui ^5.5 |
 | Backend | Supabase (PostgreSQL, Auth, Realtime) | @supabase/supabase-js ^2.99, @supabase/ssr ^0.9 |
 | Hosting | Cloudflare Pages | @sveltejs/adapter-cloudflare ^7.2 |
 | Build | Vite 7 | vite ^7.3 |
 | Sprache | TypeScript (strict mode) | ^5.9 |
 | Linting | ESLint + Prettier + svelte-check | eslint ^10, prettier ^3.8 |
-| Mobile | TWA (Trusted Web Activity) | Gradle-Projekt unter `android/` |
+| Mobile | TWA (Trusted Web Activity) | Gradle-Projekt unter `twa/` |
+
+Tailwind und daisyUI tragen **nur noch** `/auth/login` und `/auth/register`. Die App selbst rührt sie nicht an.
 
 ### Nicht implementiert (geplant)
 - Offline-Cache: Dexie.js (IndexedDB) — in Architektur vorgesehen, noch nicht gebaut
 - Service Worker Sync: Workbox — SW existiert, kein Offline-Sync
-- Push Notifications
 
 ## Projektstruktur
 
@@ -35,62 +40,91 @@ TaskFuchs ist eine Multi-User Task-Management-App (Mobile-First PWA + Android AP
 .
 ├── .github/workflows/
 │   └── deploy.yml                  # GitHub Actions → Cloudflare Pages
-├── android/                        # TWA Build (Gradle, Keystore-Referenz, APK)
-├── prototype/                      # HTML-Prototyp-Snapshots (v1–v5)
-├── supabase/migrations/            # DB Migrations (chronologisch)
+├── twa/                            # TWA Build (Gradle, Keystore-Referenz, APK)
+├── prototype/                      # HTML-Prototyp-Snapshots (historisch)
+├── supabase/migrations/            # DB Migrations (chronologisch, 001–020)
 ├── static/
+│   ├── fonts/                      # Instrument Sans, self-hosted woff2
 │   ├── icons/                      # PWA Icons (48–512px)
 │   ├── manifest.json               # PWA Manifest
-│   ├── .well-known/                # Digital Asset Links (TWA)
-│   └── _headers                    # CSP + Security Headers
+│   └── .well-known/                # Digital Asset Links (TWA)
+├── _headers                        # CSP + Security Headers (Cloudflare)
 ├── src/
-│   ├── app.css                     # ~750 Zeilen: Animationen, Themes, Layout
-│   ├── app.html                    # HTML Shell (viewport-fit=cover, iOS)
-│   ├── hooks.server.ts             # Supabase SSR Auth Middleware
+│   ├── tf.css                      # ~2950 Zeilen: Token, Reset, ALLE App-Styles
+│   ├── app.css                     # ~95 Zeilen: Tailwind/daisyUI (nur Auth), Body-Reset
+│   ├── app.html                    # HTML Shell (viewport-fit=cover, Theme-Startskript)
+│   ├── hooks.server.ts             # Supabase SSR Auth + Riegel vor /vorschau
+│   ├── hooks.client.ts
 │   ├── service-worker.ts           # Basic Service Worker (Cache)
-│   ├── v2.css                      # ~2200 Zeilen: v2-Styles
 │   ├── lib/
-│   │   ├── components/             # UI-Komponenten (v1)
-│   │   ├── components/v2/          # v2-Komponenten (28 Stück)
-│   │   ├── composables/v2/         # v2-Composables
-│   │   ├── stores/                 # State Management
-│   │   ├── stores/v2/              # v2-Event-Bus & Stores
-│   │   ├── services/               # Supabase CRUD Service
-│   │   ├── actions/                # Svelte Actions (Touch D&D)
+│   │   ├── components/tf/          # Die Oberfläche (27 Svelte-Dateien)
+│   │   ├── composables/tf/         # Menüs, Teilen-Dialog, Sortierung
+│   │   ├── stores/tf/              # Navigation, Theme, Tastatur-Attrappe
+│   │   ├── stores/                 # tasks.svelte.ts, toast.ts, filters.ts
+│   │   ├── utils/                  # datum.ts, mitnutzer.ts, suche.ts
+│   │   ├── services/               # supabase-crud.ts
+│   │   ├── actions/                # touchDrag.ts
+│   │   ├── demo/                   # Fixtures + Supabase-Attrappe + Vorschau-Inhalt
 │   │   ├── types/                  # TypeScript DB-Typen
-│   │   ├── constants.ts            # Priority/Timeframe Labels + Colors
-│   │   └── seed-data.ts            # Demo-Daten für neue User
+│   │   ├── constants.ts            # Der EINZIGE Labelsatz (Priorität, Zeitrahmen)
+│   │   └── seed-data.ts            # Demo-Daten für neue User (nur /api/seed)
 │   └── routes/
 │       ├── +layout.svelte/ts       # Root Layout + Supabase Client Init
 │       ├── +page.svelte            # Landing (→ /app oder /auth/login)
-│       ├── app/                    # Hauptbereich (Listen, Tasks, alle Features)
+│       ├── app/                    # Die App (mountet AppShell)
 │       ├── auth/                   # Login, Register, OAuth Callback
-│       └── api/seed/+server.ts     # Demo-Seed Endpoint (POST)
-├── .env.example                    # Template für Supabase-Credentials
+│       ├── vorschau/               # Abnahme-Vorschau, NUR im Dev-Modus
+│       └── api/                    # seed, calendar/sync
+├── .env.example
 ├── package.json
 ├── svelte.config.js
 ├── vite.config.ts
 └── tsconfig.json
 ```
 
-## v2 (aktive Version)
+## Die tf-Ebene (aktive Oberfläche)
 
-v2 ist die aktive Produktionsversion unter `/app`.
+Es gibt genau **eine** Oberfläche. Kein Ansichts-Umschalter, kein zweiter Komponentensatz.
 
 | Eigenschaft | Wert |
 |---|---|
 | Route | `/app` |
-| Hauptseite | `src/routes/app/+page.svelte` |
-| Layout/Header | `src/routes/app/+layout.svelte` |
-| Komponenten | `src/lib/components/v2/` (28 Stück) |
-| Composables | `src/lib/composables/v2/` |
-| Event-Bus | `src/lib/stores/v2/events.svelte.ts` |
-| Styles | `src/v2.css` (~2200 Zeilen) |
+| Einstiegsseite | `src/routes/app/+page.svelte` (31 Zeilen — mountet nur die Shell) |
+| Shell | `src/lib/components/tf/AppShell.svelte` (~1270 Zeilen) |
+| Wurzelelement | `src/lib/components/tf/TfRoot.svelte` (Theme-Klasse, Statusleistenfarbe) |
+| Komponenten | `src/lib/components/tf/` (27 Stück) |
+| Composables | `src/lib/composables/tf/` (3 Stück) |
+| Stores | `src/lib/stores/tf/` + `src/lib/stores/tasks.svelte.ts` |
+| Styles | `src/tf.css` — ein Token-Set, hell und dunkel |
+| Vorschau ohne Login | `/vorschau` (nur Dev-Modus, Demodaten im Arbeitsspeicher) |
 
-### View-Modi (Header-Toggle in +layout.svelte)
-- `list` — Einzelne Liste mit Tab-Navigation (Default)
-- `kanban` — Kanban-Board (Offen/In Arbeit/Erledigt)
-- `scroll` — Alle Listen nebeneinander, horizontal scrollbar
+### Layout
+
+**Desktop (ab 900 px): drei Spalten nebeneinander**, kein globaler Header, kein Footer.
+
+```
+┌ Navigation 248 px ┬ Liste (flex:1) ┬ Detail 384 px ┐
+```
+
+1. **Navigation** — Marke, Suchzeile (⌘K), Smart-Ansichten „Angepinnt" und „Dringend", Listen mit Emoji/Avataren/Zähler, „Neue Liste", Fußzeile (Avatar, Mond, Zahnrad).
+2. **Liste** — Kopf (64 px: Name, Zähler, Geteilt-Pille, Sortier-Knopf, ⋮), Quick-Add als erste Zeile, Aufgabenzeilen, Erledigt-Balken. **Alle Overlays gehören in diese Spalte:** Teilen-Popover (`top:58px; right:20px`), Aufgabenmenü (`right:24px`), Toast (mittig unten). `ContextMenu` und `ShareDialog` klemmen sich deshalb gegen `.tf-main`, nicht gegen das Fenster.
+3. **Detail** — Titel, Priorität (Segment), Zeitrahmen (Chips), Fällig, Unteraufgaben mit Fortschritt, Notiz, unten Anpinnen/Verschieben/Löschen.
+
+**Mobil (unter 900 px): Tab-Leiste statt Spalten.** Drei Tabs — Listen · Angepinnt · Suche. „Liste geöffnet" ist ein Unterschirm des Tabs „Listen"; das Aufgabendetail ist ein Bottom-Sheet. Toast liegt oberhalb der Tab-Leiste.
+
+### Was mit dem Redesign herausgeflogen ist
+
+Wer alten Code oder alte Dokumentation liest, sucht sonst danach:
+
+- `src/v2.css` und `src/lib/components/v2/`, `composables/v2/`, `stores/v2/` — komplett gelöscht, auch der Event-Bus.
+- Die v1-Komponenten `ListPanel`, `TaskItem`, `SubtaskItem`, `FocusOverlay`, `Pinboard`, `PriorityPicker`, `NotePopover` — ersetzt durch `components/tf/`.
+- **Vier Theme-Presets** (Minimal, Colorful, Neon, Aurora), `--tf-*`-Variablen, Per-Liste-Farben, `stores/theme.ts`. Jetzt: ein Token-Set in `src/tf.css`, hell/dunkel, Schalter in `stores/tf/theme.svelte.ts`.
+- **Drei Ansichts-Modi** (`list`, `kanban`, `scroll`) samt Header-Umschalter. Jetzt: drei Spalten bzw. Tab-Leiste.
+- Die App-Kopfzeile mit Theme-Picker, Sortier-, Auswahl- und Suchknopf; die Off-Canvas-Sidebar samt Burger und Scrim.
+- Fokus-Modus mit Blur-Backdrop, Notiz-Sprechblase pro Aufgabe, Emoji pro Aufgabe, Fortschritts-Stufen (0/33/66/100 %), Spaltenbreite per Drag.
+- Das gesamte Keyframe-System (25 Animationen in `app.css`) und die Utility-Klassen `.task-enter`, `.asap-blink` und Verwandte.
+- `stores/lists.ts`, `stores/profiles.ts`, `stores/visibility.ts`; aus `filters.ts` blieb genau eine Voreinstellung übrig (Unteraufgaben ein-/ausgeklappt).
+- Aus `constants.ts` die Farbtabellen (`priorityColors`, `priorityBadgeBg`, `progressColors`) — Farben stehen ausschließlich als Token in `src/tf.css`.
 
 ## Komponenten-Übersicht
 
@@ -99,51 +133,100 @@ v2 ist die aktive Produktionsversion unter `/app`.
 | Datei | Beschreibung |
 |-------|-------------|
 | `routes/+page.svelte` | Landing: Redirect zu /app (eingeloggt) oder /auth/login |
-| `routes/app/+page.svelte` | Hauptseite (~955 Zeilen): Listen-Tabs (Mobile) / Side-by-Side (Desktop), Suche (Ctrl+K), Bulk-Aktionen, Sort, Kontextmenü, Keyboard Shortcuts, Realtime Subscriptions |
-| `routes/app/+layout.svelte` | App Shell: Header mit Theme-Picker, Dark/Light Toggle, Sidebar (zusammenklappbar), Logout |
+| `routes/app/+page.svelte` | Mountet `AppShell` mit echtem Supabase-Zugang und Abmelden |
+| `routes/app/+layout.svelte` | Nur noch `TfRoot` als Rahmen — kein Header, keine Sidebar |
+| `routes/app/g2-koppeln/+page.svelte` | Kopplungscode für die G2-Brille |
 | `routes/auth/login/+page.svelte` | Login: Email/Passwort + Google OAuth |
-| `routes/auth/register/+page.svelte` | Registrierung: Email/Passwort + Google OAuth, Passwort min. 8 Zeichen |
+| `routes/auth/register/+page.svelte` | Registrierung, Passwort min. 8 Zeichen |
 | `routes/auth/callback/+server.ts` | OAuth Callback: Code → Session Exchange |
-| `routes/api/seed/+server.ts` | POST Endpoint: Demo-Listen + Tasks für neue User |
+| `routes/vorschau/+page.svelte` | Vorschau ohne Login — lädt den Inhalt **nur im Dev-Modus** nach |
+| `routes/api/seed/+server.ts` | POST: Demo-Listen + Tasks für neue User |
+| `routes/api/calendar/sync/+server.ts` | Kalender-Abgleich (n8n) |
 
-### UI-Komponenten (`src/lib/components/`)
+### UI-Komponenten (`src/lib/components/tf/`)
 
 | Komponente | Zeilen | Beschreibung |
 |-----------|--------|-------------|
-| `ListPanel.svelte` | ~650 | Listen-Container: Header, Quick-Add Input, Task-Liste, Erledigt-Bereich (klappbar), Column Resize. 22 Props (14 Callbacks) |
-| `TaskItem.svelte` | ~520 | Einzelne Aufgabe: Checkbox (animiert), Priority-Bar, Inline-Edit, Emoji, Fortschrittsbalken, Subtask-Counter, Kontextmenü-Button, D&D Handles |
-| `SubtaskItem.svelte` | ~280 | Unteraufgabe: Checkbox, Inline-Edit, D&D Handle, Priority Badge |
-| `FocusOverlay.svelte` | ~300 | Modal-Overlay: Aufgabe zentriert mit Blur-Backdrop, interaktive Unteraufgaben, Emoji/Priority/Timeframe editierbar |
-| `Pinboard.svelte` | ~210 | Pinnwand oben: Angepinnte Tasks als Cards, D&D zum Pinnen/Entpinnen, klappbar |
-| `ContextMenu.svelte` | ~100 | Rechtsklick-Menü: Löschen, Priorität, Zeitrahmen, Unteraufgabe, Trenner, Verschieben, Emoji, Fixieren |
-| `ShareDialog.svelte` | ~160 | Listen teilen: Email-Lookup, Rolle (Owner/Editor/Viewer), Mitglieder verwalten |
-| `EmojiPicker.svelte` | ~50 | Emoji-Grid (8 Spalten), position: fixed, animiert |
-| `PriorityPicker.svelte` | ~60 | Inline-Dropdown: 4 Prioritätsstufen |
-| `DatePicker.svelte` | ~70 | Datum + Uhrzeit Picker für Fälligkeitsdatum |
-| `NotePopover.svelte` | ~50 | Notiz-Sprechblase pro Aufgabe |
-| `ToastContainer.svelte` | ~45 | Toast-Benachrichtigungen |
+| `AppShell.svelte` | ~1270 | Die ganze Oberfläche: drei Spalten bzw. Tab-Leiste, Store-Anbindung, Realtime, Tastatur, Overlay-Regie, Vorschau-Regie |
+| `TaskDetail.svelte` | ~595 | Detailspalte und Sheet-Inhalt: Priorität, Zeitrahmen, Fällig, Unteraufgaben, Notiz, Aktionsleiste |
+| `TaskRow.svelte` | ~345 | Aufgabenzeile: Prioritätsbalken, 44-px-Checkbox, Titelzeile mit Chips/Pin, Metazeile, ⋮ |
+| `TaskList.svelte` | ~315 | Listenkörper: Quick-Add, Zeilen, ausgeklappte Unteraufgaben, Erledigt-Bereich, Drag & Drop |
+| `NavColumn.svelte` | ~210 | Navigationsspalte inkl. Smart-Ansichten, „Neue Liste", Fußzeile |
+| `ContextMenu.svelte` | ~210 | Popover-Menü mit Untermenü; klemmt gegen die Listenspalte |
+| `ShareDialog.svelte` | ~190 | Teilen-Popover: Mitnutzer, Rollen, Einladen. **Keine UUIDs** |
+| `SearchPalette.svelte` | ~180 | ⌘K-Palette (Desktop), Liste springt live mit |
+| `QuickAdd.svelte` | ~165 | Quick-Add-Zeile, mobil angedockt über der Tastatur |
+| `SmartList.svelte` | ~140 | Pinnwand und „Dringend", nach Liste gruppiert |
+| `DatePicker.svelte` | ~135 | Datum **und** Uhrzeit in einem Schritt |
+| `Icon.svelte` | ~130 | Das einzige Icon-Set (Stroke, viewBox 24, stroke-width 1.75) |
+| `ListsOverview.svelte` | ~125 | Mobiler Tab „Listen" inkl. Fußzeile |
+| `BulkToolbar.svelte` | ~120 | Leiste der Mehrfachauswahl |
+| `SearchMobile.svelte` | ~120 | Mobiler Tab „Suche" |
+| `SubtaskRow.svelte` | ~115 | Unteraufgabe in der Liste (genau eine Ebene) |
+| `NewListCard.svelte` | ~115 | Karte „Neue Liste" (Emoji-Feld + Name + Abbrechen/Anlegen) |
+| `EmojiPicker.svelte` | ~100 | Symbolwähler, 6 × 44 px, kein Wachsen beim Überfahren |
+| `DetailSheet.svelte` | ~90 | Bottom-Sheet-Rahmen um `TaskDetail` |
+| `InputDialog.svelte` | ~75 | Texteingabe-Dialog (ersetzt `prompt()`) |
+| `ConfirmDialog.svelte` | ~75 | Bestätigungsdialog — nur wo es kein Undo gibt |
+| `TfRoot.svelte` | ~50 | Wurzelelement, Theme-Klasse, Statusleistenfarbe |
+| `ToastContainer.svelte` | ~45 | Undo-Toast, einer pro Aktion |
+| `MobileTabBar.svelte` | ~40 | Tab-Leiste, 52 px Inhalt + Safe-Area |
+| `AvatarStack.svelte` | ~35 | Überlappende Mitnutzer-Avatare |
+| `DoneBar.svelte` | ~35 | Erledigt-Balken mit Zähler und „Erledigte löschen" |
+| `Logo.svelte` | ~30 | Fuchskopf-Siegel |
 
-### Stores (`src/lib/stores/`)
-
-| Store | Typ | Beschreibung |
-|-------|-----|-------------|
-| `tasks.svelte.ts` | Svelte 5 Runes (~750 Zeilen) | Haupt-Store: Listen + Tasks CRUD, Optimistic Updates, Realtime Handler, Reorder, Bulk-Ops, Duplicate, Share — erstellt via `createTaskStore()` |
-| `filters.ts` | writable | Aktive Filter: Priorität, Zeitrahmen, Highlight, Termin |
-| `lists.ts` | writable | Listen-Array (Legacy, wird durch tasks.svelte.ts ersetzt) |
-| `profiles.ts` | writable | User-Profile Cache für Sharing-Avatare |
-| `theme.ts` | writable/derived | Theme-Preset (minimal/colorful/neon/aurora), Dark Mode, localStorage Persistenz |
-| `toast.ts` | Store | Toast-Notifications (success/error/info) |
-| `visibility.ts` | writable | Sichtbarkeit einzelner Listen |
-
-### Services & Actions
+### Composables (`src/lib/composables/tf/`)
 
 | Datei | Beschreibung |
 |-------|-------------|
-| `services/supabase-crud.ts` | Alle Supabase DB-Operationen: Insert/Update/Delete für Lists, Tasks, Subtasks. Reorder, BulkMove, DuplicateList, Share-Lookup |
-| `actions/touchDrag.ts` | Svelte Action für Touch Drag & Drop: Ghost-Element, Auto-Scroll, Drop-Zone Registry, Threshold (8 px) |
-| `types/database.ts` | Generierte TypeScript-Typen für Supabase DB |
-| `constants.ts` | Priority Labels/Colors/Weights, Timeframe Labels, Progress Labels, Sort Labels |
-| `seed-data.ts` | Demo-Daten: 3 Listen mit Beispiel-Tasks |
+| `useContextMenus.svelte.ts` | Aufgabenmenü (4 Einträge), Listenmenü (7), Pinnwandmenü (2) |
+| `useShareDialog.svelte.ts` | Teilen-Dialog: lädt `profiles` nach und löst Anzeigenamen auf |
+| `useSortFilter.svelte.ts` | Sortierung (6 Modi), Persistenz unter `tf-sort-mode` |
+
+### Stores
+
+| Store | Typ | Beschreibung |
+|-------|-----|-------------|
+| `stores/tasks.svelte.ts` | Runes (~905 Zeilen) | Haupt-Store: Listen + Tasks CRUD, Optimistic Updates, Realtime, Reorder, Bulk, Pins, Undo — via `createTaskStore()` |
+| `stores/tf/navigation.svelte.ts` | Runes | Aktive Liste, ausgewählte Aufgabe, mobiler Tab, Unterschirm, Smart-Ansicht — durchgehend über IDs, nie über Indizes |
+| `stores/tf/theme.svelte.ts` | Runes | Genau zwei Zustände: hell (Default) und dunkel, `tf-dark` |
+| `stores/tf/tastatur.svelte.ts` | Runes | Höhe der Bildschirmtastatur (VisualViewport) für das angedockte Quick-Add |
+| `stores/toast.ts` | Store | Toasts inkl. Undo, dazu `showInputDialog` / `showConfirmDialog` |
+| `stores/filters.ts` | writable | Einzige verbliebene Voreinstellung: Unteraufgaben eingeklappt (`tf-subtasks-collapsed`) |
+
+### Services, Utils, Actions
+
+| Datei | Beschreibung |
+|-------|-------------|
+| `services/supabase-crud.ts` | Alle Supabase-DB-Operationen |
+| `utils/mitnutzer.ts` | Anzeigename → Initiale → Avatarfarbe. Gibt **nie** eine UUID heraus |
+| `utils/datum.ts` | Deutsche Datumsausgabe („heute 12:00", „Sa 20.09. · 09:00") — nie ISO |
+| `utils/suche.ts` | Suche über Titel, Unteraufgaben und Notizen aller Listen |
+| `actions/touchDrag.ts` | Touch-Drag & Drop: Ghost, Auto-Scroll, Drop-Zonen, 8-px-Schwelle |
+| `constants.ts` | Der einzige Labelsatz: Low · Normal · High · ASAP, Zeitrahmen |
+| `seed-data.ts` | Demo-Daten für neue User (nur `/api/seed`) |
+| `demo/fixtures.ts`, `demo/supabase-attrappe.ts`, `demo/VorschauInhalt.svelte` | Nur für `/vorschau`, siehe unten |
+
+### localStorage-Schlüssel
+
+| Schlüssel | Inhalt |
+|---|---|
+| `tf-dark` | Dunkelmodus (`'true'` / `'false'`) |
+| `tf-active-list` | Zuletzt gewählte Liste |
+| `tf-sort-mode` | Sortierung. Hieß bis zur Abnahme `v2-sort-mode`; der alte Wert wird einmalig übernommen und gelöscht |
+| `tf-subtasks-collapsed` | Unteraufgaben beim Öffnen ein-/ausgeklappt |
+| `tf-gesehen` | Letzter Besuch je Liste — Grundlage für den „neu"-Chip |
+
+## Vorschau-Route `/vorschau`
+
+Abnahme- und Vorführartefakt: dieselbe Shell, dieselben Komponenten, Demodaten im Arbeitsspeicher, kein Login, kein Zugriff auf die Produktivdatenbank. Der Zustand kommt aus Abfrageparametern (`liste`, `task`, `tab`, `offen`, `dunkel`, `teilen`, `menu`, `listenmenu`, `neueliste`, `suche`, `quickadd`, `toast`, `confirm`).
+
+**Sie existiert produktiv nicht:**
+
+1. `src/hooks.server.ts` beantwortet `/vorschau` außerhalb des Dev-Modus vor dem Routing mit **HTTP 404**. (Der Riegel in `+page.ts` allein reichte nicht: die Route trägt `ssr = false` und der Riegel griff erst im Browser — der Server lieferte 200 mit leerer Hülle.)
+2. `routes/vorschau/+page.svelte` lädt `$lib/demo/VorschauInhalt.svelte` **nur** hinter `import.meta.env.DEV` dynamisch nach. Vite ersetzt das beim Bauen durch `false`, der Zweig fällt weg und mit ihm der Chunk. Im Produktionsbündel steht kein Demobestand mehr.
+
+Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/output/` muss leer bleiben.
 
 ## Backend / Supabase
 
@@ -151,28 +234,39 @@ v2 ist die aktive Produktionsversion unter `/app`.
 
 | Tabelle | Primär-Felder | Zweck |
 |---------|---------------|-------|
-| `profiles` | id (FK auth.users), username, display_name, avatar_url | User-Profile, auto-erstellt bei Signup via Trigger |
+| `profiles` | id (FK auth.users), username, display_name, avatar_url | User-Profile, auto-erstellt bei Signup via Trigger. **Keine E-Mail-Spalte** — fremde Mitnutzer haben darum nur Anzeigename und Rolle |
 | `lists` | id, user_id, title, icon, position, visible, version | Aufgabenlisten pro User |
-| `tasks` | id, list_id, user_id, parent_id, text, type, done, priority, timeframe, progress, position, emoji, note, due_date, highlighted, pinned, assigned_to, version | Unified: Tasks + Unteraufgaben + Trenner (via parent_id + type) |
+| `tasks` | id, list_id, user_id, parent_id, text, type, done, priority, timeframe, progress, position, emoji, note, due_date, highlighted, pinned, pinned_by, assigned_to, version | Unified: Tasks + Unteraufgaben + Trenner (via parent_id + type) |
 | `list_shares` | id, list_id, user_id, role (owner/editor/viewer) | Multi-User Sharing |
 
 ### Design-Entscheidungen
 - **Unified Tasks-Tabelle:** Tasks, Unteraufgaben und Trenner in einer Tabelle (via `parent_id` + `type`)
 - **parent_id = null:** Top-Level Task oder Divider
-- **parent_id = task_id:** Unteraufgabe (1 Ebene implementiert)
-- **version-Feld:** Existiert für Optimistic Concurrency Control, wird aktuell client-seitig nicht geprüft
-- **RLS:** Aktiv auf allen Tabellen, Owner-Isolation + Sharing via list_shares
+- **parent_id = task_id:** Unteraufgabe — **genau eine Ebene**, tiefer geht die Oberfläche nicht
+- **Trenner (`type = 'divider'`):** Restbestand. Die Oberfläche legt keine neuen an, vorhandene bleiben bedienbar
+- **version-Feld:** Existiert für Optimistic Concurrency Control, wird client-seitig nicht geprüft
+- **RLS:** Aktiv auf allen Tabellen, Owner-Isolation + Sharing via list_shares. In `list_shares` einer FREMDEN Liste sieht man nur den Besitzer und sich selbst (Migration 003) — wer dort gepinnt hat, wird über sein Profil nachgeladen
 
 ### Migrations
+
+`supabase/migrations/001` bis `020`, chronologisch anzuwenden. Die Grundlagen:
 
 | Nr | Datei | Inhalt |
 |----|-------|--------|
 | 001 | `initial_schema.sql` | Alle Tabellen, RLS Policies, Auto-Profile Trigger, Indizes |
 | 002 | `input_length_constraints.sql` | CHECK Constraints: title ≤100, text ≤500, note ≤5000 |
 | 003 | `fix_rls_recursion.sql` | SECURITY DEFINER Hilfsfunktionen gegen RLS-Rekursion |
-| 004 | `due_date_to_text.sql` | due_date Spalte zu Text-Typ ändern |
-| 005 | `add_assigned_to.sql` | assigned_to Spalte für User-Zuweisung |
-| 006 | `lookup_user_by_email.sql` | RPC-Funktion: User-ID per Email nachschlagen (für Sharing) |
+| 004 | `due_date_to_text.sql` | due_date Spalte zu Text-Typ |
+| 005 | `add_assigned_to.sql` | assigned_to Spalte |
+| 006 | `lookup_user_by_email.sql` | RPC: User-ID per E-Mail (für Sharing) |
+| 007 | `batch_reorder_rpc.sql` | Reorder in einem Aufruf statt N+1 |
+| 008–010 | Gamification | Tabellen, Fixes, Leaderboard-RLS |
+| 011–012 | Kalender | Sync und Erinnerung |
+| 013–016 | RPC-Härtung | Auth-Check, sichere Reward-RPCs, Quests server-seitig |
+| 017 | `subtask_api.sql` | Unteraufgaben-RPCs |
+| 018 | `realtime_publication.sql` | Realtime-Publikation |
+| 019 | `task_pinned_by.sql` | `pinned_by` — trägt den Chip „gepinnt von …" |
+| 020 | `reset_highlighted.sql` | `highlighted` zurücksetzen |
 
 ### Auth
 - Google OAuth + Email/Passwort (Supabase Auth)
@@ -182,181 +276,107 @@ v2 ist die aktive Produktionsversion unter `/app`.
 - Supabase Anon Key ist öffentlich (RLS schützt), Service Role Key **nie** im Frontend
 
 ### Realtime
-- Supabase Realtime Subscriptions auf `lists` und `tasks` Tabellen
+- Subscriptions auf `lists` und `tasks`
 - Pattern: `postgres_changes` Channel mit INSERT/UPDATE/DELETE Events
-- Duplikat-Schutz via `pendingTaskIds` Set (bekanntes Problem: `.size > 0` statt `.has()`)
 
 ## Feature-Liste (implementiert)
 
 ### Core
-- [x] Listen CRUD (Erstellen, Umbenennen inline, Löschen, Icon-Picker)
-- [x] Tasks CRUD (Quick-Add, Inline-Edit per Doppelklick, Löschen, Abhaken)
-- [x] Unteraufgaben (1 Ebene, standardmäßig eingeklappt)
-- [x] Checkbox-Propagation (Eltern → Kinder) + Reverse Propagation
-- [x] Prioritäten: 4 Stufen (Low/Normal/High/ASAP) mit Farbcodierung
-- [x] Zeitrahmen: 4 Stufen (Akut/Zeitnah/Mittelfristig/Langfristig)
-- [x] Fortschrittsbalken: 4 Stufen (0/33/66/100 %)
-- [x] Supabase Realtime (Live-Updates)
-- [x] Optimistic UI Updates
+- [x] Listen CRUD (Anlegen über die Karte „Neue Liste", Umbenennen, Löschen mit Dialog, Symbolwähler)
+- [x] Tasks CRUD (Quick-Add als erste Zeile, Inline-Edit, Löschen mit Undo-Toast, Abhaken)
+- [x] Unteraufgaben — genau eine Ebene, standardmäßig eingeklappt
+- [x] Checkbox-Propagation (Eltern → Kinder), ein Undo-Toast pro Aktion
+- [x] Prioritäten: Low/Normal/High/ASAP als farbiger Balken links; nur ASAP trägt zusätzlich einen Chip
+- [x] Zeitrahmen: Keiner/Akut/Zeitnah/Mittelfristig/Langfristig
+- [x] Fällig: Datum **und** Uhrzeit in einem Schritt, Anzeige immer deutsch
+- [x] Notiz je Aufgabe (im Detail, mit einzeiliger Vorschau in der Metazeile)
+- [x] Supabase Realtime + Optimistic UI
 
 ### UI/UX
-- [x] Mobile-First: Tabs (Mobile) / Side-by-Side (Desktop)
-- [x] Dark/Light Mode
-- [x] 4 Theme-Presets: Minimal, Colorful, Neon, Aurora
-- [x] Zusammenklappbare Seitenleiste
-- [x] Kontextmenü (Rechtsklick / Long-Press)
-- [x] Fokus-Modus (Klick auf Task → Overlay mit Blur-Backdrop)
-- [x] Pinnwand (Tasks oben anpinnen per D&D)
-- [x] Drag & Drop: Tasks, Unteraufgaben, Listen, Pinnwand
-- [x] Touch Drag & Drop (eigene Implementation mit Ghost-Elements)
-- [x] Suche (Ctrl+K / Cmd+K)
+- [x] Desktop: drei Spalten. Mobil: Tab-Leiste (Listen · Angepinnt · Suche) + Bottom-Sheet
+- [x] Hell/Dunkel — ein Token-Set, keine Presets
+- [x] Smart-Ansichten „Angepinnt" (Pinnwand) und „Dringend"
+- [x] Kontextmenü: Aufgabe 4 Einträge, Liste 7, Pinnwand 2 — alles Weitere lebt im Detail
+- [x] Drag & Drop inkl. Touch (300 ms halten + ziehen)
+- [x] Suche: ⌘K-Palette am Zeiger, eigener Tab am Finger — über Titel, Unteraufgaben und Notizen
 - [x] Sortierung: 6 Modi
 - [x] Bulk-Aktionen (Mehrfachauswahl)
-- [x] Emoji-Vergabe pro Task
-- [x] Notizen/Sprechblase pro Task
-- [x] Spaltenbreite per Drag anpassbar
-- [x] Erledigt-Bereich klappbar mit Separator
-- [x] iOS Safe Area + viewport-fit=cover
-- [x] Sticky Mobile Tab-Leiste mit backdrop-blur
-- [x] Keyboard Shortcuts
+- [x] Undo-Toast statt Bestätigungsdialog, außer beim Löschen einer Liste
+- [x] Touch-Ziele 44 px, iOS Safe Area, `viewport-fit=cover`
+- [x] Tastatur-Kürzel, ⌘K/Ctrl+K
 
 ### Auth & Sharing
 - [x] Google OAuth + Email/Passwort
 - [x] User-Profile (automatisch bei Signup)
-- [x] Share-Dialog (Email-Lookup, Rollen: Owner/Editor/Viewer)
+- [x] Teilen-Popover: Einladen per E-Mail, Rolle je Mitnutzer, Entfernen
+- [x] Mitnutzer-Avatare in Navigation, mobiler Übersicht und Listen-Kopf
 - [x] Demo-Seed für neue User
 
 ### Geplant
 - [ ] Offline-Cache (Dexie.js)
-- [ ] Volltextsuche über alle Tasks
 - [ ] Wiederkehrende Aufgaben
 - [ ] Push Notifications
-- [ ] Mehrstufige Unteraufgaben (beliebig tief)
-- [ ] Gamification (Streaks, Konfetti)
-- [ ] Brain-Dump Import
-- [ ] Filter in Seitenleiste
-
-## Animations-System
-
-Zweistufig: **CSS Keyframes** (in `app.css`) für komplexe, mehrstufige Animationen und **Svelte Transitions** für einfache Ein-/Ausblendungen.
-
-### CSS Keyframes (25 Animationen in app.css)
-
-| Animation | Keyframe | Beschreibung | Timing |
-|-----------|----------|-------------|--------|
-| Soft Drop | `task-slide-in` | Neue Task erscheint: translateY(-12px) → bounce → settle | 0.4s cubic-bezier(.34,1.56,.64,1) |
-| Swipe Away | `task-slide-out` | Task löschen: translateX(0→120px) + max-height collapse | 0.4s ease |
-| Satisfaction Shrink | `check-pop` | Checkbox Pop-Effekt bei Abhaken | 0.35s spring |
-| Checkmark Draw | `draw-check` | SVG Pfad-Animation (stroke-dashoffset) | 0.3s ease |
-| Card Check | `task-check` | Task-Karte schrumpft + verblasst | 0.5s ease |
-| Card Uncheck | `task-uncheck` | Task-Karte expandiert bei Rückgängig | 0.35s spring |
-| Highlight Pulse | `highlight-pulse` | Fixierte Tasks: Pulsierender Glow (orange) | 3s infinite |
-| ASAP Blink | `asap-pulse` | ASAP-Priority: Roter Glow-Pulse | 2.5s infinite |
-| Magnet Snap | `pin-card-in` | Pin-Card erscheint: scale + bounce | 0.45s spring |
-| Pin Glow | `pin-glow` | Orangener Glow nach Pin-Aktion | 0.6s ease |
-| Pin Exit | `pin-card-out` | Pin-Card verschwindet | 0.3s ease |
-| Breathing Space | `idle-float` | Leere Liste: Sanftes Schweben | infinite |
-| Idle Pulse | `idle-fade-pulse` | Leere Liste: Sanftes Pulsieren | infinite |
-| Progress Shimmer | `progress-shimmer` | 100 % Fortschritt: Schimmernder Gradient | infinite |
-| Priority Pulse | `priority-pulse` | Priority-Bar Klick: scaleY + brightness | einmalig |
-| Emoji Wobble | `emoji-wobble` | Emoji-Button Hover: Wackeln | einmalig |
-| Quick-Add Press | `quick-add-press` | Add-Button Drück-Effekt | einmalig |
-| Checkbox Invite | `checkbox-invite` | Alle Subtasks erledigt: Grüner Pulse | 2s infinite |
-| Fade In/Out | `fade-in`, `fade-out` | Generisches Ein-/Ausblenden | 0.25–0.3s |
-| Scale In | `scale-in` | Skaliertes Einblenden | 0.3s spring |
-| Theme Fade | `theme-fade` | Theme-Wechsel: blur + opacity | 0.4s |
-| Context Menu In | `context-menu-in` | Kontextmenü-Einblendung | 0.2s spring |
-| Note Pop In | `note-pop-in` | Notiz-Popover erscheint | 0.25s spring |
-| Move Up | `move-up` | Task wird verschoben: Opacity-Flash | 0.4s spring |
-
-### Svelte Transitions
-- `slide` — Subtask-Bereich ein-/ausklappen
-- `fade` — Listen-Wechsel auf Mobile (via `{#key}` Block)
-- `animate:flip` — Reorder-Animation bei D&D
-
-### CSS Utility-Klassen
-```css
-.task-enter    /* task-slide-in */
-.task-exit     /* task-slide-out */
-.task-check    /* task-check */
-.task-uncheck  /* task-uncheck */
-.fade-in       /* fade-in */
-.scale-in      /* scale-in */
-.pin-card      /* pin-card-in + pin-glow */
-.asap-blink    /* asap-pulse infinite */
-```
 
 ## Design-System
 
-### Theme-Architektur
-- 4 Presets: Minimal, Colorful, Neon, Aurora
-- Dark/Light Toggle: Minimal + Colorful unterstützen beide Modi; Neon + Aurora erzwingen Dark
-- CSS Custom Properties: Alle Themes nutzen `--tf-*` Variablen
-- Per-Liste Farben: Colorful + Aurora haben `[data-col="0-4"]`-basierte Gradient-Backgrounds
-- Persistenz: Theme + Dark-Mode in localStorage (`tf-preset`, `tf-dark`)
-- DaisyUI: `data-theme="light"/"dark"` auf `<html>` für Basis-Utilities
+### Token
 
-### CSS Custom Properties (`--tf-*`)
+`src/tf.css` ist die **einzige** Farb- und Maßquelle der App. Hex-Werte stehen ausschließlich in den beiden Token-Blöcken (`:root` hell, `.tf-dark` dunkel) und bei den bewusst konstanten Werten (Toast, Avatarfarben, Logo, Scrim). Neue Regeln greifen nur auf Token zu.
+
 ```
---tf-bg              Seiten-Hintergrund
---tf-surface         Karten/Panel-Hintergrund
---tf-surface-hover   Hover-State
---tf-border          Standard-Rahmenfarbe
---tf-text            Primäre Textfarbe
---tf-text-secondary  Sekundäre Textfarbe
---tf-text-muted      Dezente Textfarbe
---tf-header-bg       Header-Hintergrund
---tf-header-border   Header-Rahmen
---tf-input-bg        Input-Hintergrund
---tf-input-border    Input-Rahmen
---tf-accent          Akzentfarbe
---tf-accent-gradient Akzent-Gradient
+--bg --surface --surface-2        Flächen
+--line --line-2                   Trennlinien
+--ink --ink-2 --ink-3             Text primär / sekundär / tertiär
+--accent --accent-ink --accent-soft   Fuchs-Orange
+--low --normal --high --asap      Prioritäten
+--sel --new                       Zeilenzustände
+--sh-* --r-*                      Schatten und Radien
+--ring-destr                      Fokusring des destruktiven Dialogknopfes
 ```
+
+Der globale Fokusring ist 2 px `--accent`. Auf dem destruktiven Dialogknopf (Fläche `--asap`) wäre das die kontrastschwächste Paarung des Farbsatzes — `.tf-btn.destr:focus-visible` bekommt deshalb `--ring-destr`.
 
 ### Prioritäts-Farben
-| Stufe | Farbe | Badge |
-|-------|-------|-------|
-| Low | `#22c55e` (grün) | bg-green-50, text-green-600 |
-| Normal | `#eab308` (gelb) | bg-yellow-50, text-yellow-600 |
-| High | `#ef4444` (rot) | bg-red-50, text-red-600 |
-| ASAP | `#dc2626` (dunkelrot) | bg-red-500, text-white |
 
-### Fortschritts-Farben
-| Stufe | Prozent | Farbe |
-|-------|---------|-------|
-| 0 | 0 % | transparent |
-| 1 | 33 % | blau (#3b82f6) |
-| 2 | 66 % | gelb (#f59e0b) |
-| 3 | 100 % | grün (#22c55e) |
+| Stufe | Light | Dark |
+|-------|-------|------|
+| Low | `#22c55e` | `#9ece6a` |
+| Normal | `#eab308` | `#e0af68` |
+| High | `#ef4444` | `#f87171` |
+| ASAP | `#991b1b` | `#ff4d4d` |
+
+ASAP ist bewusst dunkler als High — die im alten Brief genannte `#dc2626` war von High nicht zu unterscheiden.
+
+### Schrift und Ikonografie
+
+- **Instrument Sans**, self-hosted als woff2 unter `static/fonts/` (variabel, 400–600). Kein Google-Fonts-Link, kein externer `font-src`.
+- **Ein** Icon-Set in `components/tf/Icon.svelte`: `viewBox 0 0 24 24`, Stroke, `stroke-width 1.75`, Größen 24/20/16/14. Funktionen tragen nur diese Icons; Emoji bleiben den Listen-Symbolen vorbehalten.
+
+## Bewusste Abweichungen vom Mockup
+
+Die folgenden Stellen weichen **absichtlich** von `A-klar-spec.md` ab. Sie sind geprüft und sollen so bleiben — kein Versehen, bitte nicht „zurückbauen".
+
+1. **Drei Bedienelemente, die das Mockup nicht kennt.** Das Mockup zeigt keinen Weg, etwas wieder loszuwerden; die Funktion braucht ihn:
+   - Lösch-Kreuz im Feld „Fällig" (`TaskDetail`) — sonst ließe sich ein gesetztes Datum nie wieder entfernen.
+   - Mülleimer je Unteraufgabe (`TaskDetail`) — das Aufgabenmenü einer Unteraufgabe erreicht man am Finger nicht zuverlässig.
+   - Entfernen-Kreuz je fremdem Mitnutzer im Teilen-Popover — Teilen ohne Beenden wäre eine Einbahnstraße.
+2. **Fußzeile im mobilen Tab „Listen"** (Avatar, Mond, Zahnrad, Abmelden). Das Mockup hat sie nicht, weil es keine Einstellungen und kein Abmelden kennt. Ohne sie wären beide am Handy unerreichbar. Das Abmelden-Symbol ist ein eigenes Icon (`abmelden`, Tür mit Pfeil) und **nicht** das `verschieben`-Icon aus Abschnitt 8 — dasselbe Icon darf nicht zwei Dinge bedeuten.
+3. **Die Pinnwand gruppiert nach der Reihenfolge der Seitenleiste**, nicht nach der des Mockups (`SmartList.svelte` geht `lists` durch). Eine zweite, eigene Sortierung für die Pinnwand wäre eine zweite Wahrheit über „Reihenfolge der Listen".
+4. **Der Erledigt-Balken bleibt bei Zähler 0 stehen** (Spezifikation Abschnitt 5: nur die Löschen-Aktion entfällt). Das Mockup ist hier uneins mit sich — Frame 2 zeigt den Balken mit Zähler 0, andere Frames zeigen ihn gar nicht. Die Spezifikation entscheidet.
 
 ## Bekannte Probleme / offene Punkte
 
-Aus dem letzten Code-Review (Bewertung 7/10):
-
-**Hoch:**
-1. `deleteTaskDirect` — Fire-and-Forget ohne `await`, kein Rollback bei DB-Fehler
-2. `pendingTaskIds.size > 0` statt `.has()` — Race Condition bei parallelen Inserts
-3. `activeListIndex` — kein Bounds-Checking nach Listen-Löschung
-4. `addTaskAfter` position 0.5 — wird als int abgeschnitten, identische Position
-5. `alert()`/`confirm()` — blockiert Main-Thread
-
 **Mittel:**
-6. N+1-Queries bei Reorder-Operationen
-7. `routes/app/+page.svelte` ist God-Component (955 Zeilen)
-8. `ListPanel` hat 22 Props — fehlendes DI
-9. `version`-Feld existiert aber wird nie client-seitig geprüft
-10. Gemischtes State-Modell: tasks.svelte.ts (Runes) vs. andere (writable)
-11. Accessibility: Mehrere `svelte-ignore a11y_*`, fehlende ARIA-Labels
+1. `AppShell.svelte` ist mit ~1270 Zeilen die größte Datei des Projekts. Menüs, Teilen und Sortierung sind bereits in Composables ausgelagert; Realtime und Vorschau-Regie wären die nächsten Kandidaten.
+2. `version`-Feld existiert, wird client-seitig nicht geprüft
+3. N+1-Queries bei einzelnen Reorder-Pfaden (die RPC aus Migration 007 deckt nicht alle ab)
+4. Code-Duplikation: das Optimistic-Pattern wiederholt sich in `tasks.svelte.ts` vielfach
 
 **Niedrig:**
-12. Keine Tests (Unit, Integration, E2E)
-13. Code-Duplikation (Optimistic-Pattern wird ~25× wiederholt)
-14. Unused Imports in supabase-crud.ts
-15. Kein Offline-Support (Dexie.js geplant)
-
-### Race Conditions
-- Realtime-Event zwischen Optimistic Update und Rollback kann zu inkonsistentem State führen
-- Divider-Sortierung nicht deterministisch (`return 0` in Sortierfunktion)
+5. Keine Tests (Unit, Integration, E2E). Die Abnahme läuft über Screenshots gegen die Mockup-Frames (`abnahme/shot.mjs` im Redesign-Projekt)
+6. `svelte-check` meldet 5 Fehler in `routes/app/g2-koppeln/+page.svelte`: die Tabelle `g2_pairing_codes` fehlt in den generierten DB-Typen
+7. `eslint` meldet 1 Fehler in `service-worker.ts` (`ServiceWorkerGlobalScope` ist der ESLint-Umgebung unbekannt)
+8. Kein Offline-Support
 
 ## Deployment-Pipeline
 
@@ -380,6 +400,7 @@ Steps:
 | Branch | Zweck |
 |--------|-------|
 | `main` | Production (Auto-Deploy via GitHub Actions) |
+| `redesign/a-klar` | Redesign „A Klar" |
 
 ### Build-Befehle
 ```bash
@@ -408,8 +429,8 @@ PUBLIC_SUPABASE_ANON_KEY=<dein-anon-key>
 
 ### Konfiguration
 - **Typ:** Trusted Web Activity (Chrome Custom Tab, kein nativer Code)
-- **Gradle-Projekt:** `android/` (Standalone)
-- **Keystore:** Referenz unter `android/`, Keystore-Datei wird nicht eingecheckt (gitignored)
+- **Gradle-Projekt:** `twa/` (Standalone)
+- **Keystore:** Referenz unter `twa/`, Keystore-Datei wird nicht eingecheckt (gitignored)
 - **Digital Asset Links:** `static/.well-known/assetlinks.json`
 
 ### PWA Manifest
@@ -425,12 +446,13 @@ PUBLIC_SUPABASE_ANON_KEY=<dein-anon-key>
 - **RLS ist die zentrale Sicherheitsschicht** — jede Tabelle hat RLS + Policies
 - **Service Role Key nie im Frontend** — nur in n8n
 - **Kein `{@html}` mit User-Daten** — Svelte escaped automatisch
-- **CSP + Security Headers** in `static/_headers`
-- **Input-Validierung:** PostgreSQL Constraints + Frontend `maxlength` (dreifach)
+- **CSP + Security Headers** in `_headers`
+- **Input-Validierung:** PostgreSQL Constraints + Frontend `maxlength`
+- **Keine UUIDs in der Oberfläche** — `utils/mitnutzer.ts` löst jede ID zu einem Namen auf
+- **`/vorschau` ist produktiv 404** und trägt keine Demodaten im Bündel
 - **DSGVO:** Supabase EU Frankfurt, Daten bleiben in der EU
 
 ### Offene Security-Punkte
-- `alert(error.message)` könnte User-kontrollierte Daten zeigen
 - `as any` Casts bei Realtime-Subscriptions umgehen Type-Safety
 - `Record<string, unknown>` in CRUD erlaubt beliebige Felder
 - Kein Offline-Sync Security (noch nicht implementiert)
@@ -438,9 +460,9 @@ PUBLIC_SUPABASE_ANON_KEY=<dein-anon-key>
 ## Entwicklungshinweise
 
 ### Svelte 5 Runes vs. Legacy Stores
-- `tasks.svelte.ts` nutzt **Svelte 5 Runes** (`$state`, `$derived`, `$effect`)
-- Alle anderen Stores nutzen **Legacy writable/derived**
-- Bei neuen Features: Runes bevorzugen
+- `tasks.svelte.ts` und alles unter `stores/tf/` nutzen **Svelte 5 Runes**
+- `toast.ts` und `filters.ts` nutzen noch **writable**
+- Bei neuen Features: Runes
 
 ### Optimistic Update Pattern
 ```typescript
@@ -449,13 +471,20 @@ tasks = tasks.map(t => t.id === id ? {...t, ...changes} : t); // Sofort
 const { error } = await crud.updateTaskField(sb, id, changes); // Server
 if (error) tasks = old; // Rollback
 ```
-Dieses Pattern wird ~25× manuell wiederholt. Bei Refactoring: Helper-Funktion erstellen.
+
+### Regeln aus der Spezifikation, die im Code gelten
+- Ein Labelsatz (`constants.ts`), eine Farbquelle (`src/tf.css`), ein Icon-Set (`Icon.svelte`)
+- Keine Animationen, keine gestrichelten Rahmen, kein `backdrop-filter`
+- Nie ein ISO-Datum und nie eine UUID in der Oberfläche
+- Aufgabenmenü höchstens 4 Einträge, Listenmenü höchstens 7 — alle Felder leben im Detail
+- Overlays der Listenspalte klemmen gegen `.tf-main`, nicht gegen das Fenster
+- Touch-Ziele 44 px; kleinere Maße (32/36/38) nur für Zeigergeräte
 
 ### Namenskonventionen
 - **UI-Labels:** Deutsch (Priorität, Erledigt, Zeitnah)
-- **Code-Bezeichner:** Englisch (task, list, priority, done)
+- **Code-Bezeichner:** in `components/tf/` deutsch (`aufgabe`, `liste`, `beteiligte`), im älteren Bestand englisch
 - **Commits:** Deutsch, Imperativ
-- **Branches:** `feature/beschreibung`, `fix/beschreibung`
+- **Branches:** `feature/beschreibung`, `fix/beschreibung`, `redesign/beschreibung`
 
 ## Konventionen für Mitwirkende
 

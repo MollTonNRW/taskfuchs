@@ -120,6 +120,6 @@
 		<Icon name="zahnrad" />
 	</a>
 	<button class="tf-ib gross" onclick={onLogout} aria-label="Abmelden" style="color:var(--high)">
-		<Icon name="verschieben" />
+		<Icon name="abmelden" />
 	</button>
 </div>

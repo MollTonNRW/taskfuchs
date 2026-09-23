@@ -1,5 +1,11 @@
 # TaskFuchs — Architektur
 
+> **Veraltet ab dem Redesign „A Klar".** Die Ordner- und Komponentenliste unten
+> beschreibt den Stand vor dem Umbau; `Sidebar.svelte`, `FocusMode.svelte`,
+> `components/ui/` und `stores/lists.svelte.ts` gibt es nicht mehr. Der
+> aktuelle Aufbau steht in [CLAUDE.md](CLAUDE.md). Gueltig bleiben hier nur
+> Datenbank-Schema, Optimistic Concurrency und RLS.
+
 ## Tech-Stack
 - **Frontend:** SvelteKit 2 + Svelte 5, Tailwind CSS 4 + daisyUI 5
 - **Backend:** Supabase (PostgreSQL, Auth, Realtime, RLS) — EU Frankfurt

@@ -16,9 +16,31 @@ export const sortLabels: Record<SortMode, string> = {
 	progress: 'Fortschritt'
 };
 
+/**
+ * Schluessel der Sortierung im localStorage.
+ *
+ * Hiess bis zur Abnahme `v2-sort-mode` — nach der Ebene, die dieser Branch
+ * entfernt hat. `ALT` wird einmalig uebernommen und danach geloescht, damit
+ * niemand seine Sortierung beim Umbenennen verliert.
+ */
+const SCHLUESSEL = 'tf-sort-mode';
+const SCHLUESSEL_ALT = 'v2-sort-mode';
+
 function loadSortMode(): SortMode {
 	if (!browser) return 'position';
-	const saved = localStorage.getItem('v2-sort-mode');
+	let saved = localStorage.getItem(SCHLUESSEL);
+	if (saved === null) {
+		const alt = localStorage.getItem(SCHLUESSEL_ALT);
+		if (alt !== null) {
+			saved = alt;
+			try {
+				localStorage.setItem(SCHLUESSEL, alt);
+				localStorage.removeItem(SCHLUESSEL_ALT);
+			} catch {
+				/* privater Modus — dann bleibt es bei der Vorgabe */
+			}
+		}
+	}
 	return saved && validSortModes.includes(saved as SortMode) ? (saved as SortMode) : 'position';
 }
 
@@ -30,7 +52,7 @@ export function createSortFilter(
 	let sortMenuOpen = $state(false);
 
 	$effect(() => {
-		if (browser) localStorage.setItem('v2-sort-mode', sortMode);
+		if (browser) localStorage.setItem(SCHLUESSEL, sortMode);
 	});
 
 	function handleReorderTask(taskId: string, targetListId: string, newPosition: number) {

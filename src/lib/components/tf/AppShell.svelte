@@ -748,6 +748,11 @@
 		for (const id of v.aufklappen ?? []) {
 			document.querySelector<HTMLElement>(`[data-tf-task="${id}"] .zaehler`)?.click();
 		}
+		// Das Aufklappen schiebt alles darunter nach unten. Ohne diesen
+		// Renderdurchlauf messen die `ankerAus`-Aufrufe weiter unten die
+		// Rechtecke von VOR dem Aufklappen — in Frame 2 schwebte das
+		// Aufgabenmenue dadurch 141 px ueber seinem Drei-Punkte-Knopf.
+		await tick();
 
 		if (v.neueliste) {
 			// Die Karte steht schon offen (`vorschauNeueListe`). Hier wird nur

@@ -43,14 +43,10 @@ PUBLIC_SUPABASE_ANON_KEY=dein-anon-key
 
 ### 3. Datenbank-Migrationen ausfuehren
 
-Fuehre die SQL-Dateien aus `supabase/migrations/` der Reihe nach im Supabase SQL-Editor aus:
-
-1. `001_initial_schema.sql` — Tabellen, RLS-Policies, Realtime
-2. `002_input_length_constraints.sql` — Eingabelaengen-Limits
-3. `003_fix_rls_recursion.sql` — RLS-Rekursions-Fix
-4. `004_due_date_to_text.sql` — Datumsfeld-Anpassung
-5. `005_add_assigned_to.sql` — Task-Zuweisung
-6. `006_lookup_user_by_email.sql` — Email-Lookup fuer Share-Funktion
+Fuehre die SQL-Dateien aus `supabase/migrations/` der Reihe nach im Supabase
+SQL-Editor aus — alle, von `001_initial_schema.sql` bis `020_reset_highlighted.sql`.
+Die Nummerierung ist die Reihenfolge; eine Uebersicht, was die einzelnen
+Migrationen tun, steht in [CLAUDE.md](CLAUDE.md).
 
 ### 4. Dev-Server starten
 
@@ -77,32 +73,41 @@ Die App laeuft unter `http://localhost:5173`.
 
 ```
 src/
+  tf.css                  — Token und saemtliche Styles der App
   routes/
-    app/+page.svelte     — Haupt-App (Listen, Tasks, Overlays)
+    app/+page.svelte      — mountet die App-Shell
+    vorschau/             — Vorschau ohne Login, NUR im Dev-Modus
     +page.svelte          — Landing/Login
   lib/
-    components/           — UI-Komponenten (13 Svelte-Dateien)
-    stores/               — Svelte Stores (Sichtbarkeit, Filter)
+    components/tf/        — die Oberflaeche (27 Svelte-Dateien)
+    composables/tf/       — Menues, Teilen, Sortierung
+    stores/               — Aufgaben-Store, Navigation, Theme, Toasts
+    utils/                — Datum, Mitnutzer, Suche
+    demo/                 — Fixtures fuer die Vorschau (nur Dev-Modus)
     types/database.ts     — Supabase-Typen
     seed-data.ts          — Demo-Daten fuer neue User
 supabase/
-  migrations/             — SQL-Migrationen (chronologisch)
+  migrations/             — SQL-Migrationen (chronologisch, 001-020)
 ```
+
+Architektur, Komponentenliste und die bewussten Abweichungen vom Mockup stehen
+ausfuehrlich in [CLAUDE.md](CLAUDE.md).
 
 ## Features
 
-- Listen mit Drag & Drop
-- Subtasks (2 Ebenen tief)
-- Pinnwand fuer wichtige Tasks
-- Prioritaeten (Niedrig, Normal, Hoch, ASAP)
+- Desktop drei Spalten (Navigation, Liste, Detail), mobil Tab-Leiste mit
+  Bottom-Sheet
+- Listen mit Drag & Drop, auch am Finger
+- Unteraufgaben — genau eine Ebene
+- Pinnwand und Smart-Ansicht „Dringend"
+- Prioritaeten (Low, Normal, High, ASAP)
 - Zeitrahmen (Akut, Zeitnah, Mittelfristig, Langfristig)
-- Fortschrittsbalken (4 Stufen)
-- Suche, Sortierung, Bulk-Aktionen
+- Faelligkeit mit Datum und Uhrzeit, Notiz je Aufgabe
+- Suche ueber Titel, Unteraufgaben und Notizen (Cmd/Ctrl+K bzw. eigener Tab)
+- Sortierung, Bulk-Aktionen, Rueckgaengig per Toast
 - Listen teilen (Bearbeiter/Betrachter)
-- 4 Themes (Minimal, Colorful, Neon, Aurora)
+- Hell und Dunkel — ein Token-Set, keine Theme-Presets
 - Echtzeit-Sync via Supabase Realtime
-- Focus-Modus
-- Kontextmenue mit allen Aktionen
 
 ## Deployment
 

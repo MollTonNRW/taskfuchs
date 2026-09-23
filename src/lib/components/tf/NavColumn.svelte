@@ -194,7 +194,7 @@
 						onLogout();
 					}}
 				>
-					<Icon name="verschieben" size={16} />
+					<Icon name="abmelden" size={16} />
 					Abmelden
 				</button>
 			</div>

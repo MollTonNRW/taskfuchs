@@ -68,9 +68,15 @@
 		onclose();
 	}
 
-	// Hauptmenue in den Sichtbereich klemmen. x/y werden UNBEDINGT vor dem
-	// frühen `return` gelesen, damit der Effekt bei jeder Positionsaenderung
-	// erneut laeuft (Svelte-5-Abhaengigkeiten).
+	// Hauptmenue klemmen. x/y werden UNBEDINGT vor dem frühen `return`
+	// gelesen, damit der Effekt bei jeder Positionsaenderung erneut laeuft
+	// (Svelte-5-Abhaengigkeiten).
+	//
+	// Die waagerechte Grenze ist NICHT das Fenster, sondern die Listenspalte:
+	// Spezifikation Abschnitt 3 sagt „Overlays liegen in dieser Spalte" und
+	// setzt das Aufgabenmenue auf `right:24px`. Gegen das Fenster geklemmt
+	// ragte es 190 px in die Detailspalte. Steht keine Listenspalte im Baum
+	// (mobiler Unterschirm), bleibt das Fenster die Grenze.
 	$effect(() => {
 		const px = x;
 		const py = y;
@@ -82,7 +88,10 @@
 		const vh = window.innerHeight;
 		const mw = menuEl.offsetWidth || bw;
 		const mh = menuEl.offsetHeight;
-		if (px + mw > vw - 8) menuEl.style.left = `${Math.max(8, vw - mw - 8)}px`;
+		const spalte = vw >= 900 ? document.querySelector('.tf-main')?.getBoundingClientRect() : null;
+		const grenzeRechts = spalte ? Math.min(vw - 8, spalte.right - 24) : vw - 8;
+		const grenzeLinks = spalte ? Math.max(8, spalte.left + 8) : 8;
+		if (px + mw > grenzeRechts) menuEl.style.left = `${Math.max(grenzeLinks, grenzeRechts - mw)}px`;
 		if (py + mh > vh - 8) {
 			const obenGekippt = py - mh;
 			menuEl.style.top = `${obenGekippt >= 8 ? obenGekippt : Math.max(8, vh - mh - 8)}px`;
