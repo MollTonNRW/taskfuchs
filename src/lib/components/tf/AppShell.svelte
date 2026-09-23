@@ -23,6 +23,14 @@
 		quickadd?: string;
 		toast?: 'geloescht' | 'erledigt';
 		confirm?: 'liste';
+		/**
+		 * Aufgaben, deren Unteraufgaben ausgeklappt gezeigt werden sollen.
+		 * Unteraufgaben starten eingeklappt (stores/filters.ts); die Frames 1,
+		 * 2, 3, 9 und 10 zeigen aber je eine ausgeklappte Aufgabe neben
+		 * eingeklappten. Kommt nicht aus der Adresszeile — das Abnahmeskript
+		 * kennt diesen Parameter nicht, die Vorschau-Seite setzt ihn fest.
+		 */
+		aufklappen?: string[];
 	};
 </script>
 
@@ -670,10 +678,24 @@
 	// ==========================================
 	// VORSCHAU-ZUSTAENDE (nur /vorschau)
 	// ==========================================
+	// Diese zwei stehen VOR dem ersten Bild fest, nicht erst in
+	// `vorschauHerstellen`: beide werden von Kindkomponenten einmalig beim
+	// Anlegen gelesen (`NewListCard`-Karte, Quick-Add-Feld). Spaeter gesetzt
+	// kaemen sie zu spaet — die Karte blieb dann zu.
 	/** Karte „Neue Liste" ausgeklappt starten. */
-	let vorschauNeueListe = $state(false);
+	let vorschauNeueListe = $state(untrack(() => vorschau?.neueliste ?? false));
 	/** Quick-Add aktiv mit diesem Text starten. */
-	let vorschauQuickAdd = $state('');
+	let vorschauQuickAdd = $state(untrack(() => vorschau?.quickadd ?? ''));
+
+	/**
+	 * In ein Eingabefeld schreiben, als haette jemand getippt: `bind:value`
+	 * horcht auf `input`, ein blosses Setzen von `.value` bliebe unbemerkt.
+	 */
+	function tippe(feld: HTMLInputElement, text: string) {
+		const setzer = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+		setzer?.call(feld, text);
+		feld.dispatchEvent(new Event('input', { bubbles: true }));
+	}
 
 	/** Rechteck eines Elements als Zeigerpunkt fuer die Menue-Funktionen. */
 	function ankerAus(auswahl: string): Zeigerpunkt | null {
@@ -705,8 +727,6 @@
 			if (!v.offen) nav.back();
 		}
 		if (v.task) nav.selectTask(v.task);
-		if (v.neueliste) vorschauNeueListe = true;
-		if (v.quickadd) vorschauQuickAdd = v.quickadd;
 		if (v.suche) {
 			if (mobil) {
 				nav.setTab('suche');
@@ -722,6 +742,26 @@
 		await tick();
 
 		const liste = lists.find((l: List) => l.id === nav.activeListId) ?? null;
+
+		// Unteraufgaben aufklappen wie ein Mensch: ueber den Zaehler in der
+		// Metazeile, nicht ueber einen zweiten Weg in die Komponente hinein.
+		for (const id of v.aufklappen ?? []) {
+			document.querySelector<HTMLElement>(`[data-tf-task="${id}"] .zaehler`)?.click();
+		}
+
+		if (v.neueliste) {
+			// Die Karte steht schon offen (`vorschauNeueListe`). Hier wird nur
+			// noch ausgefuellt, was Frame 1 zeigt — ueber dieselben Knoepfe und
+			// dasselbe Feld, die auch ein Mensch benutzt: Symbolwaehler auf,
+			// Schraubenschluessel gewaehlt, „Werkstatt" getippt.
+			document.querySelector<HTMLElement>('.tf-newlist .em')?.click();
+			await tick();
+			const zellen = document.querySelectorAll<HTMLElement>('.tf-emoji .em');
+			[...zellen].find((b) => b.textContent?.trim() === '\u{1F527}')?.click();
+			await tick();
+			const feld = document.querySelector<HTMLInputElement>('.tf-newlist .txt');
+			if (feld) tippe(feld, 'Werkstatt');
+		}
 
 		if (v.teilen && liste) {
 			const anker = ankerAus('.tf-shared');
@@ -888,6 +928,7 @@
 				store.reorderSubtask(subtaskId, parentId, newPos)}
 			onClearDone={(listId) => void store.deleteDoneInList(listId)}
 			quickAddVorgabe={vorschauQuickAdd}
+			menuOffenId={ctx.contextMenu.show ? ctx.offeneTaskId : null}
 			{bulkMode}
 			{bulkSelectedIds}
 			onBulkToggle={toggleBulkSelect}

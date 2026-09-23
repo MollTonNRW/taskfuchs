@@ -248,11 +248,20 @@ export const DEMO_AUFGABEN: Task[] = [
 		position: 2
 	}),
 	aufgabe({
+		id: 't-nebenkosten',
+		list_id: 'l-moll',
+		text: 'Nebenkostenabrechnung DHH Sassenberg',
+		due_date: tag(7),
+		note: 'Zählerstände Haus 2 fehlen noch.',
+		position: 3
+	}),
+	aufgabe({ id: 't-moll-versicherung', list_id: 'l-moll', text: 'Gebäudeversicherung prüfen', timeframe: 'mittelfristig', position: 4 }),
+	aufgabe({
 		id: 't-elster-2024',
 		list_id: 'l-moll',
 		text: 'Steuererklärung 2024 in ELSTER abgeben',
 		done: true,
-		position: 3
+		position: 5
 	}),
 
 	// ── Homelab ──────────────────────────────────────────────────────────
@@ -269,6 +278,10 @@ export const DEMO_AUFGABEN: Task[] = [
 	aufgabe({ id: 't-backup-s1', list_id: 'l-homelab', parent_id: 't-backup', text: 'Alte Platte auslesen', done: true, position: 0 }),
 	aufgabe({ id: 't-backup-s2', list_id: 'l-homelab', parent_id: 't-backup', text: 'Neue Platte formatieren', position: 1 }),
 	aufgabe({ id: 't-backup-s3', list_id: 'l-homelab', parent_id: 't-backup', text: 'Erstlauf prüfen', position: 2 }),
+	aufgabe({ id: 't-fotoarchiv-nas', list_id: 'l-homelab', text: 'Fotobuch-Ordner auf das NAS spiegeln', priority: 'low', position: 1 }),
+	aufgabe({ id: 't-homelab-2', list_id: 'l-homelab', text: 'Pi-hole-Listen aktualisieren', priority: 'low', position: 2 }),
+	aufgabe({ id: 't-homelab-3', list_id: 'l-homelab', text: 'Zertifikate erneuern', timeframe: 'mittelfristig', position: 3 }),
+	aufgabe({ id: 't-homelab-4', list_id: 'l-homelab', text: 'Router-Firmware prüfen', priority: 'low', position: 4 }),
 
 	// ── Einkaufen — Kategorie mit Eintraegen (Checkliste Punkt 5) ────────
 	aufgabe({
@@ -282,12 +295,19 @@ export const DEMO_AUFGABEN: Task[] = [
 	aufgabe({ id: 't-grund-s1', list_id: 'l-einkaufen', parent_id: 't-grundnahrung', text: 'Brot', position: 0 }),
 	aufgabe({ id: 't-grund-s2', list_id: 'l-einkaufen', parent_id: 't-grundnahrung', text: 'Hafermilch', position: 1 }),
 	aufgabe({ id: 't-grund-s3', list_id: 'l-einkaufen', parent_id: 't-grundnahrung', text: 'Eier', position: 2 }),
+	// Eine Einkaufsliste ist die laengste Liste im Bestand — ohne sie sieht die
+	// Navigationsspalte in der Vorschau leerer aus, als TaskFuchs je ist.
+	...[
+		'Zwiebeln', 'Kartoffeln', 'Butter', 'Käse', 'Kaffeebohnen', 'Olivenöl', 'Nudeln',
+		'Passierte Tomaten', 'Spülmaschinentabs', 'Waschmittel', 'Klopapier', 'Zahnpasta',
+		'Katzenfutter', 'Apfelsaft', 'Schokolade'
+	].map((text, i) => aufgabe({ id: `t-eink-${i}`, list_id: 'l-einkaufen', text, position: 1 + i })),
 
 	// ── Garten und Pflege ────────────────────────────────────────────────
 	aufgabe({ id: 't-garten-1', list_id: 'l-garten', text: 'Hochbeet auffüllen', priority: 'low', position: 0 }),
 	aufgabe({ id: 't-garten-2', list_id: 'l-garten', text: 'Rasenmäher warten', position: 1 }),
 	aufgabe({ id: 't-garten-3', list_id: 'l-garten', text: 'Zaun streichen', priority: 'low', timeframe: 'langfristig', position: 2 }),
-	aufgabe({ id: 't-pflege-1', list_id: 'l-pflege', text: 'Pflegegrad-Antrag nachreichen', priority: 'high', timeframe: 'akut', due_date: tag(2), position: 0 })
+	aufgabe({ id: 't-pflege-1', list_id: 'l-pflege', text: 'Pflegegrad-Antrag nachreichen', timeframe: 'zeitnah', due_date: tag(12), position: 0 })
 ];
 
 /**

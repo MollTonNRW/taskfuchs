@@ -83,7 +83,13 @@
 			suche: p.get('suche') ?? undefined,
 			quickadd: p.get('quickadd') ?? undefined,
 			toast: toast === 'geloescht' || toast === 'erledigt' ? toast : undefined,
-			confirm: p.get('confirm') === 'liste' ? 'liste' : undefined
+			confirm: p.get('confirm') === 'liste' ? 'liste' : undefined,
+			// Unteraufgaben starten eingeklappt. Das Mockup zeigt je Ansicht
+			// genau eine ausgeklappte Aufgabe: „Ferienwohnung Nordsee" in der
+			// Liste Familie (Frames 1, 2, 3, 10) und „Grundnahrung" auf der
+			// Pinnwand (Frame 9). Beide stehen hier fest, weil das
+			// Abnahmeskript dafuer keinen Parameter kennt.
+			aufklappen: ['t-nordsee', 't-grundnahrung']
 		};
 	});
 </script>

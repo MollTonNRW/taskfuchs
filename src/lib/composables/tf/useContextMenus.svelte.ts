@@ -82,9 +82,19 @@ export interface ContextMenuDeps {
 
 export function createContextMenus(deps: ContextMenuDeps) {
 	let contextMenu = $state<ContextMenuState>({ show: false, x: 0, y: 0, breite: 220, items: [] });
+	/**
+	 * Aufgabe, deren Menue gerade offen steht — fuer `.more.on` an ihrer
+	 * Zeile (Spezifikation Abschnitt 5: „geoeffnet .more.on -> Flaeche
+	 * --surface-2, Icon --ink"). `TaskRow` kannte die Eigenschaft
+	 * `menuOffen` von Anfang an, aber niemand fuellte sie: bei offenem Menue
+	 * verschwand der ⋮ ganz (er ist sonst durchsichtig) und das Menue stand
+	 * scheinbar neben nichts.
+	 */
+	let offeneTaskId = $state<string | null>(null);
 
-	function oeffnen(e: Zeigerpunkt, items: MenuEintrag[], breite = 220) {
+	function oeffnen(e: Zeigerpunkt, items: MenuEintrag[], breite = 220, taskId: string | null = null) {
 		contextMenu = { show: true, x: e.clientX, y: e.clientY, breite, items };
+		offeneTaskId = taskId;
 	}
 
 	function handleListContext(e: Zeigerpunkt, list: List) {
@@ -192,34 +202,39 @@ export function createContextMenus(deps: ContextMenuDeps) {
 
 		const andereListen = store.lists.filter((l) => l.id !== task.list_id);
 
-		oeffnen(e, [
-			{
-				label: 'In Liste verschieben',
-				icon: 'verschieben',
-				submenu:
-					andereListen.length > 0
-						? andereListen.map((l) => ({
-								label: l.title,
-								emoji: l.icon,
-								action: () => store.moveTaskToList(task.id, l.id)
-							}))
-						: [{ label: 'Keine weitere Liste', action: () => {} }]
-			},
-			{ label: 'Auswählen', icon: 'auswahl', action: () => deps.startBulkSelect(task.id) },
-			{
-				label: task.pinned ? 'Loslösen' : 'Anpinnen',
-				icon: 'pin',
-				action: () => store.togglePin(task.id)
-			},
-			{ divider: true, label: '' },
-			{
-				label: 'Löschen',
-				icon: 'loeschen',
-				danger: true,
-				// Kein Dialog: `deleteTaskDirect` legt einen Undo-Toast nach.
-				action: () => store.deleteTaskDirect(task.id)
-			}
-		]);
+		oeffnen(
+			e,
+			[
+				{
+					label: 'In Liste verschieben',
+					icon: 'verschieben',
+					submenu:
+						andereListen.length > 0
+							? andereListen.map((l) => ({
+									label: l.title,
+									emoji: l.icon,
+									action: () => store.moveTaskToList(task.id, l.id)
+								}))
+							: [{ label: 'Keine weitere Liste', action: () => {} }]
+				},
+				{ label: 'Auswählen', icon: 'auswahl', action: () => deps.startBulkSelect(task.id) },
+				{
+					label: task.pinned ? 'Loslösen' : 'Anpinnen',
+					icon: 'pin',
+					action: () => store.togglePin(task.id)
+				},
+				{ divider: true, label: '' },
+				{
+					label: 'Löschen',
+					icon: 'loeschen',
+					danger: true,
+					// Kein Dialog: `deleteTaskDirect` legt einen Undo-Toast nach.
+					action: () => store.deleteTaskDirect(task.id)
+				}
+			],
+			220,
+			task.id
+		);
 	}
 
 	/**
@@ -253,11 +268,15 @@ export function createContextMenus(deps: ContextMenuDeps) {
 
 	function close() {
 		contextMenu = { show: false, x: 0, y: 0, breite: 220, items: [] };
+		offeneTaskId = null;
 	}
 
 	return {
 		get contextMenu() {
 			return contextMenu;
+		},
+		get offeneTaskId() {
+			return offeneTaskId;
 		},
 		set contextMenu(v: ContextMenuState) {
 			contextMenu = v;

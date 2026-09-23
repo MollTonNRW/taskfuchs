@@ -82,8 +82,19 @@ function ausschnitt(text: string, begriff: string): Stueck | null {
 	const flach = text.replace(/\s+/g, ' ').trim();
 	const i = flach.toLowerCase().indexOf(begriff);
 	if (i < 0) return null;
-	const von = Math.max(0, i - UMFELD_VOR);
-	const bis = Math.min(flach.length, i + begriff.length + UMFELD_NACH);
+	let von = Math.max(0, i - UMFELD_VOR);
+	let bis = Math.min(flach.length, i + begriff.length + UMFELD_NACH);
+	// An Wortgrenzen schneiden. Der feste Abstand traf sonst mitten in ein
+	// Wort und die Trefferzeile begann mit einem Rumpf („… üge Q4 fehlen
+	// noch, der ELSTER-Login …").
+	if (von > 0) {
+		const luecke = flach.indexOf(' ', von);
+		if (luecke >= 0 && luecke < i) von = luecke + 1;
+	}
+	if (bis < flach.length) {
+		const luecke = flach.lastIndexOf(' ', bis);
+		if (luecke > i + begriff.length) bis = luecke;
+	}
 	return {
 		vor: (von > 0 ? '… ' : '') + flach.slice(von, i),
 		treffer: flach.slice(i, i + begriff.length),

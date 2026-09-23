@@ -85,8 +85,16 @@
 	 * Notiz traegt mehr Information; die Herkunft steht ohnehin im Detail.
 	 */
 	let zeigeHerkunft = $derived(!!herkunft && !(mobil && !!notiz));
+	/**
+	 * Dieselbe Enge, andere Entscheidung: steht der Chip „gepinnt von …" an
+	 * der Zeile, gewinnt ER gegen die Notizvorschau. Die Notiz hat `flex:1`
+	 * und schob den Chip auf der Pinnwand bei 390 px aus dem Bild („gepinnt"
+	 * und dann abgeschnitten) — und dort ist gerade der Chip der Grund, aus
+	 * dem die Zeile da steht. Die Notiz steht ohnehin im Detail.
+	 */
+	let zeigeNotiz = $derived(!!notiz && !(mobil && !!pinner));
 	let hatMeta = $derived(
-		!!faellig.text || subtasks.length > 0 || !!notiz || zeigeHerkunft || !!pinner
+		!!faellig.text || subtasks.length > 0 || zeigeNotiz || zeigeHerkunft || !!pinner
 	);
 	let subsSichtbar = $derived(subsOpen && subtasks.length > 0);
 
@@ -269,7 +277,7 @@
 						{#if subsSichtbar}<Icon name="chevron-auf" size={14} />{/if}
 					</button>
 				{/if}
-				{#if notiz}
+				{#if zeigeNotiz}
 					<span class="el note"><Icon name="notiz" size={14} /><em>{notiz}</em></span>
 				{/if}
 				{#if herkunft && zeigeHerkunft}

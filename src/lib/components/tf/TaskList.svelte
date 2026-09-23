@@ -39,7 +39,8 @@
 		bulkMode = false,
 		bulkSelectedIds = new Set<string>(),
 		onBulkToggle,
-		quickAddVorgabe = ''
+		quickAddVorgabe = '',
+		menuOffenId = null
 	}: {
 		list: List;
 		/** Alle Aufgaben der Liste, bereits sortiert (Unteraufgaben inbegriffen). */
@@ -67,6 +68,8 @@
 		onBulkToggle?: (id: string) => void;
 		/** Quick-Add aktiv mit diesem Text — nur die Vorschau-Route. */
 		quickAddVorgabe?: string;
+		/** Aufgabe, deren Menue gerade offen steht — ihr ⋮ bleibt sichtbar. */
+		menuOffenId?: string | null;
 	} = $props();
 
 	// ------------------------------------------------------------------
@@ -246,6 +249,7 @@
 					selected={selectedTaskId === task.id}
 					neu={istNeu?.(task.id) ?? false}
 					subsOpen={subsOffen(task.id)}
+					menuOffen={menuOffenId === task.id}
 					{mobil}
 					{bulkMode}
 					bulkSelected={bulkSelectedIds.has(task.id)}
@@ -293,6 +297,7 @@
 			subtasks={unteraufgaben(task.id)}
 			selected={selectedTaskId === task.id}
 			subsOpen={subsOffen(task.id)}
+			menuOffen={menuOffenId === task.id}
 			{mobil}
 			{bulkMode}
 			bulkSelected={bulkSelectedIds.has(task.id)}
