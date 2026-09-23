@@ -101,3 +101,44 @@ export function formatSeit(wert: string | null | undefined, jetzt: Date = new Da
 	if (abstand === -1) return 'gestern';
 	return tagUndMonat(datum);
 }
+
+/**
+ * Faelligkeit fuer das FELD im Detail (Spezifikation Abschnitt 3.3):
+ * „Sa 20.09.2026" mit Jahr, die Uhrzeit getrennt fuer die rechte Seite.
+ * Anders als in der Zeile gibt es hier kein „heute"/„morgen" — das Feld
+ * zeigt den Termin, nicht seine Naehe.
+ */
+export type FaelligLang = { datum: string; zeit: string };
+
+export function formatFaelligLang(wert: string | null | undefined): FaelligLang | null {
+	if (!wert) return null;
+	const gelesen = lies(wert);
+	if (!gelesen) return null;
+	const { datum, hatZeit } = gelesen;
+	return {
+		datum: `${TAGE[datum.getDay()]} ${zz(datum.getDate())}.${zz(datum.getMonth() + 1)}.${datum.getFullYear()}`,
+		zeit: hatZeit ? `${zz(datum.getHours())}:${zz(datum.getMinutes())}` : ''
+	};
+}
+
+/**
+ * Gespeicherten Wert in die beiden nativen Felder zerlegen.
+ * `datum` im Format der Datumseingabe (YYYY-MM-TT), `zeit` als HH:MM.
+ * Geht ueber dieselbe Leseroutine wie die Anzeige, damit eine reine
+ * Datumsangabe nicht ueber die UTC-Mitternacht auf den Vortag kippt.
+ */
+export function zerlegeFaellig(wert: string | null | undefined): { datum: string; zeit: string } {
+	const gelesen = wert ? lies(wert) : null;
+	if (!gelesen) return { datum: '', zeit: '' };
+	const { datum, hatZeit } = gelesen;
+	return {
+		datum: `${datum.getFullYear()}-${zz(datum.getMonth() + 1)}-${zz(datum.getDate())}`,
+		zeit: hatZeit ? `${zz(datum.getHours())}:${zz(datum.getMinutes())}` : ''
+	};
+}
+
+/** Gegenstueck zu `zerlegeFaellig`: leeres Datum loescht die Faelligkeit. */
+export function baueFaellig(datum: string, zeit: string): string | null {
+	if (!datum) return null;
+	return zeit ? `${datum}T${zeit}` : datum;
+}

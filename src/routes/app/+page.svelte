@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount, untrack } from 'svelte';
 	import type { Database } from '$lib/types/database';
-	import type { Priority } from '$lib/constants';
+	import type { Priority, Timeframe } from '$lib/constants';
 	import { nav, type MobileTab } from '$lib/stores/tf/navigation.svelte';
 	import { theme } from '$lib/stores/v2/theme.svelte';
 	import { profilesStore } from '$lib/stores/profiles';
@@ -18,11 +18,12 @@
 	import SmartList from '$lib/components/tf/SmartList.svelte';
 	import AvatarStack from '$lib/components/tf/AvatarStack.svelte';
 	import TaskList from '$lib/components/tf/TaskList.svelte';
+	import TaskDetail from '$lib/components/tf/TaskDetail.svelte';
+	import DetailSheet from '$lib/components/tf/DetailSheet.svelte';
 
 	import ToastContainer from '$lib/components/v2/ToastContainer.svelte';
 	import ConfirmDialog from '$lib/components/v2/ConfirmDialog.svelte';
 	import InputDialog from '$lib/components/v2/InputDialog.svelte';
-	import FocusOverlay from '$lib/components/v2/FocusOverlay.svelte';
 	import SearchOverlay from '$lib/components/v2/SearchOverlay.svelte';
 	import ContextMenu from '$lib/components/v2/ContextMenu.svelte';
 	import EmojiPicker from '$lib/components/v2/EmojiPicker.svelte';
@@ -313,8 +314,37 @@
 		return sortFilter.tasksForList(activeList.id);
 	});
 
-	// Unteraufgaben der ausgewaehlten Aufgabe
+	// ==========================================
+	// DETAIL
+	// ==========================================
+	// Unteraufgaben und Liste der ausgewaehlten Aufgabe. Die Liste traegt
+	// den Chip im Detail-Kopf und ist nicht zwingend die gerade offene —
+	// die Suche und die Smart-Ansichten waehlen quer ueber alle Listen.
 	let focusSubtasks = $derived(selectedTask ? subtasksFor(selectedTask.id) : []);
+	let detailListe = $derived(
+		selectedTask ? (lists.find((l: List) => l.id === selectedTask.list_id) ?? null) : null
+	);
+
+	/** Die gemeinsamen Rueckrufe des Details — Spalte und Sheet teilen sie. */
+	const detailAktionen = {
+		onSchliessen: () => nav.selectTask(null),
+		onToggle: handleToggleTask,
+		onUmbenennen: (id: string, text: string) => store.updateTask(id, text),
+		onPrioritaet: (id: string, p: Priority) => store.changeTaskPriority(id, p),
+		onZeitrahmen: (id: string, tf: Timeframe | null) => store.changeTaskTimeframe(id, tf),
+		onFaellig: (id: string, wert: string | null) => store.updateTaskDate(id, wert),
+		onNotiz: (id: string, note: string) => store.updateTaskNote(id, note),
+		onPin: (id: string) => store.togglePin(id),
+		onVerschieben: (id: string, listId: string) => store.moveTaskToList(id, listId),
+		// Kein Bestaetigungsdialog — `deleteTaskDirect` legt einen Undo-Toast
+		// nach (Spezifikation Abschnitt 6). Die Auswahl raeumt der Effekt
+		// oben ab, sobald die Aufgabe aus dem Bestand faellt.
+		onLoeschen: (id: string) => store.deleteTaskDirect(id),
+		onUnterToggle: handleToggleTask,
+		onUnterUmbenennen: (id: string, text: string) => store.updateSubtask(id, text),
+		onUnterLoeschen: (id: string) => store.deleteSubtask(id),
+		onUnterNeu: (parentId: string, text: string) => store.addSubtask(parentId, text)
+	};
 
 	// ==========================================
 	// SCHIRM-ZUSTAND
@@ -778,35 +808,18 @@
 	</main>
 
 	{#if !isMobile}
-		<!-- Spalte 3 — Detail. Keine Huelle, kein Scrim, kein Klick daneben. -->
+		<!-- Spalte 3 — Detail. Keine Huelle, kein Scrim, kein Klick daneben.
+		     Bewusst ohne {#key}: TaskDetail merkt den Wechsel selbst und
+		     sichert die angefangene Notiz, bevor es die naechste uebernimmt. -->
 		<aside class="tf-detail" aria-label="Aufgabendetail">
 			{#if selectedTask}
-				<div class="tf-detail-head">
-					<button
-						class="tf-ib"
-						onclick={() => nav.selectTask(null)}
-						aria-label="Auswahl aufheben"
-					>
-						<Icon name="chevron-links" />
-					</button>
-				</div>
-				{#key selectedTask.id}
-					<FocusOverlay
-						eingebettet
-						task={selectedTask}
-						subtasks={focusSubtasks}
-						onClose={() => nav.selectTask(null)}
-						onToggle={handleToggleTask}
-						onUpdate={handleEditTask}
-						onChangePriority={(id, p) => store.changeTaskPriority(id, p)}
-						onChangeTimeframe={(id, tf) => store.changeTaskTimeframe(id, tf)}
-						onUpdateNote={(id, note) => store.updateTaskNote(id, note)}
-						onOpenEmojiPicker={(taskId, x, y) => popovers.openEmojiPicker(taskId, x, y)}
-						onToggleSubtask={handleToggleTask}
-						onUpdateSubtask={handleEditTask}
-						onAddSubtask={(parentId, text) => store.addSubtask(parentId, text)}
-					/>
-				{/key}
+				<TaskDetail
+					task={selectedTask}
+					subtasks={focusSubtasks}
+					liste={detailListe}
+					listen={lists}
+					{...detailAktionen}
+				/>
 			{:else}
 				<div class="tf-detail-leer">Aufgabe ausw&auml;hlen</div>
 			{/if}
@@ -818,24 +831,16 @@
 	{/if}
 </div>
 
-<!-- Detail als Overlay — nur mobil (Bottom-Sheet baut T7) -->
+<!-- Detail mobil: Bottom-Sheet ueber der Liste, mit Scrim -->
 {#if isMobile && selectedTask}
-	{#key selectedTask.id}
-		<FocusOverlay
-			task={selectedTask}
-			subtasks={focusSubtasks}
-			onClose={() => nav.selectTask(null)}
-			onToggle={handleToggleTask}
-			onUpdate={handleEditTask}
-			onChangePriority={(id, p) => store.changeTaskPriority(id, p)}
-			onChangeTimeframe={(id, tf) => store.changeTaskTimeframe(id, tf)}
-			onUpdateNote={(id, note) => store.updateTaskNote(id, note)}
-			onOpenEmojiPicker={(taskId, x, y) => popovers.openEmojiPicker(taskId, x, y)}
-			onToggleSubtask={handleToggleTask}
-			onUpdateSubtask={handleEditTask}
-			onAddSubtask={(parentId, text) => store.addSubtask(parentId, text)}
-		/>
-	{/key}
+	<DetailSheet
+		task={selectedTask}
+		subtasks={focusSubtasks}
+		liste={detailListe}
+		listen={lists}
+		onMenue={handleContextMenu}
+		{...detailAktionen}
+	/>
 {/if}
 
 <!-- Sort Dropdown (floating) -->

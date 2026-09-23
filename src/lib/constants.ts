@@ -2,8 +2,7 @@
 //
 // Das hier ist der EINZIGE Labelsatz der App (Spezifikation Abschnitt 6:
 // „Genau ein Labelsatz: Low · Normal · High · ASAP"). Kontextmenue und
-// Aufgabendetail lesen beide von hier; FocusOverlay hatte denselben Satz
-// vorher noch einmal lokal stehen.
+// Aufgabendetail lesen beide von hier.
 //
 // Farben stehen NICHT hier, sondern ausschliesslich als Token in src/tf.css.
 // Die frueheren `priorityColors` (ASAP #dc2626 statt Token #991B1B),

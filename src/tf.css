@@ -501,14 +501,6 @@
 	padding: 0 20px;
 	overflow: hidden;
 }
-.tf-detail-head {
-	display: flex;
-	align-items: center;
-	height: 64px;
-	gap: 4px;
-	margin: 0 -8px;
-	flex: none;
-}
 .tf-detail-body {
 	flex: 1;
 	min-height: 0;
@@ -1544,4 +1536,570 @@
 	background: var(--surface-2);
 	color: var(--ink-2);
 	font-weight: 500;
+}
+
+/* =====================================================================
+   AUFGABENDETAIL — Spalte (Desktop) und Bottom-Sheet (Mobile)
+   Verbindliche Quelle: A-klar-spec.md, Abschnitt 3 Punkt 3 und
+   Abschnitt 4 („Bottom-Sheet (Detail)"). Masse woertlich.
+
+   EIN Inhalt, zwei Fassungen: `.sheet` schaltet auf die mobilen Masse um
+   (Touch-Ziele 44, Segment und Chips 40 hoch, Gruppen enger). Die
+   Reihenfolge der Gruppen unterscheidet sich ebenfalls und steht in
+   TaskDetail.svelte, nicht hier.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   Kopf, Titelzeile
+   --------------------------------------------------------------------- */
+.tf-dh {
+	display: flex;
+	align-items: center;
+	height: 64px;
+	gap: 4px;
+	margin: 0 -8px;
+	flex: none;
+}
+.tf-dh.sheet {
+	height: 44px;
+}
+.tf-dh .sp {
+	flex: 1;
+}
+.tf-dh .lst {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 0;
+}
+
+/* Listen-Chip „❤️ Familie ⌄" (Spezifikation Abschnitt 6, Sonderform) */
+.tf-listchip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 26px;
+	padding: 0 7px;
+	border-radius: var(--r-chip);
+	background: var(--surface-2);
+	color: var(--ink-2);
+	font-size: 13px;
+	font-weight: 500;
+	line-height: 1;
+	max-width: 100%;
+	min-width: 0;
+}
+.tf-listchip .nm {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+.tf-listchip .em {
+	flex: none;
+}
+/* Im Sheet steht die Listen-Zuordnung ohne Flaeche mittig im Kopf
+   (Spezifikation Abschnitt 4); die Flaeche traegt nur der Desktop-Chip. */
+.tf-dh.sheet .tf-listchip {
+	background: none;
+	padding: 0;
+	height: 44px;
+}
+
+.tf-dt {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 2px 0 12px;
+}
+.tf-dt.sheet {
+	padding: 2px 0 8px;
+}
+.tf-dt .tf-cb {
+	margin: 0 -8px;
+}
+.tf-dt h3 {
+	font-size: 18px;
+	line-height: 26px;
+	font-weight: 600;
+	flex: 1;
+	min-width: 0;
+}
+.tf-dt h3 button {
+	font: inherit;
+	color: inherit;
+	letter-spacing: inherit;
+	text-align: left;
+	width: 100%;
+	cursor: text;
+	overflow-wrap: anywhere;
+}
+.tf-dt.sheet h3 {
+	font-size: 20px;
+}
+.tf-dt h3.erledigt {
+	color: var(--ink-2);
+	text-decoration: line-through;
+}
+.tf-dt .titel {
+	flex: 1;
+	min-width: 0;
+	font-size: 18px;
+	line-height: 26px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	background: var(--surface-2);
+	border: 0;
+	outline: none;
+	border-radius: 8px;
+	padding: 0 8px;
+	margin: 0 -8px;
+	color: var(--ink);
+	caret-color: var(--accent);
+}
+.tf-dt.sheet .titel {
+	font-size: 20px;
+}
+
+/* ---------------------------------------------------------------------
+   Gruppen und Label
+   --------------------------------------------------------------------- */
+.tf-grp {
+	padding: 12px 0;
+	border-top: 1px solid var(--line);
+}
+.tf-grp.tight {
+	padding: 8px 0;
+}
+.tf-grp.erste:not(.tight) {
+	border-top: 0;
+	padding-top: 0;
+}
+.tf-lbl {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--ink-2);
+	margin: 0 0 8px;
+}
+.tf-grp.tight .tf-lbl {
+	margin-bottom: 6px;
+}
+.tf-lbl.zeile {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+.tf-lbl .n {
+	font-weight: 500;
+	color: var(--ink-2);
+}
+
+/* ---------------------------------------------------------------------
+   Segment (Prioritaet), Chips (Zeitrahmen), Feld (Faellig), Fortschritt
+   --------------------------------------------------------------------- */
+.tf-seg {
+	display: flex;
+	background: var(--surface-2);
+	border-radius: var(--r-nav);
+	padding: 3px;
+	gap: 2px;
+}
+.tf-segopt {
+	flex: 1;
+	min-width: 0;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	border-radius: 7px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--ink-2);
+}
+.tf-grp.tight .tf-segopt {
+	height: 40px;
+}
+.tf-segopt i {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	display: block;
+	flex: none;
+}
+.tf-segopt.on {
+	background: var(--seg-active);
+	color: var(--ink);
+	box-shadow: var(--sh-seg);
+}
+
+.tf-chips {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+.tf-chips button {
+	height: 32px;
+	padding: 0 12px;
+	border-radius: var(--r-tf-chip);
+	border: 1px solid var(--line);
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--ink-2);
+	display: inline-flex;
+	align-items: center;
+}
+.tf-grp.tight .tf-chips button {
+	height: 40px;
+	padding: 0 14px;
+	border-radius: 20px;
+}
+.tf-chips button.on {
+	background: var(--accent-soft);
+	border-color: transparent;
+	color: var(--accent-ink);
+}
+
+.tf-field {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 44px;
+	padding: 0 12px;
+	border-radius: var(--r-row);
+	background: var(--surface-2);
+	font-size: 14px;
+	color: var(--ink);
+}
+.tf-field > .tf-ico {
+	color: var(--ink-2);
+}
+/* Anzeigetext und nativer Waehler liegen uebereinander: die Oberflaeche
+   zeigt „Sa 20.09.2026" (nie ISO), getippt wird auf das unsichtbare
+   Eingabefeld darueber — auf dem Handy oeffnet das den Systemwaehler. */
+.tf-field .zone {
+	position: relative;
+	display: flex;
+	align-items: center;
+	height: 100%;
+	min-width: 0;
+}
+.tf-field .zone.datum {
+	flex: 1;
+}
+.tf-field .zone input {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	appearance: none;
+	-webkit-appearance: none;
+	background: none;
+	border: 0;
+	padding: 0;
+	margin: 0;
+	cursor: pointer;
+}
+.tf-field .val {
+	font-weight: 500;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.tf-field .leer {
+	color: var(--ink-3);
+	font-weight: 400;
+}
+.tf-field .sub2 {
+	color: var(--ink-2);
+}
+.tf-field .clr {
+	width: 32px;
+	height: 32px;
+	margin-right: -8px;
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	color: var(--ink-3);
+}
+.tf-field .clr.gross {
+	width: 44px;
+	height: 44px;
+	margin-right: -10px;
+}
+.tf-field .clr:hover {
+	color: var(--high);
+}
+
+.tf-prog {
+	height: 4px;
+	border-radius: 2px;
+	background: var(--surface-2);
+	overflow: hidden;
+	flex: 1;
+}
+.tf-prog i {
+	display: block;
+	height: 100%;
+	background: var(--accent);
+	border-radius: 2px;
+}
+
+/* ---------------------------------------------------------------------
+   Unteraufgaben im Detail — Abhaken, Umbenennen, Loeschen.
+   Das alte Detail band `SubtaskCard` ohne Menue ein; Loeschen fehlte
+   dort ganz.
+   --------------------------------------------------------------------- */
+.tf-subl {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 36px;
+	font-size: 14px;
+	color: var(--ink);
+	width: 100%;
+	text-align: left;
+}
+.tf-grp.tight .tf-subl {
+	height: 40px;
+	font-size: 15px;
+}
+.tf-subl .tf-cb {
+	width: 36px;
+	height: 36px;
+	margin: 0 -8px 0 -10px;
+}
+.tf-grp.tight .tf-subl .tf-cb {
+	width: 44px;
+	height: 44px;
+}
+.tf-subl .tf-cb > span {
+	width: 18px;
+	height: 18px;
+	border-width: 1.5px;
+}
+.tf-grp.tight .tf-subl .tf-cb > span {
+	width: 20px;
+	height: 20px;
+}
+.tf-subl .tf-cb .tf-ico {
+	width: 12px;
+	height: 12px;
+}
+.tf-subl .tx {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-align: left;
+	color: inherit;
+	font: inherit;
+}
+.tf-subl.done {
+	color: var(--ink-2);
+}
+.tf-subl.done .tx {
+	text-decoration: line-through;
+}
+.tf-subl .del {
+	width: 32px;
+	height: 32px;
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 8px;
+	color: var(--ink-3);
+	opacity: 0;
+}
+.tf-grp.tight .tf-subl .del {
+	width: 44px;
+	height: 44px;
+	margin-right: -8px;
+	opacity: 1;
+}
+.tf-subl:hover .del,
+.tf-subl .del:focus-visible {
+	opacity: 1;
+}
+.tf-subl .del:hover {
+	color: var(--high);
+	background: var(--surface-2);
+}
+.tf-subl.add {
+	color: var(--accent-ink);
+	font-weight: 500;
+}
+.tf-subl .plus {
+	width: 36px;
+	height: 36px;
+	margin: 0 -8px 0 -10px;
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--accent);
+}
+.tf-grp.tight .tf-subl .plus {
+	width: 44px;
+	height: 44px;
+}
+
+/* ---------------------------------------------------------------------
+   Notizfeld — waechst mit dem Inhalt, Mindesthoehe aus der Spezifikation
+   --------------------------------------------------------------------- */
+.tf-notebox {
+	display: block;
+	width: 100%;
+	min-height: 88px;
+	border-radius: var(--r-row);
+	background: var(--surface);
+	border: 1px solid var(--line);
+	padding: 10px 12px;
+	font-size: 14px;
+	line-height: 20px;
+	color: var(--ink);
+	resize: none;
+	outline: none;
+	overflow: hidden;
+	caret-color: var(--accent);
+}
+.tf-grp.tight .tf-notebox {
+	min-height: 72px;
+}
+.tf-notebox:focus {
+	border-color: var(--accent);
+}
+
+/* ---------------------------------------------------------------------
+   Aktionsleiste: Anpinnen · Verschieben · Loeschen
+   --------------------------------------------------------------------- */
+.tf-acts {
+	margin-top: auto;
+	padding: 12px 0 16px;
+	border-top: 1px solid var(--line);
+	display: flex;
+	gap: 6px;
+	flex: none;
+	/* Anker fuer die Listenwahl. Sie haengt absolut darin und bleibt damit
+	   ausserhalb des Flusses — die drei Knoepfe teilen sich die Breite
+	   sonst nicht mehr zu gleichen Teilen. */
+	position: relative;
+}
+.tf-acts.sheet {
+	padding: 10px 0 max(34px, env(safe-area-inset-bottom));
+}
+.tf-acts .tf-btn {
+	flex: 1;
+	min-width: 0;
+	height: 40px;
+	padding: 0 6px;
+	font-size: 13px;
+}
+.tf-acts.sheet .tf-btn {
+	height: 44px;
+}
+.tf-btn.pinned {
+	background: var(--accent-soft);
+	color: var(--accent-ink);
+}
+.tf-btn.danger {
+	color: var(--high);
+}
+
+/* Anker fuer die Listenwahl am Kopf-Chip */
+.tf-wahlanker {
+	position: relative;
+	display: flex;
+	min-width: 0;
+	flex: 0 1 auto;
+	justify-content: center;
+}
+/* Breite 220 laut Spezifikation Abschnitt 6 — ohne feste Breite zoege ein
+   langer Listenname das Popover ueber die Spalte hinaus. */
+.tf-popmenu.tf-wahl {
+	width: 220px;
+	min-width: 0;
+	max-height: 320px;
+	overflow-y: auto;
+}
+.tf-popmenu.tf-wahl.kopf {
+	right: 0;
+	left: auto;
+	top: calc(100% + 6px);
+	bottom: auto;
+}
+.tf-popmenu.tf-wahl.aktion {
+	left: 0;
+	right: auto;
+	bottom: calc(100% + 6px);
+	top: auto;
+}
+.tf-popmenu.tf-wahl .tf-mi .nm {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.tf-popmenu.tf-wahl .tf-mi .em {
+	width: 22px;
+	text-align: center;
+	flex: none;
+}
+.tf-popmenu.tf-wahl:focus {
+	outline: none;
+}
+/* Menueeintrag mobil 44 statt 38 (Spezifikation Abschnitt 6 und 9) */
+.tf-sheet .tf-popmenu .tf-mi {
+	height: 44px;
+}
+
+/* Faengt den Klick daneben — nur fuer die Listenwahl, nicht fuer das
+   Detail selbst: in der Spalte schliesst ein Klick daneben nichts. */
+.tf-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 29;
+}
+
+/* ---------------------------------------------------------------------
+   Mobile Huelle: Scrim + Bottom-Sheet
+   --------------------------------------------------------------------- */
+.tf-scrim {
+	position: fixed;
+	inset: 0;
+	background: var(--scrim);
+	z-index: 100;
+}
+.tf-sheet {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	/* 60 px im Referenzframe, davon 47 px Statusleiste — in der App
+	   uebernimmt die Safe-Area deren Platz. Die Liste bleibt darueber
+	   sichtbar. */
+	top: max(60px, calc(env(safe-area-inset-top, 0px) + 13px));
+	z-index: 101;
+	background: var(--bg);
+	color: var(--ink);
+	border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+	display: flex;
+	flex-direction: column;
+	padding: 0 20px;
+	overflow: hidden;
+}
+.tf-handle {
+	width: 36px;
+	height: 5px;
+	border-radius: 3px;
+	background: var(--line);
+	margin: 6px auto 2px;
+	flex: none;
 }
