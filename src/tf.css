@@ -158,6 +158,13 @@
    gewinnen sie. Der Startskript in src/app.html setzt zusaetzlich einen
    Inline-Wert, damit schon der erste Frame stimmt.
    --------------------------------------------------------------------- */
+/* html traegt die Leinwand (Ueberscroll, erster Frame). daisyUI setzt hier ueber
+   app.css einen Wert, der prefers-color-scheme folgt — der wuerde auf einem dunkel
+   eingestellten System unter der hellen App durchschlagen. */
+:root {
+	background: var(--bg);
+}
+
 :root:not(.tf-dark) {
 	color-scheme: light;
 }
@@ -867,6 +874,10 @@
 	box-shadow: 0 0 0 1.5px var(--tf-ring);
 }
 .tf-avatars .tf-avatar + .tf-avatar {
+	margin-left: -6px;
+}
+/* Einzige Ausnahme laut Spezifikation Abschnitt 6: die schmale Navigationszeile. */
+.tf-ni .tf-avatars .tf-avatar + .tf-avatar {
 	margin-left: -5px;
 }
 .tf-ni.on .tf-avatars {
@@ -1071,7 +1082,8 @@
 	align-items: center;
 	justify-content: center;
 	border-radius: var(--r-icon);
-	color: var(--accent);
+	background: var(--accent);
+	color: var(--on-accent);
 }
 
 /* Angedocktes Feld ueber der Tastatur (Spezifikation Abschnitt 4,
@@ -1083,9 +1095,9 @@
 	left: 0;
 	right: 0;
 	z-index: 60;
-	padding: 6px 12px;
+	padding: 6px 12px 8px;
 	background: var(--surface);
-	border-top: 1px solid var(--line);
+	border-top: 1px solid var(--line-2);
 }
 .tf-qa-sticky .tf-qa {
 	margin-bottom: 0;
