@@ -77,7 +77,6 @@
 	let art = $state<Eintragsart>('stand');
 	let entwurf = $state('');
 	let feld = $state<HTMLTextAreaElement | undefined>(undefined);
-	let segKnoepfe: (HTMLButtonElement | undefined)[] = [];
 	let platzhalter = $derived(ARTEN.find((a) => a.wert === art)?.platzhalter ?? '');
 
 	/**
@@ -127,10 +126,16 @@
 		art = 'stand';
 		const ok = await onNeu(gewaehlt, text);
 		// Nicht gespeichert: den Text zurueckgeben, solange das Feld noch leer
-		// ist und dieselbe Aufgabe offen steht.
-		if (!ok && aufgabeId === fuer && entwurf === '') {
-			entwurf = text;
-			art = gewaehlt;
+		// ist und dieselbe Aufgabe offen steht. Steht inzwischen eine andere
+		// offen, wartet er als Entwurf der alten Aufgabe.
+		if (ok) return;
+		if (entwurfFuer === fuer) {
+			if (entwurf === '') {
+				entwurf = text;
+				art = gewaehlt;
+			}
+		} else if (!entwuerfe[fuer]) {
+			entwuerfe[fuer] = { art: gewaehlt, text };
 		}
 	}
 
@@ -160,7 +165,8 @@
 		const schritt = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1;
 		const n = (i + schritt + ARTEN.length) % ARTEN.length;
 		art = ARTEN[n].wert;
-		segKnoepfe[n]?.focus();
+		const gruppe = (e.currentTarget as HTMLElement).closest('[role="radiogroup"]');
+		gruppe?.querySelectorAll<HTMLElement>('[role="radio"]')[n]?.focus();
 	}
 
 	/**
@@ -240,9 +246,8 @@
 				}}
 			>
 				<div class="tf-seg klein" role="radiogroup" aria-label="Art des Eintrags">
-					{#each ARTEN as a, i (a.wert)}
+					{#each ARTEN as a (a.wert)}
 						<button
-							bind:this={segKnoepfe[i]}
 							type="button"
 							role="radio"
 							aria-checked={art === a.wert}
