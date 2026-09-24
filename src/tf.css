@@ -1970,10 +1970,13 @@
 	color: var(--ink-3);
 	opacity: 0;
 }
+/* Ohne negative rechte Marge: im Sheet ragte die Trefferflaeche 8 px aus
+   dem Scroller `.tf-detail-body`. Scrollte der Browser sie ins Bild
+   (Fokus, VoiceOver), blieb der ganze Sheet-Inhalt verschoben — und
+   `overflow-x: hidden` liess keinen Weg zurueck. */
 .tf-grp.tight .tf-subl .del {
 	width: 44px;
 	height: 44px;
-	margin-right: -8px;
 	opacity: 1;
 }
 .tf-subl:hover .del,
@@ -2152,10 +2155,13 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+/* --ink-2 statt --ink-3 wie die Metazeile `.tf-m`: bei 12,5 px braucht es
+   4,5:1 — --ink-3 erreicht hell 4,2:1 und dunkel 4,0:1. */
 .tf-hist .wann,
 .tf-hist .bearb {
 	flex: none;
 	white-space: nowrap;
+	color: var(--ink-2);
 }
 /* Bearbeiten / Loeschen: dezent, am Zeiger erst bei Hover oder Fokus. */
 .tf-hist .akts {
@@ -2192,9 +2198,9 @@
 		opacity: 1;
 	}
 }
+/* Ohne negative rechte Marge — siehe `.tf-grp.tight .tf-subl .del`. */
 .tf-grp.tight .tf-hist .akts {
 	gap: 0;
-	margin-right: -10px;
 }
 .tf-grp.tight .tf-hist .akt {
 	width: 44px;
@@ -2252,7 +2258,7 @@
 	gap: 4px 6px;
 	font-size: 12.5px;
 	line-height: 18px;
-	color: var(--ink-3);
+	color: var(--ink-2);
 }
 .tf-hist .zurueck {
 	padding: 4px 4px;
@@ -2268,7 +2274,7 @@
 }
 .tf-grp.tight .tf-hist .zurueck {
 	padding: 13px 8px;
-	margin: -13px -8px -13px 0;
+	margin: -13px 0;
 	font-size: 13px;
 }
 .tf-hist .bearb-akts {

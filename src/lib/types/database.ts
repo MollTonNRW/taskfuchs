@@ -251,6 +251,11 @@ export interface Database {
 				Args: { lookup_email: string };
 				Returns: string | null;
 			};
+			/** Verlauf wieder eingefuegter Aufgaben aus dem Papierkorb zurueckholen (Migration 022). */
+			restore_task_history: {
+				Args: { p_task_ids: string[] };
+				Returns: Database['public']['Tables']['task_history']['Row'][];
+			};
 			batch_reorder_lists: {
 				Args: { items: string };
 				Returns: undefined;

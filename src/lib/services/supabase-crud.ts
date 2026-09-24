@@ -249,8 +249,27 @@ export async function updateHistory(sb: Sb, id: string, fields: HistoryUpdate) {
 	return sb.from('task_history').update(fields).eq('id', id).select().single();
 }
 
+/**
+ * Mit `.select('id')`: lehnt RLS das Loeschen ab (Rolle inzwischen „nur
+ * lesen"), loescht PostgREST null Zeilen OHNE Fehler. Erst die leere
+ * Antwort verraet das.
+ */
 export async function deleteHistory(sb: Sb, id: string) {
-	return sb.from('task_history').delete().eq('id', id);
+	return sb.from('task_history').delete().eq('id', id).select('id');
+}
+
+/** Steht der Eintrag noch? Leere Antwort: weg (oder nicht mehr sichtbar). */
+export async function historyExists(sb: Sb, id: string) {
+	return sb.from('task_history').select('id').eq('id', id);
+}
+
+/**
+ * Verlauf wieder eingefuegter Aufgaben zurueckholen — nach dem Rueckgaengig
+ * eines Loeschens. Die Kaskade hat ihn in den Papierkorb gelegt; die RPC
+ * setzt ihn mit Autor, Zeiten und „Ist da" zurueck und liefert die Zeilen.
+ */
+export async function restoreHistory(sb: Sb, taskIds: string[]) {
+	return sb.rpc('restore_task_history', { p_task_ids: taskIds });
 }
 
 // ==========================================

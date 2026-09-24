@@ -1,5 +1,5 @@
 <script lang="ts" module>
-	import type { Eintrag, Eintragsart } from '$lib/utils/verlauf';
+	import type { Eintrag, Eintragsart, Entwurf } from '$lib/utils/verlauf';
 	import type { Mitnutzer } from '$lib/utils/mitnutzer';
 
 	/**
@@ -14,6 +14,12 @@
 		darfSchreiben: boolean;
 		/** Anzeigename, Initiale, Avatarfarbe zu einer Benutzer-ID — nie die ID selbst. */
 		person: (id: string | null) => Mitnutzer;
+		/**
+		 * Angefangene Eingabe je Aufgabe — sie lebt im Store und ueberdauert
+		 * damit das Schliessen von Detail und Sheet.
+		 */
+		leseEntwurf: (taskId: string) => Entwurf | null;
+		merkeEntwurf: (taskId: string, e: Entwurf | null) => void;
 		/** Neuer Eintrag; `false`, wenn er nicht gespeichert wurde. */
 		onNeu: (art: Eintragsart, text: string) => Promise<boolean>;
 		onAendern: (id: string, text: string) => void;
@@ -26,7 +32,7 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import Icon from './Icon.svelte';
-	import { EINTRAG_MAX } from '$lib/utils/verlauf';
+	import { EINTRAG_MAX, kurzfassung } from '$lib/utils/verlauf';
 	import { formatVerlaufZeit, formatZeitpunkt } from '$lib/utils/datum';
 
 	/**
@@ -48,6 +54,8 @@
 		eintraege,
 		darfSchreiben,
 		person,
+		leseEntwurf,
+		merkeEntwurf,
 		onNeu,
 		onAendern,
 		onLoeschen,
@@ -80,26 +88,35 @@
 	let platzhalter = $derived(ARTEN.find((a) => a.wert === art)?.platzhalter ?? '');
 
 	/**
-	 * Angefangene Eingaben je Aufgabe. Die Detailspalte bleibt beim Wechsel
-	 * der Auswahl stehen (kein {#key}); ohne diesen Merkzettel ginge ein
-	 * halb getippter Eintrag verloren — oder landete an der falschen Aufgabe.
-	 * Bewusst KEIN $state: nur dieser Effekt liest und schreibt ihn.
+	 * Angefangene Eingaben je Aufgabe liegen im Store (`leseEntwurf` /
+	 * `merkeEntwurf`), nicht hier: diese Gruppe verschwindet, sobald Detail
+	 * oder Sheet schliessen — am Handy bei jedem Aufgabenwechsel — und ein
+	 * Merkzettel in der Komponente ginge mit ihr verloren. Die Detailspalte
+	 * am Desktop bleibt beim Wechsel der Auswahl dagegen stehen (kein
+	 * {#key}); dann tauscht dieser Effekt den Entwurf aus, damit nichts an
+	 * der falschen Aufgabe landet.
 	 */
-	const entwuerfe: Record<string, { art: Eintragsart; text: string }> = {};
 	let entwurfFuer = '';
 
 	$effect(() => {
 		const id = aufgabeId;
 		untrack(() => {
 			if (entwurfFuer === id) return;
-			if (entwurfFuer) {
-				if (entwurf.trim()) entwuerfe[entwurfFuer] = { art, text: entwurf };
-				else delete entwuerfe[entwurfFuer];
-			}
-			art = entwuerfe[id]?.art ?? 'stand';
-			entwurf = entwuerfe[id]?.text ?? '';
+			const gemerkt = leseEntwurf(id);
+			art = gemerkt?.art ?? 'stand';
+			entwurf = gemerkt?.text ?? '';
 			bearbeitetId = null;
 			entwurfFuer = id;
+		});
+	});
+
+	// Jede Aenderung gleich merken — so gibt es keinen Abschiedsmoment, den
+	// ein schliessendes Sheet verpassen koennte.
+	$effect(() => {
+		const text = entwurf;
+		const gewaehlt = art;
+		untrack(() => {
+			if (entwurfFuer) merkeEntwurf(entwurfFuer, { art: gewaehlt, text });
 		});
 	});
 
@@ -125,17 +142,15 @@
 		entwurf = '';
 		art = 'stand';
 		const ok = await onNeu(gewaehlt, text);
-		// Nicht gespeichert: den Text zurueckgeben, solange das Feld noch leer
-		// ist und dieselbe Aufgabe offen steht. Steht inzwischen eine andere
-		// offen, wartet er als Entwurf der alten Aufgabe.
+		// Nicht gespeichert: der Text wartet als Entwurf seiner Aufgabe —
+		// auch wenn inzwischen eine andere offen steht oder das Sheet zu ist
+		// —, es sei denn, dort wurde schon Neues angefangen. Steht dieselbe
+		// Aufgabe noch offen und ist das Feld leer, kommt er gleich zurueck.
 		if (ok) return;
-		if (entwurfFuer === fuer) {
-			if (entwurf === '') {
-				entwurf = text;
-				art = gewaehlt;
-			}
-		} else if (!entwuerfe[fuer]) {
-			entwuerfe[fuer] = { art: gewaehlt, text };
+		if (!leseEntwurf(fuer)) merkeEntwurf(fuer, { art: gewaehlt, text });
+		if (entwurfFuer === fuer && entwurf === '') {
+			entwurf = text;
+			art = gewaehlt;
 		}
 	}
 
@@ -198,30 +213,105 @@
 		bearbeitetFeld?.setSelectionRange(ende, ende);
 	}
 
-	/** Leer oder unveraendert: nichts schreiben, nur schliessen. */
-	function sichern() {
+	/**
+	 * Leer oder unveraendert: nichts schreiben, nur schliessen.
+	 * `zurueck`: per Tastatur ausgeloest — der Fokus geht an „Bearbeiten"
+	 * desselben Eintrags zurueck, statt mit dem Feld auf <body> zu fallen.
+	 */
+	function sichern(zurueck = false) {
 		const id = bearbeitetId;
 		if (!id) return;
 		bearbeitetId = null;
 		const text = bearbeitetText.trim();
 		const alt = eintraege.find((x) => x.id === id);
 		if (text && alt && text !== alt.body) onAendern(id, text);
+		if (zurueck) void fokusAufEintrag(id, '.akt.bearb-knopf');
 	}
 
-	function abbrechen() {
+	function abbrechen(zurueck = false) {
+		const id = bearbeitetId;
 		bearbeitetId = null;
+		if (zurueck && id) void fokusAufEintrag(id, '.akt.bearb-knopf');
 	}
 
 	function bearbeitetTaste(e: KeyboardEvent) {
 		if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
 			e.preventDefault();
-			sichern();
+			sichern(true);
 			return;
 		}
 		if (e.key === 'Escape') {
 			e.stopPropagation();
-			abbrechen();
+			abbrechen(true);
 		}
+	}
+
+	/**
+	 * Verlaesst der Fokus die Bearbeitung (Feld samt „Sichern"/„Abbrechen"),
+	 * wird gesichert — wie bei der Notiz. Ein Tab vom Feld zu den Knoepfen
+	 * bleibt darin und sichert NICHT. Vorher hing das Sichern am `blur` des
+	 * Feldes: schon dieser Tab speicherte, und beide Knoepfe verschwanden,
+	 * bevor sie den Fokus bekamen. Die Maus erreicht sie weiter ueber
+	 * `fokusHalten`, ohne dass das Feld den Fokus verliert.
+	 */
+	function bearbeitungVerlassen(e: FocusEvent) {
+		const wohin = e.relatedTarget;
+		if (wohin instanceof Node && (e.currentTarget as HTMLElement).contains(wohin)) return;
+		sichern();
+	}
+
+	// ==================================================================
+	// FOKUS NACH AKTIONEN
+	// ==================================================================
+	// Jede Aktion entfernt genau den Knopf, der sie ausgeloest hat: „Ist da"
+	// wird zur Geloest-Zeile, „Zuruecknehmen" wieder zu „Ist da", „Loeschen"
+	// nimmt seinen Eintrag mit. Ohne Nachhilfe fiele der Tastaturfokus auf
+	// <body>, und ein Screenreader verloere die Stelle.
+	let liste = $state<HTMLOListElement | undefined>(undefined);
+
+	/**
+	 * Den Fokus nur weiterreichen, wenn der Knopf ihn hatte oder per
+	 * Tastatur ausgeloest wurde (ein Klick ueber Enter/Leertaste traegt
+	 * `detail === 0`). Ein Tipper am Handy fokussiert in Safari nichts —
+	 * dort bleibt es, wie es war.
+	 */
+	function fokusWeiter(e: MouseEvent): boolean {
+		return e.detail === 0 || document.activeElement === e.currentTarget;
+	}
+
+	async function fokusAufEintrag(id: string, auswahl: string): Promise<boolean> {
+		await tick();
+		const ziel = liste?.querySelector<HTMLElement>(`[data-tf-eintrag="${CSS.escape(id)}"] ${auswahl}`);
+		ziel?.focus();
+		return !!ziel;
+	}
+
+	function istDa(e: MouseEvent, id: string) {
+		const weiter = fokusWeiter(e);
+		onIstDa(id);
+		if (weiter) void fokusAufEintrag(id, '.zurueck');
+	}
+
+	function istDaZurueck(e: MouseEvent, id: string) {
+		const weiter = fokusWeiter(e);
+		onIstDaZurueck(id);
+		if (weiter) void fokusAufEintrag(id, '.istda');
+	}
+
+	/**
+	 * Nach dem Loeschen auf den naechsten Eintrag, sonst den vorigen. Ist
+	 * keiner mehr da, ins Eingabefeld — das aber nur per Tastatur: am Handy
+	 * klappte sonst ungefragt die Bildschirmtastatur auf.
+	 */
+	async function loeschen(e: MouseEvent, id: string) {
+		const weiter = fokusWeiter(e);
+		const perTastatur = e.detail === 0;
+		const i = eintraege.findIndex((x) => x.id === id);
+		const nachbar = eintraege[i + 1] ?? eintraege[i - 1];
+		onLoeschen(id);
+		if (!weiter) return;
+		if (nachbar && (await fokusAufEintrag(nachbar.id, '.akt.bearb-knopf'))) return;
+		if (perTastatur) feld?.focus();
 	}
 
 	function bearbeitetHinweis(e: Eintrag): string {
@@ -270,6 +360,7 @@
 						maxlength={EINTRAG_MAX}
 						placeholder={platzhalter}
 						aria-label={platzhalter}
+						enterkeyhint="send"
 						onkeydown={eingabeTaste}
 					></textarea>
 					<button type="submit" class="tf-btn primary" disabled={!entwurf.trim()} onmousedown={fokusHalten}>
@@ -280,11 +371,12 @@
 		{/if}
 
 		{#if eintraege.length > 0}
-			<ol class="tf-hist-liste" aria-labelledby="{uid}-titel">
+			<ol class="tf-hist-liste" aria-labelledby="{uid}-titel" bind:this={liste}>
 				{#each eintraege as e (e.id)}
 					{@const autor = person(e.created_by)}
 					{@const wartet = e.kind === 'wartet'}
 					{@const geloest = wartet && !!e.resolved_at}
+					{@const kurz = kurzfassung(e.body)}
 					<li class="tf-hist" class:wartet class:geloest data-tf-eintrag={e.id}>
 						<span class="tf-avatar" style="background:{autor.farbe}" aria-hidden="true">{autor.initialen}</span>
 						<div class="inhalt">
@@ -298,10 +390,18 @@
 								{/if}
 								{#if darfSchreiben && bearbeitetId !== e.id}
 									<span class="akts">
-										<button class="akt" aria-label="Eintrag bearbeiten" onclick={() => bearbeiten(e)}>
+										<button
+											class="akt bearb-knopf"
+											aria-label="Eintrag bearbeiten: {kurz}"
+											onclick={() => bearbeiten(e)}
+										>
 											<Icon name="umbenennen" size={16} />
 										</button>
-										<button class="akt loe" aria-label="Eintrag l&ouml;schen" onclick={() => onLoeschen(e.id)}>
+										<button
+											class="akt loe"
+											aria-label="Eintrag l&ouml;schen: {kurz}"
+											onclick={(ev) => loeschen(ev, e.id)}
+										>
 											<Icon name="loeschen" size={16} />
 										</button>
 									</span>
@@ -309,26 +409,40 @@
 							</div>
 
 							{#if bearbeitetId === e.id}
-								<textarea
-									bind:this={bearbeitetFeld}
-									bind:value={bearbeitetText}
-									class="tf-hist-feld"
-									rows="1"
-									maxlength={EINTRAG_MAX}
-									aria-label="Eintrag bearbeiten"
-									onkeydown={bearbeitetTaste}
-									onblur={sichern}
-								></textarea>
-								<div class="bearb-akts">
-									<button class="tf-btn primary" onmousedown={fokusHalten} onclick={sichern}>Sichern</button>
-									<button class="tf-btn ghost" onmousedown={fokusHalten} onclick={abbrechen}>Abbrechen</button>
+								<div class="bearbeitung" onfocusout={bearbeitungVerlassen}>
+									<textarea
+										bind:this={bearbeitetFeld}
+										bind:value={bearbeitetText}
+										class="tf-hist-feld"
+										rows="1"
+										maxlength={EINTRAG_MAX}
+										aria-label="Eintrag bearbeiten"
+										enterkeyhint="done"
+										onkeydown={bearbeitetTaste}
+									></textarea>
+									<div class="bearb-akts">
+										<button
+											class="tf-btn primary"
+											onmousedown={fokusHalten}
+											onclick={(ev) => sichern(fokusWeiter(ev))}
+										>
+											Sichern
+										</button>
+										<button
+											class="tf-btn ghost"
+											onmousedown={fokusHalten}
+											onclick={(ev) => abbrechen(fokusWeiter(ev))}
+										>
+											Abbrechen
+										</button>
+									</div>
 								</div>
 							{:else}
 								<p class="txt">{#if wartet}<Icon name="sanduhr" size={14} class="uhr" /><span class="praefix">Wartet auf&nbsp;</span>{/if}{e.body}</p>
 							{/if}
 
 							{#if wartet && !geloest && darfSchreiben}
-								<button class="tf-btn istda" onclick={() => onIstDa(e.id)}>
+								<button class="tf-btn istda" aria-label="Ist da: {kurz}" onclick={(ev) => istDa(ev, e.id)}>
 									<Icon name="haken" size={16} />Ist da
 								</button>
 							{:else if geloest}
@@ -342,8 +456,8 @@
 									{#if darfSchreiben}
 										<button
 											class="zurueck"
-											aria-label="&bdquo;Ist da&ldquo; zur&uuml;cknehmen"
-											onclick={() => onIstDaZurueck(e.id)}
+											aria-label="&bdquo;Ist da&ldquo; zur&uuml;cknehmen: {kurz}"
+											onclick={(ev) => istDaZurueck(ev, e.id)}
 										>
 											Zur&uuml;cknehmen
 										</button>

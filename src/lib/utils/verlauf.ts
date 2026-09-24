@@ -47,9 +47,21 @@ export function istOffenerWarteEintrag(e: Eintrag): boolean {
 	return e.kind === 'wartet' && !e.resolved_at;
 }
 
+/** Angefangene, noch nicht eingetragene Eingabe zu einer Aufgabe. */
+export type Entwurf = { art: Eintragsart; text: string };
+
 function einzeilig(text: string, max: number): string {
 	const t = text.replace(/\s+/g, ' ').trim();
 	return t.length > max ? `${t.slice(0, max - 1)}…` : t;
+}
+
+/**
+ * Eintragstext einzeilig und gekuerzt — fuer die `aria-label`s der Knoepfe
+ * am Eintrag. Ohne ihn hiessen in der Knopfliste eines Screenreaders alle
+ * gleich („Ist da", „Ist da", …).
+ */
+export function kurzfassung(text: string, max = 40): string {
+	return einzeilig(text, max);
 }
 
 /**

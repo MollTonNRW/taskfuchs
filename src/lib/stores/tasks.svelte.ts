@@ -15,7 +15,18 @@ export type PinStand = { id: string; pinned_by: string | null };
 /** Merkzettel je Liste: wann sie zuletzt gesehen wurde (Millisekunden). */
 const GESEHEN_KEY = 'tf-gesehen';
 
-export function createTaskStore() {
+/**
+ * Rueckmeldungen an Nachbar-Stores. `aufgabenZurueck`: Aufgaben stehen nach
+ * einem Loeschen wieder im Bestand — `wiedereingefuegt` nach „Rueckgaengig"
+ * (auf dem Server neu eingefuegt), sonst nach einem gescheiterten Loeschen
+ * (auf dem Server nie weg gewesen). Die Aufgabenhistorie holt daran ihren
+ * Verlauf zurueck.
+ */
+export type TaskStoreOptionen = {
+	aufgabenZurueck?: (taskIds: string[], wiedereingefuegt: boolean) => void;
+};
+
+export function createTaskStore(optionen: TaskStoreOptionen = {}) {
 	let tasks = $state<Task[]>([]);
 	let lists = $state<List[]>([]);
 	let sb: Sb;
@@ -712,6 +723,10 @@ export function createTaskStore() {
 	 * ist das erste: sofort loeschen, beim Rueckgaengig wieder einfuegen —
 	 * geraeteuebergreifend konsistent, und die Absicherung ueber
 	 * `pendingTaskIds` gegen doppelte Realtime-Zeilen gab es schon.
+	 *
+	 * Den Verlauf der Aufgaben nimmt die Kaskade mit; die Datenbank legt ihn
+	 * dabei in einen Papierkorb, aus dem `aufgabenZurueck` ihn nach dem
+	 * Wiedereinfuegen zurueckholt — samt Autor, Zeiten und „Ist da".
 	 */
 	async function loescheMitUndo(geloescht: Task[], meldung: string) {
 		if (geloescht.length === 0) return;
@@ -722,6 +737,7 @@ export function createTaskStore() {
 		const { error } = await crud.bulkDeleteTasks(sb, ids);
 		if (error) {
 			wiederEinsetzen(geloescht);
+			optionen.aufgabenZurueck?.(ids, false);
 			toasts.error('Fehler beim Löschen');
 			return;
 		}
@@ -743,6 +759,9 @@ export function createTaskStore() {
 				return;
 			}
 			wiederEinsetzen(reihenfolge);
+			// Erst jetzt, wo die Aufgaben wieder stehen: ihren Verlauf aus dem
+			// Papierkorb zurueckholen (Migration 022, Abschnitt 6).
+			optionen.aufgabenZurueck?.(ids, true);
 			// Pending-IDs nach kurzer Verzoegerung aufraeumen (das
 			// Realtime-Ereignis kann nachklappern).
 			setTimeout(() => {

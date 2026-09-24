@@ -11,9 +11,9 @@
  *
  * Abgedeckt ist genau der Ausschnitt, den `supabase-crud.ts` und
  * `useShareDialog.svelte.ts` benutzen: `select/insert/update/delete` mit
- * `eq`, `in`, `is` und `order`, dazu `rpc('lookup_user_by_email')`,
- * `auth.signOut` und die Realtime-Kanaele. Mehr braucht die App nicht, und
- * mehr soll hier auch nicht entstehen.
+ * `eq`, `in`, `is` und `order`, dazu `rpc('lookup_user_by_email')` und
+ * `rpc('restore_task_history')`, `auth.signOut` und die Realtime-Kanaele.
+ * Mehr braucht die App nicht, und mehr soll hier auch nicht entstehen.
  *
  * Fuer `task_history` spielt die Attrappe zusaetzlich den Stempel-Trigger
  * aus Migration 022 nach (Autor, Zeiten, „Ist da"): der Client schickt wie
@@ -259,16 +259,43 @@ export function baueAttrappe(start: DemoBestand, ich: string): SupabaseClient<Da
 	};
 
 	/**
+	 * Papierkorb aus Migration 022 (Abschnitt 6): was die Kaskade mitnimmt,
+	 * liegt hier, bis `restore_task_history` es zurueckholt. Die Attrappe
+	 * kennt nur einen Nutzer — wer loescht, darf auch zurueckholen.
+	 */
+	const papierkorb: Zeile[] = [];
+
+	/**
 	 * `on delete cascade` aus Migration 022: faellt eine Aufgabe weg, geht ihr
-	 * Verlauf mit — sofort beim Loeschen, wie in der Datenbank. Die Attrappe
-	 * kennt keine Fremdschluessel; ohne das tauchte der Verlauf nach dem
-	 * Rueckgaengig des Loeschens wieder auf.
+	 * Verlauf mit — sofort beim Loeschen, wie in der Datenbank — und landet
+	 * im Papierkorb. Die Attrappe kennt keine Fremdschluessel; ohne das
+	 * tauchte der Verlauf nach dem Rueckgaengig von selbst wieder auf, und
+	 * der Weg ueber die RPC bliebe in der Vorschau ungeprueft.
 	 */
 	function kaskade() {
 		const aufgaben = new Set(bestand.tasks.map((t) => t.id));
 		for (let i = bestand.task_history.length - 1; i >= 0; i--) {
-			if (!aufgaben.has(bestand.task_history[i].task_id)) bestand.task_history.splice(i, 1);
+			if (!aufgaben.has(bestand.task_history[i].task_id)) {
+				papierkorb.push(...bestand.task_history.splice(i, 1));
+			}
 		}
+	}
+
+	/** Nachbau von `restore_task_history`: zurueck mit allen Originalstempeln. */
+	function verlaufZurueck(taskIds: string[]): Zeile[] {
+		const gesucht = new Set(taskIds);
+		const aufgaben = new Set(bestand.tasks.map((t) => t.id));
+		const zurueck: Zeile[] = [];
+		for (let i = papierkorb.length - 1; i >= 0; i--) {
+			const z = papierkorb[i];
+			if (!gesucht.has(z.task_id as string) || !aufgaben.has(z.task_id as string)) continue;
+			papierkorb.splice(i, 1);
+			if (!bestand.task_history.some((h) => h.id === z.id)) {
+				bestand.task_history.push(z);
+				zurueck.push({ ...z });
+			}
+		}
+		return zurueck;
 	}
 
 	const attrappe = {
@@ -291,8 +318,14 @@ export function baueAttrappe(start: DemoBestand, ich: string): SupabaseClient<Da
 			};
 		},
 
-		/** Einziger genutzter Aufruf: die E-Mail-Suche des Teilen-Dialogs. */
-		rpc(_name: string, args: { lookup_email?: string }) {
+		/**
+		 * Zwei genutzte Aufrufe: die E-Mail-Suche des Teilen-Dialogs und das
+		 * Zurueckholen des Verlaufs nach dem Rueckgaengig eines Loeschens.
+		 */
+		rpc(name: string, args: { lookup_email?: string; p_task_ids?: string[] }) {
+			if (name === 'restore_task_history') {
+				return Promise.resolve({ data: verlaufZurueck(args?.p_task_ids ?? []), error: null });
+			}
 			const lokal = (args?.lookup_email ?? '').split('@')[0]?.toLowerCase();
 			const treffer = bestand.profiles.find((p) => String(p.username ?? '').toLowerCase() === lokal);
 			return Promise.resolve({ data: (treffer?.id as string) ?? null, error: null });

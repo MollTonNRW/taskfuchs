@@ -8,7 +8,8 @@ import {
 	jetztIso,
 	neuesteZuerst,
 	type Eintrag,
-	type Eintragsart
+	type Eintragsart,
+	type Entwurf
 } from '$lib/utils/verlauf';
 
 type Sb = SupabaseClient<Database>;
@@ -60,6 +61,46 @@ export function createHistoryStore() {
 	 */
 	const vorgemerkt: Record<string, { eintrag: Eintrag; uhr: ReturnType<typeof setTimeout> }> = {};
 
+	/**
+	 * Was sich lokal an einem Eintrag getan hat, WAEHREND eine Abfrage lief
+	 * (`resync`, `ladeVerlauf`) — fortlaufend gezaehlt. Die Antwort zeigt den
+	 * Stand bei ihrem Start. Ein inzwischen bestaetigtes „Ist da", ein neuer
+	 * oder geaenderter Eintrag, ein Realtime-DELETE ist neuer als sie und darf
+	 * von ihr nicht ueberschrieben werden — sonst kaeme etwa die Sanduhr nach
+	 * einem Tipp auf „Ist da" zurueck und bliebe bis zum Neuladen stehen.
+	 * Gezaehlt wird nur, solange eine Abfrage laeuft; danach ist alles leer.
+	 */
+	let takt = 0;
+	let laufendeAbfragen = 0;
+	const geaendert: Record<string, number> = {};
+
+	function vermerke(id: string) {
+		if (laufendeAbfragen > 0) geaendert[id] = ++takt;
+	}
+
+	/** Hat sich der Eintrag seit `start` lokal geaendert? */
+	function neuerAls(id: string, start: number): boolean {
+		return (geaendert[id] ?? 0) > start;
+	}
+
+	function abfrageBeginnt(): number {
+		laufendeAbfragen++;
+		return takt;
+	}
+
+	function abfrageEndet() {
+		laufendeAbfragen--;
+		if (laufendeAbfragen === 0) for (const id of Object.keys(geaendert)) delete geaendert[id];
+	}
+
+	/**
+	 * Angefangene Eingaben je Aufgabe. Sie liegen hier und nicht in der
+	 * Verlaufsgruppe: die verschwindet, sobald Detail oder Sheet schliessen
+	 * (am Handy bei jedem Aufgabenwechsel) und naehme sie mit.
+	 * Bewusst KEIN $state: nur die Eingabe liest und schreibt sie.
+	 */
+	const entwuerfe: Record<string, Entwurf> = {};
+
 	/** taskId -> offene Warte-Eintraege, neueste zuerst. */
 	const offenNachAufgabe = $derived.by(() => {
 		const zuordnung: Record<string, Eintrag[]> = {};
@@ -91,11 +132,22 @@ export function createHistoryStore() {
 		return geladen.includes(taskId);
 	}
 
+	function entwurf(taskId: string): Entwurf | null {
+		return entwuerfe[taskId] ?? null;
+	}
+
+	/** Leerer Text: der Entwurf faellt weg. */
+	function merkeEntwurf(taskId: string, e: Entwurf | null) {
+		if (e && e.text.trim()) entwuerfe[taskId] = e;
+		else delete entwuerfe[taskId];
+	}
+
 	// ==========================================
 	// BESTAND FUEHREN
 	// ==========================================
 	/** Einsetzen oder ersetzen — dieselbe ID ist immer derselbe Eintrag. */
 	function einsetzen(e: Eintrag) {
+		vermerke(e.id);
 		if (eintraege.some((x) => x.id === e.id)) {
 			eintraege = eintraege.map((x) => (x.id === e.id ? e : x));
 		} else {
@@ -117,6 +169,7 @@ export function createHistoryStore() {
 	}
 
 	function entfernen(id: string) {
+		vermerke(id);
 		if (eintraege.some((e) => e.id === id)) eintraege = eintraege.filter((e) => e.id !== id);
 	}
 
@@ -126,8 +179,10 @@ export function createHistoryStore() {
 		if (!alt) return () => {};
 		const vorher: Record<string, unknown> = {};
 		for (const k of Object.keys(felder)) vorher[k] = (alt as unknown as Record<string, unknown>)[k];
+		vermerke(id);
 		eintraege = eintraege.map((e) => (e.id === id ? { ...e, ...felder } : e));
 		return () => {
+			vermerke(id);
 			eintraege = eintraege.map((e) => (e.id === id ? { ...e, ...(vorher as Partial<Eintrag>) } : e));
 		};
 	}
@@ -146,20 +201,25 @@ export function createHistoryStore() {
 			return;
 		}
 		laedt[taskId] = true;
+		const start = abfrageBeginnt();
 		const { data, error } = await crud.loadHistory(sb, [taskId]);
 		delete laedt[taskId];
 		if (error || !data) {
+			abfrageEndet();
 			console.error('Verlauf laden fehlgeschlagen:', error);
 			toasts.error('Verlauf konnte nicht geladen werden.');
 			return;
 		}
-		const frisch = (data as Eintrag[]).filter((e) => !vorgemerkt[e.id]);
+		// Was sich waehrend des Ladens lokal getan hat, ist neuer als die
+		// Antwort — auch ein inzwischen geloeschter Eintrag kommt nicht zurueck.
+		const frisch = (data as Eintrag[]).filter((e) => !vorgemerkt[e.id] && !neuerAls(e.id, start));
 		const frischIds: Record<string, true> = {};
 		for (const e of frisch) frischIds[e.id] = true;
 		// Vereinigen statt ersetzen: was waehrend des Ladens per Realtime oder
 		// optimistisch hinzukam, bleibt stehen.
 		eintraege = [...eintraege.filter((e) => !frischIds[e.id]), ...frisch];
 		geladen = [...geladen, taskId];
+		abfrageEndet();
 	}
 
 	/**
@@ -173,25 +233,33 @@ export function createHistoryStore() {
 		if (!sb) return;
 		if (geladen.length > RESYNC_MAX) geladen = geladen.slice(-RESYNC_MAX);
 		const voll = [...geladen];
+		const start = abfrageBeginnt();
 		const [offen, verlaeufe] = await Promise.all([
 			crud.loadOpenWaits(sb),
 			voll.length > 0 ? crud.loadHistory(sb, voll) : Promise.resolve({ data: [] as Eintrag[], error: null })
 		]);
 		if (offen.error || verlaeufe.error) {
+			abfrageEndet();
 			console.error('Verlauf abgleichen fehlgeschlagen:', offen.error ?? verlaeufe.error);
 			return;
 		}
 		const frisch: Record<string, Eintrag> = {};
 		for (const e of [...((offen.data as Eintrag[]) ?? []), ...((verlaeufe.data as Eintrag[]) ?? [])]) {
-			if (!vorgemerkt[e.id]) frisch[e.id] = e;
+			if (!vorgemerkt[e.id] && !neuerAls(e.id, start)) frisch[e.id] = e;
 		}
-		// Ueberleben: noch unbestaetigte eigene Eintraege und Verlaeufe, die
-		// waehrend dieser Abfrage erst geladen wurden.
+		// Ueberleben: was sich waehrend dieser Abfrage lokal geaendert hat
+		// (bestaetigt, per Realtime, optimistisch — die Antwort ist aelter),
+		// noch unbestaetigte eigene Eintraege und Verlaeufe, die waehrend
+		// dieser Abfrage erst geladen wurden. Lokal waehrenddessen Geloeschtes
+		// steht weder hier noch in `frisch` und bleibt weg.
 		const inzwischen = geladen.filter((id) => !voll.includes(id));
 		const bleiben = eintraege.filter(
-			(e) => !frisch[e.id] && (schwebend[e.id] || inzwischen.includes(e.task_id))
+			(e) =>
+				!frisch[e.id] &&
+				(neuerAls(e.id, start) || schwebend[e.id] || inzwischen.includes(e.task_id))
 		);
 		eintraege = [...Object.values(frisch), ...bleiben];
+		abfrageEndet();
 	}
 
 	// ==========================================
@@ -223,7 +291,7 @@ export function createHistoryStore() {
 			resolved_by: null
 		};
 		schwebend[id] = true;
-		eintraege = [...eintraege, optimistisch];
+		einsetzen(optimistisch);
 		const { data, error } = await crud.insertHistory(sb, { id, task_id: taskId, kind: art, body });
 		delete schwebend[id];
 		if (error || !data) {
@@ -319,12 +387,22 @@ export function createHistoryStore() {
 		const v = vorgemerkt[id];
 		if (!v || !sb) return;
 		delete vorgemerkt[id];
-		const { error } = await crud.deleteHistory(sb, id);
-		if (error) {
-			console.error('Eintrag loeschen fehlgeschlagen:', error);
-			einsetzen(v.eintrag);
-			toasts.error('Eintrag konnte nicht gelöscht werden.');
+		// Ab hier nicht mehr vorgemerkt: ein laufender Abgleich darf den
+		// Eintrag trotzdem nicht aus seiner aelteren Antwort zurueckholen.
+		vermerke(id);
+		const { data, error } = await crud.deleteHistory(sb, id);
+		if (!error && data && data.length > 0) return;
+		// Keine Zeile geloescht und kein Fehler: entweder hat RLS abgelehnt —
+		// die eigene Rolle ist inzwischen „nur lesen", `darfSchreiben` kennt
+		// nur den Ladestand — oder jemand anderes hat ihn schon geloescht. Nur
+		// im ersten Fall steht er noch.
+		if (!error) {
+			const { data: noch, error: pruefFehler } = await crud.historyExists(sb, id);
+			if (!pruefFehler && (!noch || noch.length === 0)) return;
 		}
+		console.error('Eintrag loeschen fehlgeschlagen:', error ?? 'keine Berechtigung');
+		einsetzen(v.eintrag);
+		toasts.error('Eintrag konnte nicht gelöscht werden.');
 	}
 
 	/** Seite wird verlassen: vorgemerkte Loeschungen sofort ausfuehren. */
@@ -338,11 +416,41 @@ export function createHistoryStore() {
 	/**
 	 * Aufgaben sind weg (geloescht, auch „Erledigte loeschen", Liste
 	 * geloescht, per Realtime verschwunden): ihre Eintraege verwerfen. In der
-	 * Datenbank hat `on delete cascade` sie bereits entfernt.
+	 * Datenbank hat `on delete cascade` sie bereits entfernt — und fuer ein
+	 * Rueckgaengig in den Papierkorb gelegt (siehe `aufgabenZurueck`).
 	 */
 	function verwerfeAufgaben(gibtEs: (taskId: string) => boolean) {
 		if (eintraege.some((e) => !gibtEs(e.task_id))) eintraege = eintraege.filter((e) => gibtEs(e.task_id));
 		if (geladen.some((id) => !gibtEs(id))) geladen = geladen.filter((id) => gibtEs(id));
+	}
+
+	/**
+	 * Aufgaben sind nach einem Loeschen wieder da — ihr Verlauf soll es auch
+	 * sein. Der Zwischenspeicher hat ihn verworfen, als sie aus dem Bestand
+	 * fielen (`verwerfeAufgaben`); `tasks.svelte.ts` meldet sich hier.
+	 * - `wiedereingefuegt` (Rueckgaengig): die Kaskade hat den Verlauf auf
+	 *   dem Server in den Papierkorb gelegt; `restore_task_history` setzt ihn
+	 *   mit Autor, Zeiten und „Ist da" zurueck (Migration 022, Abschnitt 6).
+	 *   Ein Neu-Einfuegen vom Client aus stempelte der Trigger um.
+	 * - sonst (Loeschen fehlgeschlagen): auf dem Server ist nichts passiert,
+	 *   hier fehlen nur die offenen Warte-Eintraege — die Sanduhr. Den vollen
+	 *   Verlauf laedt das Detail beim naechsten Oeffnen ohnehin neu.
+	 */
+	async function aufgabenZurueck(taskIds: string[], wiedereingefuegt: boolean) {
+		if (!sb || taskIds.length === 0) return;
+		const betroffen: Record<string, true> = {};
+		for (const id of taskIds) betroffen[id] = true;
+		const { data, error } = wiedereingefuegt
+			? await crud.restoreHistory(sb, taskIds)
+			: await crud.loadOpenWaits(sb);
+		if (error || !data) {
+			console.error('Verlauf wiederherstellen fehlgeschlagen:', error);
+			if (wiedereingefuegt) toasts.error('Verlauf der Aufgabe konnte nicht wiederhergestellt werden.');
+			return;
+		}
+		for (const e of data as Eintrag[]) {
+			if (betroffen[e.task_id] && !vorgemerkt[e.id]) einsetzen(e);
+		}
 	}
 
 	// ==========================================
@@ -378,8 +486,9 @@ export function createHistoryStore() {
 		get eintraege() { return eintraege; },
 		init, resync,
 		offeneWarte, verlauf, istGeladen, ladeVerlauf,
+		entwurf, merkeEntwurf,
 		add, edit, resolve, unresolve, remove,
-		loescheVorgemerkte, verwerfeAufgaben,
+		loescheVorgemerkte, verwerfeAufgaben, aufgabenZurueck,
 		handleRealtime
 	};
 }

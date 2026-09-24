@@ -110,9 +110,13 @@
 		vorschau?: VorschauZustand;
 	} = $props();
 
-	const store = createTaskStore();
 	/** Aufgabenhistorie — offene Warte-Eintraege, Verlaeufe, Realtime. */
 	const historie = createHistoryStore();
+	const store = createTaskStore({
+		// Aufgaben nach dem Loeschen wieder da (Rueckgaengig oder gescheitertes
+		// Loeschen): ihren Verlauf samt Sanduhr zurueckholen.
+		aufgabenZurueck: (ids, wiedereingefuegt) => void historie.aufgabenZurueck(ids, wiedereingefuegt)
+	});
 
 	// Initialize store in $effect (runs during hydration before onMount)
 	let storeReady = $state(false);
@@ -159,7 +163,9 @@
 
 	// Aufgabe weg — geloescht, „Erledigte loeschen", Liste geloescht, per
 	// Realtime verschwunden: ihr Verlauf faellt aus dem Zwischenspeicher. In
-	// der Datenbank hat `on delete cascade` ihn schon entfernt.
+	// der Datenbank hat `on delete cascade` ihn schon entfernt. Kommt die
+	// Aufgabe zurueck (Rueckgaengig, gescheitertes Loeschen), holt
+	// `aufgabenZurueck` ihn wieder (siehe createTaskStore oben).
 	$effect(() => {
 		if (!storeReady) return;
 		const vorhanden: Record<string, true> = {};
@@ -299,12 +305,19 @@
 			}
 		}
 		// Autoren im Verlauf: auch wer eine Liste inzwischen verlassen hat,
-		// behaelt dort seinen Namen.
-		const beteiligteIds: Record<string, true> = {};
-		for (const leute of Object.values(bekannt)) for (const m of leute) beteiligteIds[m.id] = true;
+		// behaelt dort seinen Namen. Geprueft wird JE LISTE wie oben —
+		// `personFuer` sucht auch nur in der Liste der Aufgabe. Wer in einer
+		// fremden geteilten Liste schreibt, fehlt dort in `mitnutzer`, selbst
+		// wenn er aus einer anderen Liste bekannt ist; eine listenuebergreifende
+		// Pruefung liess ihn als „Mitnutzer ?" stehen.
+		const listeVon: Record<string, string> = {};
+		for (const t of tasks) listeVon[t.id] = t.list_id;
 		for (const e of historie.eintraege) {
+			const listId = listeVon[e.task_id];
+			const leute = listId ? (bekannt[listId] ?? []) : [];
 			for (const id of [e.created_by, e.edited_by, e.resolved_by]) {
-				if (!id || id === me || angefragteIds.has(id) || beteiligteIds[id]) continue;
+				if (!id || id === me || angefragteIds.has(id)) continue;
+				if (leute.some((m: Mitnutzer) => m.id === id)) continue;
 				fehlend.add(id);
 			}
 		}
@@ -568,6 +581,8 @@
 			eintraege: historie.verlauf(taskId),
 			darfSchreiben: darfSchreiben(t),
 			person: (id: string | null) => personFuer(listId, id),
+			leseEntwurf: (id) => historie.entwurf(id),
+			merkeEntwurf: (id, e) => historie.merkeEntwurf(id, e),
 			onNeu: (art, text) => historie.add(taskId, art, text),
 			onAendern: (id, text) => void historie.edit(id, text),
 			onLoeschen: (id) => historie.remove(id),
