@@ -48,6 +48,14 @@ Indizes: (task_id, created_at desc); partiell (task_id) where kind='wartet' and 
 - **Trigger** (before insert/update, security invoker): wenn `auth.uid()` gesetzt ist, erzwingt er auf INSERT `created_by = auth.uid()`, `created_at = now()`, `edited_* = null`, `resolved_* = null`; auf UPDATE bleiben `task_id`, `kind`, `created_by`, `created_at` unveraenderlich (auf OLD zurueckgesetzt), bei geaendertem `body` setzt er `edited_at = now()`, `edited_by = auth.uid()`; wechselt `resolved_at` von null auf gesetzt → `resolved_at = now()`, `resolved_by = auth.uid()`; zurueck auf null → beide null. Ohne `auth.uid()` (Migration/Service) laesst er die Werte unangetastet.
 - `anon` bekommt keine Rechte (`revoke all ... from anon`).
 - Realtime: `alter publication supabase_realtime add table public.task_history`.
+- **Papierkorb fuers Rueckgaengig** (nachgetragen nach dem Review 24.09.): Aufgaben loescht der Client sofort und fuegt
+  sie beim Rueckgaengig neu ein; die Kaskade naehme den Verlauf endgueltig mit. Darum legt ein AFTER-DELETE-Trigger
+  (security definer) Eintraege, deren Aufgabe weg ist, samt Originalstempeln in `public.task_history_papierkorb`
+  (RLS an, keine Policies, keine Rechte fuer anon/authenticated; `geloescht_von = auth.uid()`). Die RPC
+  `restore_task_history(p_task_ids uuid[])` (security definer) holt nach dem Wiedereinfuegen nur, was der Aufrufer
+  selbst geloescht hat und nur an Aufgaben mit `can_edit_task`, und liefert die Zeilen. Der Stempel-Trigger stempelt
+  nur Schreibvorgaenge der Rolle `authenticated` — in der RPC bleiben Autor, Zeiten und „Ist da" erhalten.
+  Aelter als eine Stunde wird weggeraeumt. Ohne `auth.uid()` (Dienst, n8n) kein Papierkorb.
 
 ## `progress` entfernen — Migration `023_drop_task_progress.sql`
 
@@ -87,6 +95,9 @@ Gilt ueberall, wo Zeilen erscheinen (Listen, Smart-Ansichten, Suche soweit Zeile
   Verlauf pro Aufgabe lazy beim Oeffnen des Details (Cache), `add`, `edit`, `resolve`, `unresolve`, `remove` optimistisch mit Rollback + Fehler-Toast.
 - Realtime-Kanal auf `task_history` (INSERT/UPDATE/DELETE; DELETE liefert nur `id` → per id entfernen), Muster wie `tf-tasks-realtime` in `AppShell.svelte`.
 - Aufgabe geloescht (auch „Erledigte loeschen") → Cache-Eintraege der Aufgabe verwerfen.
+  Rueckgaengig → nach dem Wiedereinfuegen `restore_task_history` und die gelieferten Zeilen einsetzen;
+  Loeschen fehlgeschlagen → offene Warte-Eintraege der Aufgaben neu laden (Sanduhr).
+- Angefangene Eingaben je Aufgabe liegen im Store und ueberdauern das Schliessen von Detail/Sheet.
 - Namen/Avatare aus der bestehenden Profilquelle.
 - `progress` verschwindet aus Typen (`database.ts`), Insert-Payloads (`tasks.svelte.ts`), Sortierung/Filter, Seed-/Demo-Daten.
 - `/vorschau` (Demodaten, `supabase-attrappe.ts`, `demo/fixtures.ts`) unterstuetzt die Historie mit ein paar Beispiel-Eintraegen
@@ -96,7 +107,9 @@ Gilt ueberall, wo Zeilen erscheinen (Listen, Smart-Ansichten, Suche soweit Zeile
 
 `npm run build`, `npm run check` (nicht mehr als die 5 Altfehler), `npm run lint` (nicht mehr als Altbestand),
 Demodaten nicht im Prod-Bundle, Sichtpruefung in `/vorschau` hell+dunkel, Desktop+Mobile.
-RLS-Test gegen die echte DB in einer zurueckgerollten Transaktion (Besitzer / editor / viewer / Fremder) — macht die Hauptsession beim Deploy.
+RLS-Test gegen die echte DB in einer zurueckgerollten Transaktion (Besitzer / editor / viewer / Fremder) — macht die Hauptsession beim Deploy,
+einschliesslich Aufgabe loeschen → wieder einfuegen → `restore_task_history` (Originalstempel zurueck, Papierkorb fuer
+authenticated nicht lesbar, fremder Aufrufer holt nichts).
 
 ## Deploy-Reihenfolge
 

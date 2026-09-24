@@ -14,6 +14,10 @@
 -- aendern, loeschen und „Ist da" setzen oder zuruecknehmen. Die Share-Rolle
 -- viewer liest nur. Wer die Aufgabe sieht, sieht ihre Historie.
 --
+-- Rueckgaengig nach dem Loeschen einer Aufgabe bringt ihren Verlauf mit
+-- zurueck: die Kaskade legt ihn in einen Papierkorb, aus dem ihn
+-- restore_task_history mit den Originalstempeln zurueckholt (Abschnitt 6).
+--
 -- Rein additiv: keine bestehende Tabelle, Policy oder Funktion wird
 -- veraendert. Wiederholbar (if not exists / create or replace / drop if
 -- exists), damit ein abgebrochener Lauf einfach erneut angewendet werden kann.
@@ -150,6 +154,11 @@ revoke all on table public.task_history from anon;
 --           Alles andere an edited_* / resolved_* bleibt, wie es war.
 -- Ohne auth.uid() (Migration, Dienst) bleiben die Werte unangetastet —
 -- so uebernimmt 023 Autor und Zeitpunkt der alten Fortschrittswerte.
+-- Ebenso, wenn nicht die Rolle authenticated schreibt: innerhalb einer
+-- SECURITY-DEFINER-Funktion ist current_user deren Besitzer. So legt
+-- restore_task_history (Abschnitt 6) Eintraege mit ihren Originalstempeln
+-- zurueck. Faelschen kann das kein Client — ueber PostgREST schreibt ein
+-- angemeldeter Nutzer immer als authenticated.
 --
 -- SECURITY INVOKER: der Trigger braucht keine Rechte ueber die des
 -- Aufrufers hinaus.
@@ -163,7 +172,7 @@ as $$
 declare
   v_ich uuid := auth.uid();
 begin
-  if v_ich is null then
+  if v_ich is null or current_user <> 'authenticated' then
     return new;
   end if;
 
@@ -226,3 +235,155 @@ begin
     alter publication supabase_realtime add table public.task_history;
   end if;
 end $$;
+
+-- ------------------------------------------
+-- 6) Papierkorb: der Verlauf ueberlebt das Rueckgaengig einer
+--    geloeschten Aufgabe
+--
+-- Der Client loescht Aufgaben sofort und fuegt sie beim Rueckgaengig neu
+-- ein (tasks.svelte.ts, loescheMitUndo). `on delete cascade` nimmt dabei den
+-- Verlauf mit. Ein Neu-Einfuegen durch den Client stempelte der Trigger aus
+-- Abschnitt 4 um: Autor = wer Rueckgaengig drueckt, Zeit = jetzt, „Ist da"
+-- wieder offen. Darum:
+--   - task_history_in_papierkorb (AFTER DELETE): faellt ein Eintrag weg,
+--     WEIL seine Aufgabe weg ist (Kaskade), legt der Trigger ihn samt
+--     Originalstempeln hier ab. Einzeln geloeschte Eintraege (die Aufgabe
+--     steht noch) nicht — die loescht der Client erst nach Ablauf seines
+--     eigenen Rueckgaengig.
+--   - restore_task_history(ids): holt nach dem Wiedereinfuegen genau die
+--     Eintraege zurueck, die der AUFRUFER selbst per Loeschen hier abgelegt
+--     hat, und nur an Aufgaben, die er bearbeiten darf. Wer eine Aufgabe
+--     loeschen durfte, durfte ihren Verlauf auch lesen — der Papierkorb gibt
+--     niemandem etwas, das er vorher nicht sah.
+-- Was laenger als eine Stunde liegt, raeumen Trigger und RPC weg (das
+-- Rueckgaengig steht acht Sekunden). Ohne angemeldeten Nutzer (Dienst, n8n)
+-- gibt es kein Rueckgaengig und darum auch keinen Papierkorb.
+--
+-- Kein Zugriff fuer Clients: RLS an, keine Policies, keine Tabellenrechte.
+-- ------------------------------------------
+create table if not exists public.task_history_papierkorb (
+  id            uuid primary key,
+  -- Bewusst ohne Fremdschluessel: die Aufgabe ist ja gerade weg.
+  task_id       uuid not null,
+  kind          text not null,
+  body          text not null,
+  created_by    uuid,
+  created_at    timestamptz not null,
+  edited_at     timestamptz,
+  edited_by     uuid,
+  resolved_at   timestamptz,
+  resolved_by   uuid,
+  -- Wer die Aufgabe geloescht hat — nur er darf zurueckholen.
+  geloescht_von uuid not null,
+  geloescht_am  timestamptz not null default now()
+);
+
+comment on table public.task_history_papierkorb is
+  'Verlauf geloeschter Aufgaben fuer das Rueckgaengig (restore_task_history); nach einer Stunde weggeraeumt.';
+
+create index if not exists task_history_papierkorb_task_idx
+  on public.task_history_papierkorb (task_id);
+create index if not exists task_history_papierkorb_alter_idx
+  on public.task_history_papierkorb (geloescht_am);
+
+alter table public.task_history_papierkorb enable row level security;
+revoke all on table public.task_history_papierkorb from anon, authenticated;
+
+-- SECURITY DEFINER: der Loeschende hat auf den Papierkorb keine Rechte.
+create or replace function public.task_history_in_papierkorb()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ich uuid := auth.uid();
+begin
+  if v_ich is null then
+    return null;
+  end if;
+
+  -- Steht die Aufgabe noch, wurde nur dieser Eintrag geloescht. Bei der
+  -- Kaskade ist die Aufgabe in derselben Transaktion schon weg.
+  if exists (select 1 from public.tasks t where t.id = old.task_id) then
+    return null;
+  end if;
+
+  delete from public.task_history_papierkorb
+  where geloescht_am < now() - interval '1 hour';
+
+  insert into public.task_history_papierkorb (
+    id, task_id, kind, body, created_by, created_at,
+    edited_at, edited_by, resolved_at, resolved_by, geloescht_von, geloescht_am
+  )
+  values (
+    old.id, old.task_id, old.kind, old.body, old.created_by, old.created_at,
+    old.edited_at, old.edited_by, old.resolved_at, old.resolved_by, v_ich, now()
+  )
+  on conflict (id) do update set
+    task_id       = excluded.task_id,
+    kind          = excluded.kind,
+    body          = excluded.body,
+    created_by    = excluded.created_by,
+    created_at    = excluded.created_at,
+    edited_at     = excluded.edited_at,
+    edited_by     = excluded.edited_by,
+    resolved_at   = excluded.resolved_at,
+    resolved_by   = excluded.resolved_by,
+    geloescht_von = excluded.geloescht_von,
+    geloescht_am  = excluded.geloescht_am;
+
+  return null;
+end;
+$$;
+
+drop trigger if exists task_history_in_papierkorb on public.task_history;
+create trigger task_history_in_papierkorb
+  after delete on public.task_history
+  for each row execute function public.task_history_in_papierkorb();
+
+-- Liefert die zurueckgeholten Eintraege — der Client setzt sie direkt ein.
+-- Der Stempel-Trigger laesst sie unangetastet (current_user ist hier der
+-- Besitzer der Funktion, nicht authenticated).
+create or replace function public.restore_task_history(p_task_ids uuid[])
+returns setof public.task_history
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ich uuid := auth.uid();
+begin
+  if v_ich is null then
+    raise exception 'restore_task_history: nicht angemeldet' using errcode = '42501';
+  end if;
+
+  delete from public.task_history_papierkorb
+  where geloescht_am < now() - interval '1 hour';
+
+  return query
+  with zurueck as (
+    delete from public.task_history_papierkorb p
+    where p.task_id = any (p_task_ids)
+      and p.geloescht_von = v_ich
+      and public.can_edit_task(p.task_id)
+    returning p.id, p.task_id, p.kind, p.body, p.created_by, p.created_at,
+              p.edited_at, p.edited_by, p.resolved_at, p.resolved_by
+  ),
+  eingefuegt as (
+    insert into public.task_history (
+      id, task_id, kind, body, created_by, created_at,
+      edited_at, edited_by, resolved_at, resolved_by
+    )
+    select z.id, z.task_id, z.kind, z.body, z.created_by, z.created_at,
+           z.edited_at, z.edited_by, z.resolved_at, z.resolved_by
+    from zurueck z
+    on conflict (id) do nothing
+    returning *
+  )
+  select * from eingefuegt;
+end;
+$$;
+
+revoke execute on function public.restore_task_history(uuid[]) from public, anon;
+grant execute on function public.restore_task_history(uuid[]) to authenticated;
