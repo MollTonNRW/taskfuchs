@@ -36,6 +36,7 @@
 
 <script lang="ts">
 	import { createTaskStore } from '$lib/stores/tasks.svelte';
+	import { createHistoryStore } from '$lib/stores/history.svelte';
 	import { onMount, tick, untrack } from 'svelte';
 	import type { SupabaseClient } from '@supabase/supabase-js';
 	import type { Database } from '$lib/types/database';
@@ -109,12 +110,16 @@
 	} = $props();
 
 	const store = createTaskStore();
+	/** Aufgabenhistorie — offene Warte-Eintraege, Verlaeufe, Realtime. */
+	const historie = createHistoryStore();
 
 	// Initialize store in $effect (runs during hydration before onMount)
 	let storeReady = $state(false);
 	$effect(() => {
 		if (supabase && benutzerId && !storeReady) {
 			store.init(supabase, benutzerId, startListen, startAufgaben);
+			// EINE Abfrage: alle offenen Warte-Eintraege (Sanduhr in den Zeilen).
+			historie.init(supabase, benutzerId);
 			// Gespeicherte Listenauswahl gegen die geladenen Listen pruefen
 			nav.hydrate(startListen.map((l: List) => l.id));
 			storeReady = true;
@@ -145,6 +150,16 @@
 				nav.selectTask(null);
 			}
 		});
+	});
+
+	// Aufgabe weg — geloescht, „Erledigte loeschen", Liste geloescht, per
+	// Realtime verschwunden: ihr Verlauf faellt aus dem Zwischenspeicher. In
+	// der Datenbank hat `on delete cascade` ihn schon entfernt.
+	$effect(() => {
+		if (!storeReady) return;
+		const vorhanden: Record<string, true> = {};
+		for (const t of tasks) vorhanden[t.id] = true;
+		untrack(() => historie.verwerfeAufgaben((id) => !!vorhanden[id]));
 	});
 
 	// ==========================================
@@ -470,6 +485,20 @@
 	// den Chip im Detail-Kopf und ist nicht zwingend die gerade offene —
 	// die Suche und die Smart-Ansichten waehlen quer ueber alle Listen.
 	let focusSubtasks = $derived(selectedTask ? subtasksFor(selectedTask.id) : []);
+
+	/**
+	 * Verlauf gibt es nur an Aufgaben oberster Ebene — nicht an
+	 * Unteraufgaben, nicht an Trennern (Spezifikation Aufgabenhistorie).
+	 */
+	let verlaufAufgabeId = $derived(
+		selectedTask && !selectedTask.parent_id && selectedTask.type === 'task' ? selectedTask.id : null
+	);
+	// Den vollstaendigen Verlauf erst laden, wenn das Detail aufgeht.
+	$effect(() => {
+		const id = verlaufAufgabeId;
+		if (!id || !storeReady) return;
+		untrack(() => void historie.ladeVerlauf(id));
+	});
 	let detailListe = $derived(
 		selectedTask ? (lists.find((l: List) => l.id === selectedTask.list_id) ?? null) : null
 	);
@@ -527,6 +556,7 @@
 		const sb = supabase;
 		let listsChannel: any = null;
 		let tasksChannel: any = null;
+		let historyChannel: any = null;
 		/**
 		 * Realtime holt verpasste Ereignisse nicht nach — was waehrend einer
 		 * Unterbrechung geschah, war bisher dauerhaft verloren. Der
@@ -541,6 +571,7 @@
 			resyncUhr = setTimeout(() => {
 				resyncUhr = null;
 				void store.resync();
+				void historie.resync();
 			}, 150);
 		}
 		if (sb) {
@@ -556,7 +587,19 @@
 					store.handleRealtimeTask(payload.eventType, payload.eventType === 'DELETE' ? payload.old : payload.new);
 				})
 				.subscribe(nachVerbindung);
+			// Aufgabenhistorie: DELETE traegt bei aktivem RLS nur die ID.
+			historyChannel = sb
+				.channel('tf-history-realtime')
+				.on('postgres_changes', { event: '*', schema: 'public', table: 'task_history' }, (payload: any) => {
+					historie.handleRealtime(payload.eventType, payload.eventType === 'DELETE' ? payload.old : payload.new);
+				})
+				.subscribe(nachVerbindung);
 		}
+
+		// Verlaufseintraege werden erst nach Ablauf des Rueckgaengig geloescht.
+		// Wer die Seite vorher verlaesst, soll sie trotzdem loswerden.
+		const seiteVerlassen = () => historie.loescheVorgemerkte();
+		window.addEventListener('pagehide', seiteVerlassen);
 
 		// Keyboard shortcuts — genau eine Ctrl+K-Registrierung (die zweite im
 		// Layout ist mit der alten Kopfzeile entfallen, nachgeprueft in T9).
@@ -603,9 +646,12 @@
 
 		return () => {
 			window.removeEventListener('keydown', handleGlobalKeydown);
+			window.removeEventListener('pagehide', seiteVerlassen);
+			historie.loescheVorgemerkte();
 			if (resyncUhr) clearTimeout(resyncUhr);
 			if (sb && listsChannel) sb.removeChannel(listsChannel);
 			if (sb && tasksChannel) sb.removeChannel(tasksChannel);
+			if (sb && historyChannel) sb.removeChannel(historyChannel);
 		};
 	});
 

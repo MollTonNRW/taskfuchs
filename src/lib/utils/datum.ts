@@ -103,6 +103,44 @@ export function formatSeit(wert: string | null | undefined, jetzt: Date = new Da
 }
 
 /**
+ * Zeitangabe eines Verlaufseintrags (Aufgabenhistorie): „gerade eben",
+ * „vor 5 Min.", „heute 14:10", „gestern 14:10", sonst „Sa 20.09." — aus
+ * einem anderen Jahr „Sa 20.09.2025". Nie ISO.
+ *
+ * Anders als `formatSeit` traegt der Tag hier die Uhrzeit: im Verlauf
+ * stehen oft mehrere Eintraege desselben Tages untereinander, „vor 3 Std."
+ * und „vor 4 Std." waeren dort schwer auseinanderzuhalten.
+ *
+ * Die Zeitstempel setzt der Server. Geht die Uhr des Geraets ein wenig
+ * nach, liegt ein frischer Eintrag scheinbar in der Zukunft — bis fuenf
+ * Minuten gilt das noch als „gerade eben".
+ */
+export function formatVerlaufZeit(wert: string | null | undefined, jetzt: Date = new Date()): string {
+	if (!wert) return '';
+	const datum = new Date(wert);
+	if (Number.isNaN(datum.getTime())) return '';
+	const sekunden = Math.floor((jetzt.getTime() - datum.getTime()) / 1000);
+	if (sekunden < 60 && sekunden > -300) return 'gerade eben';
+	if (sekunden >= 60 && sekunden < 3600) return `vor ${Math.floor(sekunden / 60)} Min.`;
+
+	const uhrzeit = `${zz(datum.getHours())}:${zz(datum.getMinutes())}`;
+	const abstand = tagesAbstand(datum, jetzt);
+	if (abstand === 0) return `heute ${uhrzeit}`;
+	if (abstand === -1) return `gestern ${uhrzeit}`;
+	return datum.getFullYear() === jetzt.getFullYear()
+		? tagUndMonat(datum)
+		: `${tagUndMonat(datum)}${datum.getFullYear()}`;
+}
+
+/** Voller Zeitpunkt fuer den Tooltip: „Do 24.09.2026 · 14:10". */
+export function formatZeitpunkt(wert: string | null | undefined): string {
+	if (!wert) return '';
+	const datum = new Date(wert);
+	if (Number.isNaN(datum.getTime())) return '';
+	return `${tagUndMonat(datum)}${datum.getFullYear()} · ${zz(datum.getHours())}:${zz(datum.getMinutes())}`;
+}
+
+/**
  * Faelligkeit fuer das FELD im Detail (Spezifikation Abschnitt 3.3):
  * „Sa 20.09.2026" mit Jahr, die Uhrzeit getrennt fuer die rechte Seite.
  * Anders als in der Zeile gibt es hier kein „heute"/„morgen" — das Feld

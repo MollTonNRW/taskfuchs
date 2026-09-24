@@ -4,6 +4,8 @@ type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
 type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
 type TaskUpdate = Database['public']['Tables']['tasks']['Update'];
+type HistoryInsert = Database['public']['Tables']['task_history']['Insert'];
+type HistoryUpdate = Database['public']['Tables']['task_history']['Update'];
 type Sb = SupabaseClient<Database>;
 
 // ==========================================
@@ -218,6 +220,37 @@ export async function updateShareRole(sb: Sb, shareId: string, role: 'editor' | 
 export async function getProfilesByIds(sb: Sb, userIds: string[]) {
 	if (userIds.length === 0) return { data: [], error: null };
 	return sb.from('profiles').select('*').in('id', userIds);
+}
+
+// ==========================================
+// AUFGABENHISTORIE (task_history, Migration 022)
+// ==========================================
+// Autor, Zeiten und „Ist da" stempelt der Trigger in der Datenbank — der
+// Client schickt nur, was er meint: Art und Text beim Anlegen, den Text beim
+// Bearbeiten, einen gesetzten bzw. leeren `resolved_at` fuer „Ist da" und
+// dessen Ruecknahme. Sortiert wird im Store, nicht in der Abfrage.
+
+/** Alle offenen Warte-Eintraege aller sichtbaren Aufgaben — EINE Abfrage beim App-Start. */
+export async function loadOpenWaits(sb: Sb) {
+	return sb.from('task_history').select('*').eq('kind', 'wartet').is('resolved_at', null);
+}
+
+/** Der vollstaendige Verlauf einer oder mehrerer Aufgaben. */
+export async function loadHistory(sb: Sb, taskIds: string[]) {
+	if (taskIds.length === 1) return sb.from('task_history').select('*').eq('task_id', taskIds[0]);
+	return sb.from('task_history').select('*').in('task_id', taskIds);
+}
+
+export async function insertHistory(sb: Sb, row: HistoryInsert) {
+	return sb.from('task_history').insert(row).select().single();
+}
+
+export async function updateHistory(sb: Sb, id: string, fields: HistoryUpdate) {
+	return sb.from('task_history').update(fields).eq('id', id).select().single();
+}
+
+export async function deleteHistory(sb: Sb, id: string) {
+	return sb.from('task_history').delete().eq('id', id);
 }
 
 // ==========================================

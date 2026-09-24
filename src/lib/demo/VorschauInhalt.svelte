@@ -36,12 +36,15 @@
 	 *   quickadd=<text> · toast=geloescht|erledigt · confirm=liste
 	 */
 
-	const attrappe = baueAttrappe({
-		lists: DEMO_LISTEN,
-		tasks: DEMO_AUFGABEN,
-		list_shares: DEMO_FREIGABEN,
-		profiles: DEMO_PROFILE
-	});
+	const attrappe = baueAttrappe(
+		{
+			lists: DEMO_LISTEN,
+			tasks: DEMO_AUFGABEN,
+			list_shares: DEMO_FREIGABEN,
+			profiles: DEMO_PROFILE
+		},
+		DEMO_ICH.id
+	);
 
 	const mitnutzer = baueMitnutzer(
 		DEMO_LISTEN,

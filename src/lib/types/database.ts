@@ -172,6 +172,54 @@ export interface Database {
 					}
 				];
 			};
+			/** Aufgabenhistorie (Migration 022) — ersetzt tasks.progress. */
+			task_history: {
+				Row: {
+					id: string;
+					task_id: string;
+					kind: 'stand' | 'wartet';
+					body: string;
+					created_by: string | null;
+					created_at: string;
+					edited_at: string | null;
+					edited_by: string | null;
+					resolved_at: string | null;
+					resolved_by: string | null;
+				};
+				Insert: {
+					id?: string;
+					task_id: string;
+					kind: 'stand' | 'wartet';
+					body: string;
+					created_by?: string | null;
+					created_at?: string;
+					edited_at?: string | null;
+					edited_by?: string | null;
+					resolved_at?: string | null;
+					resolved_by?: string | null;
+				};
+				Update: {
+					id?: string;
+					task_id?: string;
+					kind?: 'stand' | 'wartet';
+					body?: string;
+					created_by?: string | null;
+					created_at?: string;
+					edited_at?: string | null;
+					edited_by?: string | null;
+					resolved_at?: string | null;
+					resolved_by?: string | null;
+				};
+				Relationships: [
+					{
+						foreignKeyName: 'task_history_task_id_fkey';
+						columns: ['task_id'];
+						isOneToOne: false;
+						referencedRelation: 'tasks';
+						referencedColumns: ['id'];
+					}
+				];
+			};
 			profiles: {
 				Row: {
 					id: string;

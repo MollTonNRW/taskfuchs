@@ -11,9 +11,14 @@
  *
  * Abgedeckt ist genau der Ausschnitt, den `supabase-crud.ts` und
  * `useShareDialog.svelte.ts` benutzen: `select/insert/update/delete` mit
- * `eq`, `in` und `order`, dazu `rpc('lookup_user_by_email')`, `auth.signOut`
- * und die beiden Realtime-Kanaele. Mehr braucht die App nicht, und mehr soll
- * hier auch nicht entstehen.
+ * `eq`, `in`, `is` und `order`, dazu `rpc('lookup_user_by_email')`,
+ * `auth.signOut` und die Realtime-Kanaele. Mehr braucht die App nicht, und
+ * mehr soll hier auch nicht entstehen.
+ *
+ * Fuer `task_history` spielt die Attrappe zusaetzlich den Stempel-Trigger
+ * aus Migration 022 nach (Autor, Zeiten, „Ist da"): der Client schickt wie
+ * gegen die echte Datenbank nur Art und Text bzw. `resolved_at` — ohne den
+ * Nachbau stuende in der Vorschau kein Name am „Ist da".
  *
  * Diese Datei wird ausschliesslich von `src/routes/vorschau/` geladen, und
  * diese Route wirft ausserhalb des Dev-Modus `error(404)`.
@@ -22,7 +27,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database';
 
 type Zeile = Record<string, unknown>;
-type Tabelle = 'lists' | 'tasks' | 'list_shares' | 'profiles';
+type Tabelle = 'lists' | 'tasks' | 'list_shares' | 'profiles' | 'task_history';
 type Antwort<T> = { data: T; error: null };
 
 /** Fortlaufende, gut lesbare IDs — eine UUID darf in der Vorschau nicht auftauchen. */
@@ -34,6 +39,15 @@ function neueId(tabelle: Tabelle): string {
 /** Vorgaben der Tabelle fuer eine frisch eingefuegte Zeile. */
 function vervollstaendige(tabelle: Tabelle, eingabe: Zeile): Zeile {
 	const jetzt = new Date().toISOString();
+	if (tabelle === 'task_history') {
+		// Keine Spalte `updated_at` — die Historie fuehrt `edited_at`.
+		return {
+			created_by: null, edited_at: null, edited_by: null, resolved_at: null, resolved_by: null,
+			...eingabe,
+			id: eingabe.id ?? neueId(tabelle),
+			created_at: jetzt
+		};
+	}
 	const basis: Zeile = { id: eingabe.id ?? neueId(tabelle), created_at: jetzt, updated_at: jetzt };
 	if (tabelle === 'lists') {
 		return { visible: true, version: 1, icon: '📋', title: 'Neue Liste', position: 0, ...basis, ...eingabe };
@@ -57,6 +71,39 @@ function vervollstaendige(tabelle: Tabelle, eingabe: Zeile): Zeile {
 type Modus = 'select' | 'insert' | 'update' | 'delete';
 
 /**
+ * Nachbau des Triggers `task_history_stempeln` (Migration 022) fuer einen
+ * angemeldeten Nutzer. INSERT: Autor und Zeitpunkt, nichts eingeloest.
+ * UPDATE: Aufgabe, Art, Autor und Zeitpunkt bleiben; geaenderter Text
+ * stempelt „bearbeitet"; `resolved_at` von leer auf gesetzt stempelt
+ * „Ist da", zurueck auf leer leert beides.
+ */
+function stempleVerlauf(ich: string, neu: Zeile, alt?: Zeile): Zeile {
+	const jetzt = new Date().toISOString();
+	if (!alt) {
+		return { ...neu, created_by: ich, created_at: jetzt, edited_at: null, edited_by: null, resolved_at: null, resolved_by: null };
+	}
+	const z: Zeile = { ...neu, task_id: alt.task_id, kind: alt.kind, created_by: alt.created_by, created_at: alt.created_at };
+	if (neu.body !== alt.body) {
+		z.edited_at = jetzt;
+		z.edited_by = ich;
+	} else {
+		z.edited_at = alt.edited_at;
+		z.edited_by = alt.edited_by;
+	}
+	if (!neu.resolved_at) {
+		z.resolved_at = null;
+		z.resolved_by = null;
+	} else if (!alt.resolved_at) {
+		z.resolved_at = jetzt;
+		z.resolved_by = ich;
+	} else {
+		z.resolved_at = alt.resolved_at;
+		z.resolved_by = alt.resolved_by;
+	}
+	return z;
+}
+
+/**
  * Ein Abfrageschritt. Wie beim echten Client sammelt er Filter ein und
  * fuehrt erst beim `await` aus (`then` macht ihn zum Thenable).
  */
@@ -67,12 +114,15 @@ class Abfrage<T> implements PromiseLike<Antwort<T>> {
 	#neu: Zeile[];
 	#filter: ((z: Zeile) => boolean)[] = [];
 	#sortierung: string | null = null;
+	/** Nur `task_history`: angemeldeter Nutzer fuer den Trigger-Nachbau. */
+	#verlaufVon: string | null;
 
-	constructor(bestand: Zeile[], modus: Modus, felder: Zeile = {}, neu: Zeile[] = []) {
+	constructor(bestand: Zeile[], modus: Modus, felder: Zeile = {}, neu: Zeile[] = [], verlaufVon: string | null = null) {
 		this.#bestand = bestand;
 		this.#modus = modus;
 		this.#felder = felder;
 		this.#neu = neu;
+		this.#verlaufVon = verlaufVon;
 	}
 
 	eq(spalte: string, wert: unknown): this {
@@ -83,6 +133,12 @@ class Abfrage<T> implements PromiseLike<Antwort<T>> {
 	in(spalte: string, werte: unknown[]): this {
 		const menge = new Set(werte);
 		this.#filter.push((z) => menge.has(z[spalte]));
+		return this;
+	}
+
+	/** `is('resolved_at', null)` — fehlende Spalte zaehlt wie in SQL als NULL. */
+	is(spalte: string, wert: null | boolean): this {
+		this.#filter.push((z) => (z[spalte] ?? null) === wert);
 		return this;
 	}
 
@@ -106,14 +162,30 @@ class Abfrage<T> implements PromiseLike<Antwort<T>> {
 		return this.#bestand.filter((z) => this.#filter.every((f) => f(z)));
 	}
 
+	/**
+	 * Zeilen der Historie gehen als KOPIE hinaus: der Store haelt sie, und ein
+	 * spaeteres `Object.assign` hier drin veraenderte sonst sein Objekt an
+	 * der Reaktivitaet vorbei. Die uebrigen Tabellen bleiben, wie sie waren.
+	 */
 	#ausfuehren(): Zeile[] {
+		const zeilen = this.#ausfuehrenRoh();
+		return this.#verlaufVon ? zeilen.map((z) => ({ ...z })) : zeilen;
+	}
+
+	#ausfuehrenRoh(): Zeile[] {
 		if (this.#modus === 'insert') {
-			this.#bestand.push(...this.#neu);
-			return this.#neu;
+			const ich = this.#verlaufVon;
+			const neu = ich ? this.#neu.map((z) => stempleVerlauf(ich, z)) : this.#neu;
+			this.#bestand.push(...neu);
+			return neu;
 		}
 		if (this.#modus === 'update') {
 			const treffer = this.#passend();
-			for (const z of treffer) Object.assign(z, this.#felder, { updated_at: new Date().toISOString() });
+			const ich = this.#verlaufVon;
+			for (const z of treffer) {
+				if (ich) Object.assign(z, stempleVerlauf(ich, { ...z, ...this.#felder }, { ...z }));
+				else Object.assign(z, this.#felder, { updated_at: new Date().toISOString() });
+			}
 			return treffer;
 		}
 		if (this.#modus === 'delete') {
@@ -158,6 +230,7 @@ export type DemoBestand = {
 	tasks: Zeile[];
 	list_shares: Zeile[];
 	profiles: Zeile[];
+	task_history?: Zeile[];
 };
 
 /**
@@ -165,28 +238,45 @@ export type DemoBestand = {
  * `fixtures.ts` bleibt unberuehrt, ein Neuladen der Seite stellt den
  * Ausgangszustand wieder her.
  */
-export function baueAttrappe(start: DemoBestand): SupabaseClient<Database> {
+export function baueAttrappe(start: DemoBestand, ich: string): SupabaseClient<Database> {
 	const bestand: Record<Tabelle, Zeile[]> = {
 		lists: start.lists.map((z) => ({ ...z })),
 		tasks: start.tasks.map((z) => ({ ...z })),
 		list_shares: start.list_shares.map((z) => ({ ...z })),
-		profiles: start.profiles.map((z) => ({ ...z }))
+		profiles: start.profiles.map((z) => ({ ...z })),
+		task_history: (start.task_history ?? []).map((z) => ({ ...z }))
 	};
+
+	/**
+	 * `on delete cascade` aus Migration 022: faellt eine Aufgabe weg, geht ihr
+	 * Verlauf mit. Laeuft vor jeder Abfrage — die Attrappe kennt keine
+	 * Fremdschluessel, und ein Verlauf ohne Aufgabe tauchte sonst beim
+	 * Rueckgaengig des Loeschens wieder auf.
+	 */
+	function kaskade() {
+		const aufgaben = new Set(bestand.tasks.map((t) => t.id));
+		for (let i = bestand.task_history.length - 1; i >= 0; i--) {
+			if (!aufgaben.has(bestand.task_history[i].task_id)) bestand.task_history.splice(i, 1);
+		}
+	}
 
 	const attrappe = {
 		from(tabelle: Tabelle) {
 			const zeilen = bestand[tabelle] ?? [];
+			const verlaufVon = tabelle === 'task_history' ? ich : null;
+			if (verlaufVon) kaskade();
 			return {
-				select: () => new Abfrage<Zeile[]>(zeilen, 'select'),
+				select: () => new Abfrage<Zeile[]>(zeilen, 'select', {}, [], verlaufVon),
 				insert: (eingabe: Zeile | Zeile[]) =>
 					new Abfrage<Zeile[]>(
 						zeilen,
 						'insert',
 						{},
-						(Array.isArray(eingabe) ? eingabe : [eingabe]).map((z) => vervollstaendige(tabelle, z))
+						(Array.isArray(eingabe) ? eingabe : [eingabe]).map((z) => vervollstaendige(tabelle, z)),
+						verlaufVon
 					),
-				update: (felder: Zeile) => new Abfrage<Zeile[]>(zeilen, 'update', felder),
-				delete: () => new Abfrage<Zeile[]>(zeilen, 'delete')
+				update: (felder: Zeile) => new Abfrage<Zeile[]>(zeilen, 'update', felder, [], verlaufVon),
+				delete: () => new Abfrage<Zeile[]>(zeilen, 'delete', {}, [], verlaufVon)
 			};
 		},
 
