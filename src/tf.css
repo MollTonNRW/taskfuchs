@@ -2026,6 +2026,262 @@
 }
 
 /* ---------------------------------------------------------------------
+   Verlauf (Aufgabenhistorie) — direkt unter der Notiz.
+   Oben die Eingabe: kleines Segment „Stand | Wartet auf", darunter Feld
+   und „Eintragen". Darunter die Eintraege, neueste zuerst. Kein
+   Leer-Text: ohne Eintraege steht nur die Eingabe.
+   `.tight` (Sheet) hebt alle Ziele auf 40/44 px und die Schrift der
+   Felder auf 16 px — darunter zoomt iOS beim Fokus.
+   --------------------------------------------------------------------- */
+.tf-btn:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+
+.tf-hist-neu {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+}
+.tf-seg.klein {
+	display: inline-flex;
+}
+.tf-seg.klein .tf-segopt {
+	flex: none;
+	height: 28px;
+	padding: 0 12px;
+	gap: 5px;
+}
+.tf-grp.tight .tf-seg.klein .tf-segopt {
+	height: 40px;
+	padding: 0 16px;
+	font-size: 14px;
+}
+.tf-hist-neu .zeile {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	width: 100%;
+}
+.tf-hist-neu .tf-btn {
+	height: 40px;
+}
+.tf-grp.tight .tf-hist-neu .tf-btn {
+	height: 44px;
+}
+.tf-hist-feld {
+	display: block;
+	flex: 1;
+	width: 100%;
+	min-width: 0;
+	min-height: 40px;
+	border-radius: var(--r-row);
+	background: var(--surface);
+	border: 1px solid var(--line);
+	padding: 9px 12px;
+	font-size: 14px;
+	line-height: 20px;
+	color: var(--ink);
+	resize: none;
+	outline: none;
+	overflow: hidden;
+	caret-color: var(--accent);
+}
+.tf-hist-feld:focus {
+	border-color: var(--accent);
+}
+.tf-grp.tight .tf-hist-feld {
+	min-height: 44px;
+	padding: 10px 12px;
+	font-size: 16px;
+	line-height: 22px;
+}
+
+.tf-hist-liste {
+	list-style: none;
+	margin: 14px 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+/* Nur Lesen: keine Eingabe darueber, die Liste steht direkt unter dem Label. */
+.tf-lbl + .tf-hist-liste {
+	margin-top: 0;
+}
+.tf-hist {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+}
+.tf-hist > .tf-avatar {
+	width: 22px;
+	height: 22px;
+	font-size: 11px;
+	margin-top: 1px;
+}
+.tf-hist.geloest > .tf-avatar {
+	opacity: 0.55;
+}
+.tf-hist .inhalt {
+	flex: 1;
+	min-width: 0;
+}
+.tf-hist .kopf {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 24px;
+	min-width: 0;
+	font-size: 12.5px;
+	line-height: 16px;
+	color: var(--ink-3);
+}
+.tf-hist .wer {
+	flex: 0 1 auto;
+	min-width: 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--ink);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.tf-hist .wann,
+.tf-hist .bearb {
+	flex: none;
+	white-space: nowrap;
+}
+/* Bearbeiten / Loeschen: dezent, am Zeiger erst bei Hover oder Fokus. */
+.tf-hist .akts {
+	margin-left: auto;
+	display: flex;
+	flex: none;
+	gap: 2px;
+}
+.tf-hist .akt {
+	width: 28px;
+	height: 28px;
+	margin: -2px 0;
+	border-radius: 8px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--ink-3);
+	opacity: 0;
+}
+.tf-hist:hover .akt,
+.tf-hist:focus-within .akt {
+	opacity: 1;
+}
+.tf-hist .akt:hover {
+	background: var(--surface-2);
+	color: var(--ink);
+}
+.tf-hist .akt.loe:hover {
+	color: var(--high);
+}
+/* Touch ohne Hover (Tablet quer im Spaltenlayout): immer sichtbar. */
+@media (hover: none) {
+	.tf-hist .akt {
+		opacity: 1;
+	}
+}
+.tf-grp.tight .tf-hist .akts {
+	gap: 0;
+	margin-right: -10px;
+}
+.tf-grp.tight .tf-hist .akt {
+	width: 44px;
+	height: 44px;
+	margin: -10px 0;
+	opacity: 1;
+}
+
+.tf-hist .txt {
+	margin: 2px 0 0;
+	font-size: 14px;
+	line-height: 20px;
+	color: var(--ink);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.tf-grp.tight .tf-hist .txt {
+	font-size: 15px;
+	line-height: 21px;
+}
+.tf-hist .txt .uhr {
+	display: inline-block;
+	vertical-align: -2px;
+	margin-right: 4px;
+	color: var(--ink-2);
+}
+.tf-hist .praefix {
+	font-weight: 600;
+	color: var(--ink-2);
+}
+.tf-hist.geloest .txt {
+	color: var(--ink-2);
+}
+.tf-hist .tf-hist-feld {
+	margin-top: 4px;
+}
+
+.tf-hist .istda {
+	margin-top: 8px;
+	height: 30px;
+	padding: 0 10px 0 8px;
+	font-size: 13px;
+	gap: 5px;
+}
+.tf-grp.tight .tf-hist .istda {
+	height: 40px;
+	padding: 0 14px 0 12px;
+	font-size: 14px;
+}
+.tf-hist .geloest-zeile {
+	margin-top: 4px;
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 4px 6px;
+	font-size: 12.5px;
+	line-height: 18px;
+	color: var(--ink-3);
+}
+.tf-hist .zurueck {
+	padding: 4px 4px;
+	margin: -4px 0;
+	border-radius: 6px;
+	color: var(--ink-2);
+	font-weight: 500;
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.tf-hist .zurueck:hover {
+	color: var(--ink);
+}
+.tf-grp.tight .tf-hist .zurueck {
+	padding: 13px 8px;
+	margin: -13px -8px -13px 0;
+	font-size: 13px;
+}
+.tf-hist .bearb-akts {
+	display: flex;
+	gap: 6px;
+	margin-top: 6px;
+}
+.tf-hist .bearb-akts .tf-btn {
+	height: 30px;
+	font-size: 13px;
+}
+.tf-grp.tight .tf-hist .bearb-akts .tf-btn {
+	height: 40px;
+	font-size: 14px;
+}
+
+/* ---------------------------------------------------------------------
    Aktionsleiste: Anpinnen · Verschieben · Loeschen
    --------------------------------------------------------------------- */
 .tf-acts {

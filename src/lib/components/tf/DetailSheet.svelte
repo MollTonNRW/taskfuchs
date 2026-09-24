@@ -3,6 +3,7 @@
 	import type { Priority, Timeframe } from '$lib/constants';
 	import type { Zeigerpunkt } from '$lib/composables/tf/useContextMenus.svelte';
 	import TaskDetail from './TaskDetail.svelte';
+	import type { VerlaufAnbindung } from './TaskHistory.svelte';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
 	type List = Database['public']['Tables']['lists']['Row'];
@@ -35,7 +36,8 @@
 		onUnterUmbenennen,
 		onUnterLoeschen,
 		onUnterNeu,
-		onMenue
+		onMenue,
+		verlauf = null
 	}: {
 		task: Task;
 		subtasks?: Task[];
@@ -56,6 +58,7 @@
 		onUnterLoeschen: (id: string) => void;
 		onUnterNeu: (parentId: string, text: string) => void;
 		onMenue?: (e: Zeigerpunkt, task: Task) => void;
+		verlauf?: VerlaufAnbindung | null;
 	} = $props();
 </script>
 
@@ -85,5 +88,6 @@
 		{onUnterLoeschen}
 		{onUnterNeu}
 		{onMenue}
+		{verlauf}
 	/>
 </div>

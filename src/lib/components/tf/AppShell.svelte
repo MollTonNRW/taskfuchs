@@ -44,7 +44,8 @@
 	import { nav, type MobileTab } from '$lib/stores/tf/navigation.svelte';
 	import { theme } from '$lib/stores/tf/theme.svelte';
 	import { getProfilesByIds } from '$lib/services/supabase-crud';
-	import { baueAusProfil, type Mitnutzer } from '$lib/utils/mitnutzer';
+	import { baueAusProfil, initialeAus, type Mitnutzer } from '$lib/utils/mitnutzer';
+	import type { VerlaufAnbindung } from '$lib/components/tf/TaskHistory.svelte';
 
 	import Icon from '$lib/components/tf/Icon.svelte';
 	import NavColumn from '$lib/components/tf/NavColumn.svelte';
@@ -293,6 +294,16 @@
 				fehlend.add(id);
 			}
 		}
+		// Autoren im Verlauf: auch wer eine Liste inzwischen verlassen hat,
+		// behaelt dort seinen Namen.
+		const beteiligteIds: Record<string, true> = {};
+		for (const leute of Object.values(bekannt)) for (const m of leute) beteiligteIds[m.id] = true;
+		for (const e of historie.eintraege) {
+			for (const id of [e.created_by, e.edited_by, e.resolved_by]) {
+				if (!id || id === me || angefragteIds.has(id) || beteiligteIds[id]) continue;
+				fehlend.add(id);
+			}
+		}
 		if (fehlend.size === 0) return;
 		for (const id of fehlend) angefragteIds.add(id);
 		getProfilesByIds(sb, [...fehlend]).then(({ data: profile }) => {
@@ -502,6 +513,64 @@
 	let detailListe = $derived(
 		selectedTask ? (lists.find((l: List) => l.id === selectedTask.list_id) ?? null) : null
 	);
+
+	// ==========================================
+	// AUFGABENHISTORIE IM DETAIL
+	// ==========================================
+	/**
+	 * Darf der angemeldete Nutzer diese Aufgabe bearbeiten — und damit ihren
+	 * Verlauf schreiben?
+	 *
+	 * Die App prueft Schreibrechte sonst nirgends selbst; das entscheidet RLS.
+	 * Die einzige Rollenquelle im Client ist `list_shares.role`, aufbereitet
+	 * durch `baueMitnutzer` (`Mitnutzer.rolle`, der eigene Eintrag traegt
+	 * `ich`). Dieselbe Quelle liest der Teilen-Dialog. Die Regel spiegelt
+	 * `can_edit_task` aus Migration 022: Ersteller, Listenbesitzer oder Rolle
+	 * owner/editor. Ist die eigene Rolle unbekannt, bleibt die Eingabe offen —
+	 * die Datenbank lehnt dann ab, und der Store rollt mit Fehler-Toast zurueck.
+	 */
+	function darfSchreiben(t: Task): boolean {
+		if (!benutzerId) return false;
+		if (t.user_id === benutzerId) return true;
+		if (lists.find((l: List) => l.id === t.list_id)?.user_id === benutzerId) return true;
+		const ich = (mitnutzer[t.list_id] ?? []).find((m: Mitnutzer) => m.ich);
+		return !ich || ich.rolle === 'owner' || ich.rolle === 'editor';
+	}
+
+	/**
+	 * Name, Initiale und Farbe zu einer Benutzer-ID — dieselbe Quelle wie
+	 * Herkunft und „gepinnt von": Beteiligte der Liste, sonst nachgeladene
+	 * Profile. Nie eine UUID; ohne jede Spur steht „Mitnutzer" mit „?"
+	 * (Konto geloescht: `created_by` ist dann leer).
+	 */
+	function personFuer(listId: string, id: string | null): Mitnutzer {
+		if (id) {
+			const bekannt = (mitnutzer[listId] ?? []).find((m: Mitnutzer) => m.id === id) ?? fremdeProfile[id];
+			if (bekannt) return bekannt;
+			if (id === benutzerId) {
+				return { id, name: benutzerName, initialen: initialeAus(benutzerName), farbe: 'var(--accent)', rolle: 'owner', ich: true };
+			}
+		}
+		return { id: id ?? '', name: 'Mitnutzer', initialen: '?', farbe: 'var(--ink-3)', rolle: 'viewer', ich: false };
+	}
+
+	/** Was Spalte und Sheet an den Verlauf der ausgewaehlten Aufgabe reichen. */
+	let verlaufAnbindung = $derived.by<VerlaufAnbindung | null>(() => {
+		const t = selectedTask;
+		if (!t || !verlaufAufgabeId) return null;
+		const taskId = t.id;
+		const listId = t.list_id;
+		return {
+			eintraege: historie.verlauf(taskId),
+			darfSchreiben: darfSchreiben(t),
+			person: (id: string | null) => personFuer(listId, id),
+			onNeu: (art, text) => historie.add(taskId, art, text),
+			onAendern: (id, text) => void historie.edit(id, text),
+			onLoeschen: (id) => historie.remove(id),
+			onIstDa: (id) => void historie.resolve(id),
+			onIstDaZurueck: (id) => void historie.unresolve(id)
+		};
+	});
 
 	/** Die gemeinsamen Rueckrufe des Details — Spalte und Sheet teilen sie. */
 	const detailAktionen = {
@@ -1208,6 +1277,7 @@
 					subtasks={focusSubtasks}
 					liste={detailListe}
 					listen={lists}
+					verlauf={verlaufAnbindung}
 					{...detailAktionen}
 				/>
 			{:else}
@@ -1229,6 +1299,7 @@
 		liste={detailListe}
 		listen={lists}
 		onMenue={handleContextMenu}
+		verlauf={verlaufAnbindung}
 		{...detailAktionen}
 	/>
 {/if}

@@ -3,6 +3,7 @@
 	import type { Database } from '$lib/types/database';
 	import Icon from './Icon.svelte';
 	import DatePicker from './DatePicker.svelte';
+	import TaskHistory, { type VerlaufAnbindung } from './TaskHistory.svelte';
 	import {
 		priorityLabels,
 		priorityOrder,
@@ -53,7 +54,8 @@
 		onUnterUmbenennen,
 		onUnterLoeschen,
 		onUnterNeu,
-		onMenue
+		onMenue,
+		verlauf = null
 	}: {
 		task: Task;
 		subtasks?: Task[];
@@ -78,6 +80,11 @@
 		onUnterNeu: (parentId: string, text: string) => void;
 		/** ⋮ im Sheet-Kopf; ohne Angabe entfaellt der Knopf. */
 		onMenue?: (e: Zeigerpunkt, task: Task) => void;
+		/**
+		 * Aufgabenhistorie. `null` bei Unteraufgaben und Trennern — die
+		 * Historie gibt es nur an Aufgaben oberster Ebene.
+		 */
+		verlauf?: VerlaufAnbindung | null;
 	} = $props();
 
 	const sheet = $derived(variante === 'sheet');
@@ -553,6 +560,10 @@
 	{/if}
 	{@render gruppeUnteraufgaben()}
 	{@render gruppeNotiz()}
+	<!-- Verlauf direkt unter der Notiz (Spezifikation Aufgabenhistorie) -->
+	{#if verlauf}
+		<TaskHistory aufgabeId={task.id} {sheet} {...verlauf} />
+	{/if}
 </div>
 
 <!--

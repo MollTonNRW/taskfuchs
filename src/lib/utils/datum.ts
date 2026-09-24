@@ -114,9 +114,16 @@ export function formatSeit(wert: string | null | undefined, jetzt: Date = new Da
  * Die Zeitstempel setzt der Server. Geht die Uhr des Geraets ein wenig
  * nach, liegt ein frischer Eintrag scheinbar in der Zukunft — bis fuenf
  * Minuten gilt das noch als „gerade eben".
+ *
+ * `bezug` darf auch Millisekunden sein — so kommt eine Komponente mit einem
+ * tickenden Zahlenwert aus.
  */
-export function formatVerlaufZeit(wert: string | null | undefined, jetzt: Date = new Date()): string {
+export function formatVerlaufZeit(
+	wert: string | null | undefined,
+	bezug: Date | number = new Date()
+): string {
 	if (!wert) return '';
+	const jetzt = typeof bezug === 'number' ? new Date(bezug) : bezug;
 	const datum = new Date(wert);
 	if (Number.isNaN(datum.getTime())) return '';
 	const sekunden = Math.floor((jetzt.getTime() - datum.getTime()) / 1000);

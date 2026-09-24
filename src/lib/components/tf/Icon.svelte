@@ -84,7 +84,14 @@
 		abmelden: [
 			{ t: 'path', d: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4' },
 			{ t: 'path', d: 'M10 17l5-5-5-5M15 12H3' }
-		]
+		],
+		/**
+		 * Sanduhr — „Wartet auf" (Aufgabenhistorie). Steht ebenfalls NICHT in
+		 * Abschnitt 8: die Spezifikation kennt die Historie nicht. Zwei
+		 * Kammern aus Halbkreisen zwischen Deckel und Boden, die sich in der
+		 * Mitte beruehren; Form und Strichstaerke folgen dem Set.
+		 */
+		sanduhr: [{ t: 'path', d: 'M6 3h12M6 21h12M7 3v4a5 5 0 0 0 10 0V3M7 21v-4a5 5 0 0 1 10 0v4' }]
 	} as const satisfies Record<string, readonly Shape[]>;
 
 	export type IconName = keyof typeof ICONS;
