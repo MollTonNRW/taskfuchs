@@ -42,7 +42,7 @@ Tailwind und daisyUI tragen **nur noch** `/auth/login` und `/auth/register`. Die
 │   └── deploy.yml                  # GitHub Actions → Cloudflare Pages
 ├── twa/                            # TWA Build (Gradle, Keystore-Referenz, APK)
 ├── prototype/                      # HTML-Prototyp-Snapshots (historisch)
-├── supabase/migrations/            # DB Migrations (chronologisch, 001–020)
+├── supabase/migrations/            # DB Migrations (chronologisch, 001–023; 021 = G2-Kopplung)
 ├── static/
 │   ├── fonts/                      # Instrument Sans, self-hosted woff2
 │   ├── icons/                      # PWA Icons (48–512px)
@@ -57,11 +57,11 @@ Tailwind und daisyUI tragen **nur noch** `/auth/login` und `/auth/register`. Die
 │   ├── hooks.client.ts
 │   ├── service-worker.ts           # Basic Service Worker (Cache)
 │   ├── lib/
-│   │   ├── components/tf/          # Die Oberfläche (27 Svelte-Dateien)
+│   │   ├── components/tf/          # Die Oberfläche (28 Svelte-Dateien)
 │   │   ├── composables/tf/         # Menüs, Teilen-Dialog, Sortierung
 │   │   ├── stores/tf/              # Navigation, Theme, Tastatur-Attrappe
-│   │   ├── stores/                 # tasks.svelte.ts, toast.ts, filters.ts
-│   │   ├── utils/                  # datum.ts, mitnutzer.ts, suche.ts
+│   │   ├── stores/                 # tasks.svelte.ts, history.svelte.ts, toast.ts, filters.ts
+│   │   ├── utils/                  # datum.ts, mitnutzer.ts, suche.ts, verlauf.ts
 │   │   ├── services/               # supabase-crud.ts
 │   │   ├── actions/                # touchDrag.ts
 │   │   ├── demo/                   # Fixtures + Supabase-Attrappe + Vorschau-Inhalt
@@ -92,7 +92,7 @@ Es gibt genau **eine** Oberfläche. Kein Ansichts-Umschalter, kein zweiter Kompo
 | Einstiegsseite | `src/routes/app/+page.svelte` (31 Zeilen — mountet nur die Shell) |
 | Shell | `src/lib/components/tf/AppShell.svelte` (~1270 Zeilen) |
 | Wurzelelement | `src/lib/components/tf/TfRoot.svelte` (Theme-Klasse, Statusleistenfarbe) |
-| Komponenten | `src/lib/components/tf/` (27 Stück) |
+| Komponenten | `src/lib/components/tf/` (28 Stück) |
 | Composables | `src/lib/composables/tf/` (3 Stück) |
 | Stores | `src/lib/stores/tf/` + `src/lib/stores/tasks.svelte.ts` |
 | Styles | `src/tf.css` — ein Token-Set, hell und dunkel |
@@ -108,7 +108,7 @@ Es gibt genau **eine** Oberfläche. Kein Ansichts-Umschalter, kein zweiter Kompo
 
 1. **Navigation** — Marke, Suchzeile (⌘K), Smart-Ansichten „Angepinnt" und „Dringend", Listen mit Emoji/Avataren/Zähler, „Neue Liste", Fußzeile (Avatar, Mond, Zahnrad).
 2. **Liste** — Kopf (64 px: Name, Zähler, Geteilt-Pille, Sortier-Knopf, ⋮), Quick-Add als erste Zeile, Aufgabenzeilen, Erledigt-Balken. **Alle Overlays gehören in diese Spalte:** Teilen-Popover (`top:58px; right:20px`), Aufgabenmenü (`right:24px`), Toast (mittig unten). `ContextMenu` und `ShareDialog` klemmen sich deshalb gegen `.tf-main`, nicht gegen das Fenster.
-3. **Detail** — Titel, Priorität (Segment), Zeitrahmen (Chips), Fällig, Unteraufgaben mit Fortschritt, Notiz, unten Anpinnen/Verschieben/Löschen.
+3. **Detail** — Titel, Priorität (Segment), Zeitrahmen (Chips), Fällig, Unteraufgaben mit Fortschritt, Notiz, Verlauf (Aufgabenhistorie), unten Anpinnen/Verschieben/Löschen.
 
 **Mobil (unter 900 px): Tab-Leiste statt Spalten.** Drei Tabs — Listen · Angepinnt · Suche. „Liste geöffnet" ist ein Unterschirm des Tabs „Listen"; das Aufgabendetail ist ein Bottom-Sheet. Toast liegt oberhalb der Tab-Leiste.
 
@@ -148,7 +148,8 @@ Wer alten Code oder alte Dokumentation liest, sucht sonst danach:
 | Komponente | Zeilen | Beschreibung |
 |-----------|--------|-------------|
 | `AppShell.svelte` | ~1270 | Die ganze Oberfläche: drei Spalten bzw. Tab-Leiste, Store-Anbindung, Realtime, Tastatur, Overlay-Regie, Vorschau-Regie |
-| `TaskDetail.svelte` | ~595 | Detailspalte und Sheet-Inhalt: Priorität, Zeitrahmen, Fällig, Unteraufgaben, Notiz, Aktionsleiste |
+| `TaskDetail.svelte` | ~605 | Detailspalte und Sheet-Inhalt: Priorität, Zeitrahmen, Fällig, Unteraufgaben, Notiz, Verlauf, Aktionsleiste |
+| `TaskHistory.svelte` | ~350 | Gruppe „Verlauf": Eingabe (Stand · Wartet auf), Einträge neueste zuerst, „Ist da", Bearbeiten, Löschen mit Undo; Betrachter nur lesen |
 | `TaskRow.svelte` | ~345 | Aufgabenzeile: Prioritätsbalken, 44-px-Checkbox, Titelzeile mit Chips/Pin, Metazeile, ⋮ |
 | `TaskList.svelte` | ~315 | Listenkörper: Quick-Add, Zeilen, ausgeklappte Unteraufgaben, Erledigt-Bereich, Drag & Drop |
 | `NavColumn.svelte` | ~210 | Navigationsspalte inkl. Smart-Ansichten, „Neue Liste", Fußzeile |
@@ -181,13 +182,14 @@ Wer alten Code oder alte Dokumentation liest, sucht sonst danach:
 |-------|-------------|
 | `useContextMenus.svelte.ts` | Aufgabenmenü (4 Einträge), Listenmenü (7), Pinnwandmenü (2) |
 | `useShareDialog.svelte.ts` | Teilen-Dialog: lädt `profiles` nach und löst Anzeigenamen auf |
-| `useSortFilter.svelte.ts` | Sortierung (6 Modi), Persistenz unter `tf-sort-mode` |
+| `useSortFilter.svelte.ts` | Sortierung (5 Modi — „Fortschritt" ist mit `tasks.progress` entfallen), Persistenz unter `tf-sort-mode` |
 
 ### Stores
 
 | Store | Typ | Beschreibung |
 |-------|-----|-------------|
 | `stores/tasks.svelte.ts` | Runes (~905 Zeilen) | Haupt-Store: Listen + Tasks CRUD, Optimistic Updates, Realtime, Reorder, Bulk, Pins, Undo — via `createTaskStore()` |
+| `stores/history.svelte.ts` | Runes | Aufgabenhistorie: offene Warte-Einträge (eine Abfrage beim Start), Verlauf lazy je Detail, optimistisch mit Rücknahme, Realtime, Löschen verzögert mit Undo — via `createHistoryStore()` |
 | `stores/tf/navigation.svelte.ts` | Runes | Aktive Liste, ausgewählte Aufgabe, mobiler Tab, Unterschirm, Smart-Ansicht — durchgehend über IDs, nie über Indizes |
 | `stores/tf/theme.svelte.ts` | Runes | Genau zwei Zustände: hell (Default) und dunkel, `tf-dark` |
 | `stores/tf/tastatur.svelte.ts` | Runes | Höhe der Bildschirmtastatur (VisualViewport) für das angedockte Quick-Add |
@@ -202,6 +204,7 @@ Wer alten Code oder alte Dokumentation liest, sucht sonst danach:
 | `utils/mitnutzer.ts` | Anzeigename → Initiale → Avatarfarbe. Gibt **nie** eine UUID heraus |
 | `utils/datum.ts` | Deutsche Datumsausgabe („heute 12:00", „Sa 20.09. · 09:00") — nie ISO |
 | `utils/suche.ts` | Suche über Titel, Unteraufgaben und Notizen aller Listen |
+| `utils/verlauf.ts` | Aufgabenhistorie: Typ `Eintrag`, Sortierung neueste zuerst, Sanduhr-Text „Wartet auf: … und N weitere" |
 | `actions/touchDrag.ts` | Touch-Drag & Drop: Ghost, Auto-Scroll, Drop-Zonen, 8-px-Schwelle |
 | `constants.ts` | Der einzige Labelsatz: Low · Normal · High · ASAP, Zeitrahmen |
 | `seed-data.ts` | Demo-Daten für neue User (nur `/api/seed`) |
@@ -219,7 +222,7 @@ Wer alten Code oder alte Dokumentation liest, sucht sonst danach:
 
 ## Vorschau-Route `/vorschau`
 
-Abnahme- und Vorführartefakt: dieselbe Shell, dieselben Komponenten, Demodaten im Arbeitsspeicher, kein Login, kein Zugriff auf die Produktivdatenbank. Der Zustand kommt aus Abfrageparametern (`liste`, `task`, `tab`, `offen`, `dunkel`, `teilen`, `menu`, `listenmenu`, `neueliste`, `suche`, `quickadd`, `toast`, `confirm`).
+Abnahme- und Vorführartefakt: dieselbe Shell, dieselben Komponenten, Demodaten im Arbeitsspeicher, kein Login, kein Zugriff auf die Produktivdatenbank. Der Zustand kommt aus Abfrageparametern (`liste`, `task`, `tab`, `offen`, `dunkel`, `teilen`, `menu`, `listenmenu`, `neueliste`, `suche`, `quickadd`, `toast`, `confirm`). `rolle=betrachter` macht Frank in der Liste „Familie" zum Betrachter (andere Demodaten, kein gestellter Zustand) — so ist der Verlauf im Nur-lesen-Zustand prüfbar. Die Attrappe spielt für `task_history` den Stempel-Trigger und die Kaskade aus Migration 022 nach.
 
 **Sie existiert produktiv nicht:**
 
@@ -236,7 +239,8 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 |---------|---------------|-------|
 | `profiles` | id (FK auth.users), username, display_name, avatar_url | User-Profile, auto-erstellt bei Signup via Trigger. **Keine E-Mail-Spalte** — fremde Mitnutzer haben darum nur Anzeigename und Rolle |
 | `lists` | id, user_id, title, icon, position, visible, version | Aufgabenlisten pro User |
-| `tasks` | id, list_id, user_id, parent_id, text, type, done, priority, timeframe, progress, position, emoji, note, due_date, highlighted, pinned, pinned_by, assigned_to, version | Unified: Tasks + Unteraufgaben + Trenner (via parent_id + type) |
+| `tasks` | id, list_id, user_id, parent_id, text, type, done, priority, timeframe, position, emoji, note, due_date, highlighted, pinned, pinned_by, assigned_to, version | Unified: Tasks + Unteraufgaben + Trenner (via parent_id + type). `progress` entfällt mit Migration 023 |
+| `task_history` | id, task_id, kind (stand/wartet), body, created_by/at, edited_by/at, resolved_by/at | Aufgabenhistorie, nur an Aufgaben oberster Ebene. Autor, Zeiten und „Ist da" stempelt ein Trigger; Rechte über `can_view_task` / `can_edit_task` |
 | `list_shares` | id, list_id, user_id, role (owner/editor/viewer) | Multi-User Sharing |
 
 ### Design-Entscheidungen
@@ -249,7 +253,7 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 
 ### Migrations
 
-`supabase/migrations/001` bis `020`, chronologisch anzuwenden. Die Grundlagen:
+`supabase/migrations/001` bis `023`, chronologisch anzuwenden (021, die G2-Kopplung, steht nicht als Datei im Repo). Die Grundlagen:
 
 | Nr | Datei | Inhalt |
 |----|-------|--------|
@@ -267,6 +271,9 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 | 018 | `realtime_publication.sql` | Realtime-Publikation |
 | 019 | `task_pinned_by.sql` | `pinned_by` — trägt den Chip „gepinnt von …" |
 | 020 | `reset_highlighted.sql` | `highlighted` zurücksetzen |
+| 021 | — (nicht im Repo) | G2-Kopplung (`g2_pairing_codes`) |
+| 022 | `task_history.sql` | Aufgabenhistorie: Tabelle, Helfer, RLS, Stempel-Trigger, Realtime |
+| 023 | `drop_task_progress.sql` | `progress`-Werte als Stand-Eintrag übernehmen, Spalte entfernen — erst nach dem Deploy des Codes ohne `progress` |
 
 ### Auth
 - Google OAuth + Email/Passwort (Supabase Auth)
@@ -276,7 +283,7 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 - Supabase Anon Key ist öffentlich (RLS schützt), Service Role Key **nie** im Frontend
 
 ### Realtime
-- Subscriptions auf `lists` und `tasks`
+- Subscriptions auf `lists`, `tasks` und `task_history` (DELETE trägt bei RLS nur die ID)
 - Pattern: `postgres_changes` Channel mit INSERT/UPDATE/DELETE Events
 
 ## Feature-Liste (implementiert)
@@ -290,6 +297,7 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 - [x] Zeitrahmen: Keiner/Akut/Zeitnah/Mittelfristig/Langfristig
 - [x] Fällig: Datum **und** Uhrzeit in einem Schritt, Anzeige immer deutsch
 - [x] Notiz je Aufgabe (im Detail, mit einzeiliger Vorschau in der Metazeile)
+- [x] Verlauf je Aufgabe: „Stand" und „Wartet auf" mit „Ist da"; Sanduhr in der Zeile, solange etwas offen ist
 - [x] Supabase Realtime + Optimistic UI
 
 ### UI/UX
@@ -299,7 +307,7 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 - [x] Kontextmenü: Aufgabe 4 Einträge, Liste 7, Pinnwand 2 — alles Weitere lebt im Detail
 - [x] Drag & Drop inkl. Touch (300 ms halten + ziehen)
 - [x] Suche: ⌘K-Palette am Zeiger, eigener Tab am Finger — über Titel, Unteraufgaben und Notizen
-- [x] Sortierung: 6 Modi
+- [x] Sortierung: 5 Modi
 - [x] Bulk-Aktionen (Mehrfachauswahl)
 - [x] Undo-Toast statt Bestätigungsdialog, außer beim Löschen einer Liste
 - [x] Touch-Ziele 44 px, iOS Safe Area, `viewport-fit=cover`
