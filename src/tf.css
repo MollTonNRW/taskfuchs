@@ -131,7 +131,9 @@
 	--low: #9ece6a;
 	--normal: #e0af68;
 	--high: #f87171;
-	--asap: #ff4d4d;
+	/* Dunkelrot auch im Dunkelmodus (Frank, 24.09.). #cc2222 haelt 3:1 gegen
+	   --bg und --surface und traegt weisse Chip-Schrift mit 5,5:1. */
+	--asap: #cc2222;
 	--sel: #33281e;
 	--new: #2e2519;
 
