@@ -273,6 +273,7 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 | 020 | `reset_highlighted.sql` | `highlighted` zurücksetzen |
 | 021 | — (nicht im Repo) | G2-Kopplung (`g2_pairing_codes`) |
 | 022 | `task_history.sql` | Aufgabenhistorie: Tabelle, Helfer, RLS, Stempel-Trigger, Realtime |
+| 022b | `task_history_trigger_rechte.sql` | Trigger-Funktionen der Historie nicht per RPC aufrufbar (Advisor) |
 | 023 | `drop_task_progress.sql` | `progress`-Werte als Stand-Eintrag übernehmen, Spalte entfernen — erst nach dem Deploy des Codes ohne `progress` |
 
 ### Auth
@@ -351,9 +352,9 @@ Der globale Fokusring ist 2 px `--accent`. Auf dem destruktiven Dialogknopf (Fl�
 | Low | `#22c55e` | `#9ece6a` |
 | Normal | `#eab308` | `#e0af68` |
 | High | `#ef4444` | `#f87171` |
-| ASAP | `#991b1b` | `#ff4d4d` |
+| ASAP | `#991b1b` | `#cc2222` |
 
-ASAP ist bewusst dunkler als High — die im alten Brief genannte `#dc2626` war von High nicht zu unterscheiden.
+ASAP ist bewusst dunkler als High (in beiden Themes Dunkelrot, Frank 24.09.) — die im alten Brief genannte `#dc2626` war von High nicht zu unterscheiden.
 
 ### Schrift und Ikonografie
 
