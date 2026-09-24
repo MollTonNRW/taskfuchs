@@ -116,13 +116,23 @@ class Abfrage<T> implements PromiseLike<Antwort<T>> {
 	#sortierung: string | null = null;
 	/** Nur `task_history`: angemeldeter Nutzer fuer den Trigger-Nachbau. */
 	#verlaufVon: string | null;
+	/** Laeuft nach dem Ausfuehren — hier: die Kaskade nach dem Loeschen von Aufgaben. */
+	#nachher: (() => void) | null;
 
-	constructor(bestand: Zeile[], modus: Modus, felder: Zeile = {}, neu: Zeile[] = [], verlaufVon: string | null = null) {
+	constructor(
+		bestand: Zeile[],
+		modus: Modus,
+		felder: Zeile = {},
+		neu: Zeile[] = [],
+		verlaufVon: string | null = null,
+		nachher: (() => void) | null = null
+	) {
 		this.#bestand = bestand;
 		this.#modus = modus;
 		this.#felder = felder;
 		this.#neu = neu;
 		this.#verlaufVon = verlaufVon;
+		this.#nachher = nachher;
 	}
 
 	eq(spalte: string, wert: unknown): this {
@@ -169,6 +179,7 @@ class Abfrage<T> implements PromiseLike<Antwort<T>> {
 	 */
 	#ausfuehren(): Zeile[] {
 		const zeilen = this.#ausfuehrenRoh();
+		this.#nachher?.();
 		return this.#verlaufVon ? zeilen.map((z) => ({ ...z })) : zeilen;
 	}
 
@@ -249,8 +260,8 @@ export function baueAttrappe(start: DemoBestand, ich: string): SupabaseClient<Da
 
 	/**
 	 * `on delete cascade` aus Migration 022: faellt eine Aufgabe weg, geht ihr
-	 * Verlauf mit. Laeuft vor jeder Abfrage — die Attrappe kennt keine
-	 * Fremdschluessel, und ein Verlauf ohne Aufgabe tauchte sonst beim
+	 * Verlauf mit — sofort beim Loeschen, wie in der Datenbank. Die Attrappe
+	 * kennt keine Fremdschluessel; ohne das tauchte der Verlauf nach dem
 	 * Rueckgaengig des Loeschens wieder auf.
 	 */
 	function kaskade() {
@@ -264,7 +275,6 @@ export function baueAttrappe(start: DemoBestand, ich: string): SupabaseClient<Da
 		from(tabelle: Tabelle) {
 			const zeilen = bestand[tabelle] ?? [];
 			const verlaufVon = tabelle === 'task_history' ? ich : null;
-			if (verlaufVon) kaskade();
 			return {
 				select: () => new Abfrage<Zeile[]>(zeilen, 'select', {}, [], verlaufVon),
 				insert: (eingabe: Zeile | Zeile[]) =>
@@ -276,7 +286,8 @@ export function baueAttrappe(start: DemoBestand, ich: string): SupabaseClient<Da
 						verlaufVon
 					),
 				update: (felder: Zeile) => new Abfrage<Zeile[]>(zeilen, 'update', felder, [], verlaufVon),
-				delete: () => new Abfrage<Zeile[]>(zeilen, 'delete', {}, [], verlaufVon)
+				delete: () =>
+					new Abfrage<Zeile[]>(zeilen, 'delete', {}, [], verlaufVon, tabelle === 'tasks' ? kaskade : null)
 			};
 		},
 

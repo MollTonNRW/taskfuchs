@@ -120,7 +120,11 @@
 		if (supabase && benutzerId && !storeReady) {
 			store.init(supabase, benutzerId, startListen, startAufgaben);
 			// EINE Abfrage: alle offenen Warte-Eintraege (Sanduhr in den Zeilen).
-			historie.init(supabase, benutzerId);
+			// untrack: der Store liest dabei eigenen Zustand, von dem dieser
+			// Effekt nicht abhaengen soll.
+			const sb = supabase;
+			const uid = benutzerId;
+			untrack(() => historie.init(sb, uid));
 			// Gespeicherte Listenauswahl gegen die geladenen Listen pruefen
 			nav.hydrate(startListen.map((l: List) => l.id));
 			storeReady = true;

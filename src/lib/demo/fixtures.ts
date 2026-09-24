@@ -23,6 +23,7 @@ type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
 type ListShare = Database['public']['Tables']['list_shares']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
+type Verlaufseintrag = Database['public']['Tables']['task_history']['Row'];
 
 export const DEMO_ICH = { id: 'frank', email: 'frank@moll.family' };
 
@@ -307,6 +308,122 @@ export const DEMO_AUFGABEN: Task[] = [
 	aufgabe({ id: 't-garten-2', list_id: 'l-garten', text: 'Rasenmäher warten', position: 1 }),
 	aufgabe({ id: 't-garten-3', list_id: 'l-garten', text: 'Zaun streichen', priority: 'low', timeframe: 'langfristig', position: 2 }),
 	aufgabe({ id: 't-pflege-1', list_id: 'l-pflege', text: 'Pflegegrad-Antrag nachreichen', timeframe: 'zeitnah', due_date: tag(12), position: 0 })
+];
+
+// ── Aufgabenhistorie ─────────────────────────────────────────────────
+/** Zeitpunkt vor so vielen Minuten — relativ wie die Faelligkeiten oben. */
+function vor(minuten: number): string {
+	return new Date(Date.now() - minuten * 60_000).toISOString();
+}
+const STUNDE = 60;
+const TAG = 24 * STUNDE;
+
+type VerlaufAbweichung = Partial<Verlaufseintrag> &
+	Pick<Verlaufseintrag, 'id' | 'task_id' | 'kind' | 'body' | 'created_by' | 'created_at'>;
+
+function eintrag(e: VerlaufAbweichung): Verlaufseintrag {
+	return { edited_at: null, edited_by: null, resolved_at: null, resolved_by: null, ...e };
+}
+
+/**
+ * Beispiel-Eintraege der Aufgabenhistorie (Spezifikation: mindestens eine
+ * Aufgabe mit offenem Warte-Eintrag, eine mit eingeloestem, eine mit
+ * Stand-Eintraegen von zwei Personen). Gewaehlt sind Aufgaben, die die
+ * Abnahme-Frames ohnehin zeigen:
+ * - „Ferienwohnung Nordsee" (Familie, geteilt): Stand von Frank und
+ *   Haushalt, offener Warte-Eintrag von Ingo — Sanduhr in Frame 1
+ * - „Kinderarzt-Termin" (Detail in Frame 1): eingeloester Warte-Eintrag,
+ *   bearbeiteter Stand
+ * - „Steuererklaerung 2025" (Mobile-Frames): offener Warte-Eintrag
+ * - „Jahresabschluss" (Pinnwand): zwei offene — „und 1 weitere"
+ * - „Backup-Platte": ein aus `tasks.progress` uebernommener Stand, so wie
+ *   Migration 023 ihn schreibt
+ */
+export const DEMO_VERLAUF: Verlaufseintrag[] = [
+	eintrag({
+		id: 'h-nordsee-1',
+		task_id: 't-nordsee',
+		kind: 'stand',
+		body: 'Drei Unterkünfte in St. Peter-Ording in der engeren Wahl, alle mit Hund.',
+		created_by: 'frank',
+		created_at: vor(4 * TAG + 2 * STUNDE)
+	}),
+	eintrag({
+		id: 'h-nordsee-2',
+		task_id: 't-nordsee',
+		kind: 'stand',
+		body: 'Herbstferien 12.–19.10. passen allen.',
+		created_by: 'haushalt',
+		created_at: vor(2 * TAG + 5 * STUNDE)
+	}),
+	eintrag({
+		id: 'h-nordsee-3',
+		task_id: 't-nordsee',
+		kind: 'wartet',
+		body: 'Rückmeldung vom Vermieter zur Verfügbarkeit',
+		created_by: 'ingo',
+		created_at: vor(TAG + 2 * STUNDE)
+	}),
+	eintrag({
+		id: 'h-kinderarzt-1',
+		task_id: 't-kinderarzt',
+		kind: 'wartet',
+		body: 'Rückruf der Praxis Dr. Weber',
+		created_by: 'haushalt',
+		created_at: vor(3 * TAG),
+		resolved_at: vor(TAG + 3 * STUNDE),
+		resolved_by: 'frank'
+	}),
+	eintrag({
+		id: 'h-kinderarzt-2',
+		task_id: 't-kinderarzt',
+		kind: 'stand',
+		body: 'Praxis meldet sich, sobald der Oktober-Kalender steht.\nImpfpass liegt im Flurschrank.',
+		created_by: 'frank',
+		created_at: vor(3 * TAG - STUNDE),
+		edited_at: vor(3 * TAG - STUNDE - 10),
+		edited_by: 'haushalt'
+	}),
+	eintrag({
+		id: 'h-steuer-1',
+		task_id: 't-steuer',
+		kind: 'stand',
+		body: 'Belege 2025 vollständig eingescannt.',
+		created_by: 'frank',
+		created_at: vor(6 * TAG)
+	}),
+	eintrag({
+		id: 'h-steuer-2',
+		task_id: 't-steuer',
+		kind: 'wartet',
+		body: 'Lohnsteuerbescheinigung vom Arbeitgeber',
+		created_by: 'frank',
+		created_at: vor(5 * TAG)
+	}),
+	eintrag({
+		id: 'h-abschluss-1',
+		task_id: 't-jahresabschluss',
+		kind: 'wartet',
+		body: 'Kontoauszüge Q4 von der Bank',
+		created_by: 'frank',
+		created_at: vor(9 * TAG)
+	}),
+	eintrag({
+		id: 'h-abschluss-2',
+		task_id: 't-jahresabschluss',
+		kind: 'wartet',
+		body: 'Rückfrage der Kanzlei zu den Reisekosten',
+		created_by: 'frank',
+		created_at: vor(3 * STUNDE)
+	}),
+	eintrag({
+		id: 'h-backup-1',
+		task_id: 't-backup',
+		kind: 'stand',
+		body: 'Fortschritt vor der Umstellung: Fast fertig (66 %)',
+		created_by: 'frank',
+		created_at: vor(12 * TAG)
+	})
 ];
 
 /**

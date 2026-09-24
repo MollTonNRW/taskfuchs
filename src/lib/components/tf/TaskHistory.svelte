@@ -280,7 +280,7 @@
 					{@const autor = person(e.created_by)}
 					{@const wartet = e.kind === 'wartet'}
 					{@const geloest = wartet && !!e.resolved_at}
-					<li class="tf-hist" class:wartet class:geloest>
+					<li class="tf-hist" class:wartet class:geloest data-tf-eintrag={e.id}>
 						<span class="tf-avatar" style="background:{autor.farbe}" aria-hidden="true">{autor.initialen}</span>
 						<div class="inhalt">
 							<div class="kopf">

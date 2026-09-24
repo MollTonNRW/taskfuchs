@@ -9,10 +9,14 @@
 		DEMO_GESEHEN,
 		DEMO_ICH,
 		DEMO_LISTEN,
-		DEMO_PROFILE
+		DEMO_PROFILE,
+		DEMO_VERLAUF
 	} from '$lib/demo/fixtures';
 	import { baueMitnutzer } from '$lib/utils/mitnutzer';
 	import type { MobileTab } from '$lib/stores/tf/navigation.svelte';
+	import type { Database } from '$lib/types/database';
+
+	type ListShare = Database['public']['Tables']['list_shares']['Row'];
 
 	/**
 	 * Inhalt der Vorschau-Route — dieselbe Shell, dieselben Komponenten,
@@ -34,25 +38,50 @@
 	 *   liste=<id> · task=<id> · tab=listen|pins|suche · offen=1 · dunkel=1
 	 *   teilen=1 · menu=<task-id> · listenmenu=1 · neueliste=1 · suche=<begriff>
 	 *   quickadd=<text> · toast=geloescht|erledigt · confirm=liste
+	 *
+	 * Dazu `rolle=betrachter` (Aufgabenhistorie): die Liste „Familie" gehoert
+	 * dann Haushalt, Frank ist dort nur Betrachter. Kein gestellter Zustand,
+	 * sondern andere Daten — die Oberflaeche leitet „nur lesen" auf demselben
+	 * Weg ab wie in /app (Freigaberolle ueber `baueMitnutzer`). Aufgaben, die
+	 * Frank dort angelegt hat, gehen an Haushalt ueber: als Ersteller duerfte
+	 * er sie sonst weiter bearbeiten.
 	 */
+	const FAMILIE = 'l-familie';
+	const alsBetrachter = page.url.searchParams.get('rolle') === 'betrachter';
+
+	const listen = alsBetrachter
+		? DEMO_LISTEN.map((l) => (l.id === FAMILIE ? { ...l, user_id: 'haushalt' } : l))
+		: DEMO_LISTEN;
+	const aufgaben = alsBetrachter
+		? DEMO_AUFGABEN.map((t) =>
+				t.list_id === FAMILIE && t.user_id === DEMO_ICH.id ? { ...t, user_id: 'haushalt' } : t
+			)
+		: DEMO_AUFGABEN;
+	const freigaben: ListShare[] = alsBetrachter
+		? [
+				...DEMO_FREIGABEN.filter((f) => !(f.list_id === FAMILIE && f.user_id === 'haushalt')),
+				{
+					id: 'sh-familie-frank',
+					list_id: FAMILIE,
+					user_id: DEMO_ICH.id,
+					role: 'viewer',
+					created_at: DEMO_FREIGABEN[0].created_at
+				}
+			]
+		: DEMO_FREIGABEN;
 
 	const attrappe = baueAttrappe(
 		{
-			lists: DEMO_LISTEN,
-			tasks: DEMO_AUFGABEN,
-			list_shares: DEMO_FREIGABEN,
-			profiles: DEMO_PROFILE
+			lists: listen,
+			tasks: aufgaben,
+			list_shares: freigaben,
+			profiles: DEMO_PROFILE,
+			task_history: DEMO_VERLAUF
 		},
 		DEMO_ICH.id
 	);
 
-	const mitnutzer = baueMitnutzer(
-		DEMO_LISTEN,
-		DEMO_FREIGABEN,
-		DEMO_PROFILE,
-		DEMO_ICH.id,
-		DEMO_ICH.email
-	);
+	const mitnutzer = baueMitnutzer(listen, freigaben, DEMO_PROFILE, DEMO_ICH.id, DEMO_ICH.email);
 
 	/**
 	 * Den neu-Marker vorbereiten: `tasks.svelte.ts` vergibt ihn nur fuer
@@ -107,8 +136,8 @@
 		supabase={attrappe}
 		benutzerId={DEMO_ICH.id}
 		benutzerEmail={DEMO_ICH.email}
-		startListen={DEMO_LISTEN}
-		startAufgaben={DEMO_AUFGABEN}
+		startListen={listen}
+		startAufgaben={aufgaben}
 		startMitnutzer={mitnutzer}
 		onLogout={() => {}}
 		vorschau={zustand}
