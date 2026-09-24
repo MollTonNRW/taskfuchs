@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import type { Database } from '$lib/types/database';
 	import Icon from './Icon.svelte';
+	import { warteHinweis, type Eintrag } from '$lib/utils/verlauf';
 	import { suchen, klartext, MIN_ZEICHEN, type Treffer } from '$lib/utils/suche';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -26,6 +27,7 @@
 		tasks,
 		lists,
 		startBegriff = '',
+		warteAuf,
 		onVorschau,
 		onClose
 	}: {
@@ -33,6 +35,8 @@
 		lists: List[];
 		/** Vorbelegter Suchbegriff — nur die Vorschau-Route setzt das. */
 		startBegriff?: string;
+		/** Offene Warte-Eintraege einer Aufgabe (Sanduhr im Treffer). */
+		warteAuf?: (id: string) => Eintrag[];
 		/** Liste und Aufgabe hinter der Palette mitfuehren. */
 		onVorschau: (listId: string, taskId: string) => void;
 		onClose: () => void;
@@ -108,6 +112,13 @@
 	}
 </script>
 
+{#snippet sanduhr(aufgabe: Task)}
+	{@const text = !aufgabe.done && warteAuf ? warteHinweis(warteAuf(aufgabe.id)) : ''}
+	{#if text}
+		<span class="warte" role="img" aria-label={text} title={text}><Icon name="sanduhr" size={14} /></span>
+	{/if}
+{/snippet}
+
 {#snippet zeile(t: Treffer, i: number)}
 	<button
 		bind:this={zeilen[i]}
@@ -126,6 +137,7 @@
 				>
 			</div>
 			<div class="tf-m">
+				{@render sanduhr(t.task)}
 				<span class="path" title={klartext(t.pfad)}
 					>{t.pfad.vor}{#if t.pfad.treffer}<mark>{t.pfad.treffer}</mark>{/if}{t.pfad.nach}</span
 				>

@@ -1036,6 +1036,7 @@
 			zusatzProfile={fremdeProfile}
 			eigeneId={benutzerId}
 			istNeu={(id) => store.istNeu(id)}
+			warteAuf={(id) => historie.offeneWarte(id)}
 			onQuickAdd={handleQuickAdd}
 			onToggleTask={handleToggleTask}
 			onEditSubtask={handleEditTask}
@@ -1065,6 +1066,7 @@
 		zusatzProfile={fremdeProfile}
 		eigeneId={benutzerId}
 		istNeu={(id) => store.istNeu(id)}
+		warteAuf={(id) => historie.offeneWarte(id)}
 		mobil={isMobile}
 		selectedTaskId={nav.selectedTaskId}
 		{bulkMode}
@@ -1161,7 +1163,13 @@
 			{#if nav.mobileTab === 'suche'}
 				<!-- Eigener Schirm: Suchfeld und Treffer, kein Overlay ueber
 				     einem fremden Schirm wie bis T8. -->
-				<SearchMobile {tasks} {lists} bind:begriff={mobileSuche} onOeffnen={sucheOeffnenMobil} />
+				<SearchMobile
+					{tasks}
+					{lists}
+					bind:begriff={mobileSuche}
+					warteAuf={(id) => historie.offeneWarte(id)}
+					onOeffnen={sucheOeffnenMobil}
+				/>
 			{:else}
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div
@@ -1325,7 +1333,14 @@
 <!-- Suche (Desktop): ⌘K-Palette ueber hellem Scrim. Am Finger uebernimmt
      der Tab „Suche" — dort gibt es kein Overlay. -->
 {#if searchOpen && !isMobile}
-	<SearchPalette {tasks} {lists} startBegriff={suchVorgabe} onVorschau={sucheVorschau} onClose={sucheSchliessen} />
+	<SearchPalette
+		{tasks}
+		{lists}
+		startBegriff={suchVorgabe}
+		warteAuf={(id) => historie.offeneWarte(id)}
+		onVorschau={sucheVorschau}
+		onClose={sucheSchliessen}
+	/>
 {/if}
 
 <!-- Context Menu -->

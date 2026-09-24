@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Database } from '$lib/types/database';
 	import Icon from './Icon.svelte';
+	import { warteHinweis, type Eintrag } from '$lib/utils/verlauf';
 	import { suchen, klartext, trefferLabel, MIN_ZEICHEN, type Treffer } from '$lib/utils/suche';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -24,11 +25,14 @@
 		tasks,
 		lists,
 		begriff = $bindable(''),
+		warteAuf,
 		onOeffnen
 	}: {
 		tasks: Task[];
 		lists: List[];
 		begriff?: string;
+		/** Offene Warte-Eintraege einer Aufgabe (Sanduhr im Treffer). */
+		warteAuf?: (id: string) => Eintrag[];
 		/** Treffer angetippt: in die Liste springen und die Aufgabe zeigen. */
 		onOeffnen: (listId: string, taskId: string) => void;
 	} = $props();
@@ -50,6 +54,13 @@
 	}
 </script>
 
+{#snippet sanduhr(aufgabe: Task)}
+	{@const text = !aufgabe.done && warteAuf ? warteHinweis(warteAuf(aufgabe.id)) : ''}
+	{#if text}
+		<span class="warte" role="img" aria-label={text} title={text}><Icon name="sanduhr" size={14} /></span>
+	{/if}
+{/snippet}
+
 {#snippet zeile(t: Treffer, erster = false)}
 	<button
 		class="tf-hit"
@@ -65,6 +76,7 @@
 				>
 			</div>
 			<div class="tf-m">
+				{@render sanduhr(t.task)}
 				<span class="path" title={klartext(t.pfad)}
 					>{t.pfad.vor}{#if t.pfad.treffer}<mark>{t.pfad.treffer}</mark>{/if}{t.pfad.nach}</span
 				>

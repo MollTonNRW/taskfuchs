@@ -1315,6 +1315,10 @@
 	color: var(--high);
 	font-weight: 500;
 }
+/* Sanduhr: offener Warte-Eintrag im Verlauf (Aufgabenhistorie). */
+.tf-m .warte {
+	color: var(--ink-2);
+}
 .tf-m .zaehler {
 	cursor: pointer;
 }
@@ -2883,6 +2887,11 @@
 	text-align: center;
 	font-size: 18px;
 	padding-top: 1px;
+}
+.tf-hit .tf-m .warte {
+	flex: none;
+	display: inline-flex;
+	color: var(--ink-2);
 }
 .tf-hit .tf-m .path {
 	flex: 1 1 auto;

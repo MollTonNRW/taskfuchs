@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Database } from '$lib/types/database';
 	import type { Mitnutzer } from '$lib/utils/mitnutzer';
+	import type { Eintrag } from '$lib/utils/verlauf';
 	import type { Zeigerpunkt } from '$lib/composables/tf/useContextMenus.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
 	import { subtasksCollapsedByDefault } from '$lib/stores/filters';
@@ -27,6 +28,7 @@
 		zusatzProfile = {},
 		eigeneId = null,
 		istNeu,
+		warteAuf,
 		onQuickAdd,
 		onToggleTask,
 		onEditSubtask,
@@ -54,6 +56,8 @@
 		eigeneId?: string | null;
 		/** Kam diese Zeile von aussen herein und wurde noch nicht gesehen? */
 		istNeu?: (id: string) => boolean;
+		/** Offene Warte-Eintraege einer Aufgabe (Sanduhr in der Zeile). */
+		warteAuf?: (id: string) => Eintrag[];
 		onQuickAdd: (listId: string, text: string) => void;
 		onToggleTask: (id: string) => void;
 		onEditSubtask: (id: string, text: string) => void;
@@ -255,6 +259,7 @@
 					bulkSelected={bulkSelectedIds.has(task.id)}
 					herkunft={fremder(task.user_id)}
 					pinner={task.pinned ? fremder(task.pinned_by) : null}
+					wartet={warteAuf?.(task.id)}
 					onToggle={onToggleTask}
 					onSelect={onTaskOpen}
 					{onMenu}

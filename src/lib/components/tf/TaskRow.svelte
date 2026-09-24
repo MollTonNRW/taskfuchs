@@ -6,6 +6,7 @@
 	import { formatFaellig, formatSeit } from '$lib/utils/datum';
 	import { dragState } from '$lib/actions/touchDrag';
 	import type { Mitnutzer } from '$lib/utils/mitnutzer';
+	import { warteHinweis, type Eintrag } from '$lib/utils/verlauf';
 	import type { Zeigerpunkt } from '$lib/composables/tf/useContextMenus.svelte';
 
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -37,6 +38,7 @@
 		bulkSelected = false,
 		herkunft = null,
 		pinner = null,
+		wartet = [],
 		onToggle,
 		onSelect,
 		onMenu,
@@ -64,6 +66,8 @@
 		herkunft?: Mitnutzer | null;
 		/** Wer angepinnt hat, wenn es nicht der angemeldete Nutzer ist. */
 		pinner?: Mitnutzer | null;
+		/** Offene Warte-Eintraege aus dem Verlauf, neueste zuerst. */
+		wartet?: Eintrag[];
 		onToggle: (id: string) => void;
 		onSelect: (task: Task) => void;
 		onMenu: (e: Zeigerpunkt, task: Task) => void;
@@ -93,8 +97,15 @@
 	 * dem die Zeile da steht. Die Notiz steht ohnehin im Detail.
 	 */
 	let zeigeNotiz = $derived(!!notiz && !(mobil && !!pinner));
+	/**
+	 * Sanduhr: solange mindestens ein Warte-Eintrag offen ist UND die Aufgabe
+	 * nicht erledigt (Spezifikation Aufgabenhistorie). Nur das Symbol — der
+	 * Text steht im Tooltip und fuer Screenreader im Label, damit die ohnehin
+	 * enge Metazeile nicht noch einen Eintrag verdraengt.
+	 */
+	let warteText = $derived(!task.done && wartet.length > 0 ? warteHinweis(wartet) : '');
 	let hatMeta = $derived(
-		!!faellig.text || subtasks.length > 0 || zeigeNotiz || zeigeHerkunft || !!pinner
+		!!warteText || !!faellig.text || subtasks.length > 0 || zeigeNotiz || zeigeHerkunft || !!pinner
 	);
 	let subsSichtbar = $derived(subsOpen && subtasks.length > 0);
 
@@ -266,6 +277,11 @@
 
 		{#if hatMeta}
 			<div class="tf-m">
+				{#if warteText}
+					<span class="el warte" role="img" aria-label={warteText} title={warteText}>
+						<Icon name="sanduhr" size={14} />
+					</span>
+				{/if}
 				{#if faellig.text}
 					<span class="el" class:over={faellig.ueberfaellig}>
 						<Icon name="kalender" size={14} />{faellig.text}
