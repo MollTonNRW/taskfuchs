@@ -96,7 +96,6 @@ function aufgabe(a: Abweichung): Task {
 		emoji: a.emoji ?? null,
 		note: a.note ?? null,
 		due_date: a.due_date ?? null,
-		progress: 0,
 		position: a.position ?? 0,
 		type: 'task',
 		divider_label: null,

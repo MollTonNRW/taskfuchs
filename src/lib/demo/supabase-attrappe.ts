@@ -41,7 +41,7 @@ function vervollstaendige(tabelle: Tabelle, eingabe: Zeile): Zeile {
 	if (tabelle === 'tasks') {
 		return {
 			done: false, priority: 'normal', timeframe: null, highlighted: false, pinned: false,
-			pinned_by: null, emoji: null, note: null, due_date: null, progress: 0, position: 0,
+			pinned_by: null, emoji: null, note: null, due_date: null, position: 0,
 			type: 'task', divider_label: null, parent_id: null, assigned_to: null,
 			calendar_event_id: null, version: 1,
 			...basis,

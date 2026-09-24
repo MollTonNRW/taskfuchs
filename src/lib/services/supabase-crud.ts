@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '$lib/types/database';
 type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
+type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
 type TaskUpdate = Database['public']['Tables']['tasks']['Update'];
 type Sb = SupabaseClient<Database>;
 
@@ -59,18 +60,47 @@ export async function deleteTaskDb(sb: Sb, id: string) {
 	return sb.from('tasks').delete().eq('id', id);
 }
 
+/**
+ * Zeile fuer das Wiedereinfuegen nach „Rueckgaengig" — nur die Spalten, die
+ * der Client kennt.
+ *
+ * Vorher ging die ganze geladene Zeile zurueck (`...rest`). Eine Zeile aus
+ * einem aelteren Ladestand traegt aber Spalten, die es inzwischen nicht mehr
+ * gibt (die mit Migration 023 entfernte Fortschrittsspalte) — PostgREST
+ * lehnt das Einfuegen dann ab und das Rueckgaengig schlaegt fehl.
+ * `created_at`, `updated_at` und `version` setzt die Datenbank neu.
+ */
+function zeileZumWiedereinfuegen(t: Task): TaskInsert {
+	return {
+		id: t.id,
+		list_id: t.list_id,
+		user_id: t.user_id,
+		parent_id: t.parent_id,
+		text: t.text,
+		type: t.type,
+		divider_label: t.divider_label,
+		done: t.done,
+		priority: t.priority,
+		timeframe: t.timeframe,
+		highlighted: t.highlighted,
+		pinned: t.pinned,
+		pinned_by: t.pinned_by,
+		emoji: t.emoji,
+		note: t.note,
+		due_date: t.due_date,
+		position: t.position,
+		assigned_to: t.assigned_to,
+		calendar_event_id: t.calendar_event_id
+	};
+}
+
 export async function reinsertTask(sb: Sb, task: Task) {
-	const { id, created_at, updated_at, version, ...rest } = task;
-	return sb.from('tasks').insert({ id, ...rest }).select().single();
+	return sb.from('tasks').insert(zeileZumWiedereinfuegen(task)).select().single();
 }
 
 export async function reinsertTasks(sb: Sb, tasksList: Task[]) {
 	if (tasksList.length === 0) return { error: null };
-	const rows = tasksList.map(t => {
-		const { created_at, updated_at, version, ...rest } = t;
-		return rest;
-	});
-	return sb.from('tasks').insert(rows);
+	return sb.from('tasks').insert(tasksList.map(zeileZumWiedereinfuegen));
 }
 
 export async function deleteTaskWithSubtasks(sb: Sb, id: string, subtaskIds: string[]) {

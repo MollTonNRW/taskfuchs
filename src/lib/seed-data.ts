@@ -27,7 +27,6 @@ interface SeedTask {
 	note?: string | null;
 	emoji?: string | null;
 	due_date?: string | null;
-	progress?: number;
 	subtasks?: SeedSubtask[];
 }
 
@@ -73,7 +72,6 @@ const SEED_LISTS: SeedList[] = [
 				priority: 'normal',
 				timeframe: 'mittelfristig',
 				note: 'Mindestens 5 inaktive Workflows gefunden beim letzten Check.',
-				progress: 1,
 				subtasks: [
 					{ text: 'Inaktive Workflows identifizieren', done: false },
 					{ text: 'Error-Workflows prüfen', done: false }
@@ -93,7 +91,6 @@ const SEED_LISTS: SeedList[] = [
 				note: 'Läuft am 20.03. ab! Cloudflare Tunnel checken.',
 				emoji: '🔒',
 				due_date: '2026-03-20',
-				progress: 2,
 				subtasks: [
 					{ text: 'Ablaufdatum prüfen', done: false },
 					{ text: 'Cloudflare Tunnel config checken', done: false }
@@ -119,7 +116,6 @@ const SEED_LISTS: SeedList[] = [
 				note: 'Frist: 31.07.2026. Steuerberater Müller hat neue Nummer.',
 				emoji: '📋',
 				due_date: '2026-07-31',
-				progress: 1,
 				subtasks: [
 					{ text: 'Belege sortieren', done: false },
 					{ text: 'ELSTER Login testen', done: false },
@@ -175,7 +171,6 @@ const SEED_LISTS: SeedList[] = [
 				note: 'Kunde: Warmwelt GmbH. Meeting am Freitag 14 Uhr.',
 				emoji: '🎯',
 				due_date: '2026-03-14',
-				progress: 2,
 				subtasks: [
 					{
 						text: 'Daten aufbereiten',
@@ -205,7 +200,6 @@ const SEED_LISTS: SeedList[] = [
 				timeframe: 'mittelfristig',
 				note: 'Tech-Stack: Supabase + SvelteKit + Tailwind. Prototyp fertig!',
 				emoji: '🦊',
-				progress: 1,
 				subtasks: [
 					{ text: 'Tech-Stack festlegen', done: true },
 					{ text: 'UI-Prototyp erstellen', done: false },
@@ -290,7 +284,6 @@ export async function seedDemoData(
 				emoji: seedTask.emoji || null,
 				note: seedTask.note || null,
 				due_date: seedTask.due_date || null,
-				progress: seedTask.progress || 0,
 				position: i
 			};
 

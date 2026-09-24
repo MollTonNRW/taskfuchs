@@ -4,16 +4,20 @@ import { priorityWeight } from '$lib/constants';
 
 type Task = Database['public']['Tables']['tasks']['Row'];
 
-export type SortMode = 'position' | 'priority' | 'name' | 'date' | 'created' | 'progress';
-export const validSortModes: SortMode[] = ['position', 'priority', 'name', 'date', 'created', 'progress'];
+/**
+ * Fuenf Modi. „Fortschritt" ist mit der Spalte tasks.progress entfallen
+ * (ersetzt durch die Aufgabenhistorie). Ein gespeichertes 'progress' faellt
+ * in `loadSortMode` auf „Manuell" zurueck.
+ */
+export type SortMode = 'position' | 'priority' | 'name' | 'date' | 'created';
+export const validSortModes: SortMode[] = ['position', 'priority', 'name', 'date', 'created'];
 
 export const sortLabels: Record<SortMode, string> = {
 	position: 'Manuell',
 	priority: 'Priorität',
 	name: 'Name',
 	date: 'Fälligkeitsdatum',
-	created: 'Erstelldatum',
-	progress: 'Fortschritt'
+	created: 'Erstelldatum'
 };
 
 /**
@@ -79,7 +83,6 @@ export function createSortFilter(
 					return a.due_date.localeCompare(b.due_date);
 				}
 				case 'created': return a.created_at.localeCompare(b.created_at);
-				case 'progress': return (b.progress ?? 0) - (a.progress ?? 0);
 				default: return 0;
 			}
 		});

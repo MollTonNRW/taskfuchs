@@ -53,7 +53,6 @@ export interface Database {
 					emoji: string | null;
 					note: string | null;
 					due_date: string | null;
-					progress: number;
 					position: number;
 					type: 'task' | 'divider';
 					divider_label: string | null;
@@ -78,7 +77,6 @@ export interface Database {
 					emoji?: string | null;
 					note?: string | null;
 					due_date?: string | null;
-					progress?: number;
 					position?: number;
 					type?: 'task' | 'divider';
 					divider_label?: string | null;
@@ -103,7 +101,6 @@ export interface Database {
 					emoji?: string | null;
 					note?: string | null;
 					due_date?: string | null;
-					progress?: number;
 					position?: number;
 					type?: 'task' | 'divider';
 					divider_label?: string | null;
