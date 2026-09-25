@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '$lib/types/database';
+import type { Database, ListKind } from '$lib/types/database';
 type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
 type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
@@ -50,8 +50,23 @@ export async function reorderListDb(sb: Sb, updates: { id: string; position: num
 // TASK CRUD
 // ==========================================
 
-export async function insertTask(sb: Sb, data: { list_id: string; user_id: string; text: string; position: number; parent_id?: string }) {
+export async function insertTask(
+	sb: Sb,
+	data: {
+		id?: string;
+		list_id: string;
+		user_id: string;
+		text: string;
+		position: number;
+		parent_id?: string | null;
+		type?: 'task' | 'divider';
+	}
+) {
 	return sb.from('tasks').insert(data).select().single();
+}
+
+export async function setListKind(sb: Sb, id: string, kind: ListKind) {
+	return sb.from('lists').update({ kind }).eq('id', id);
 }
 
 export async function updateTaskField(sb: Sb, id: string, fields: TaskUpdate) {
@@ -92,7 +107,8 @@ function zeileZumWiedereinfuegen(t: Task): TaskInsert {
 		due_date: t.due_date,
 		position: t.position,
 		assigned_to: t.assigned_to,
-		calendar_event_id: t.calendar_event_id
+		calendar_event_id: t.calendar_event_id,
+		abgelegt: t.abgelegt
 	};
 }
 

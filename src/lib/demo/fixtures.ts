@@ -56,6 +56,7 @@ function liste(id: string, title: string, icon: string, position: number): List 
 		icon,
 		position,
 		visible: true,
+		kind: 'aufgaben',
 		created_at: FRUEHER,
 		updated_at: FRUEHER,
 		version: 1
@@ -103,6 +104,7 @@ function aufgabe(a: Abweichung): Task {
 		parent_id: a.parent_id ?? null,
 		assigned_to: null,
 		calendar_event_id: null,
+		abgelegt: a.abgelegt ?? false,
 		created_at: a.created_at ?? FRUEHER,
 		updated_at: a.created_at ?? FRUEHER,
 		version: 1

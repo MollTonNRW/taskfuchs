@@ -1,5 +1,8 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
+/** Listentyp — 'einkauf' schaltet den Einkaufs-Modus ein (Migration 026). */
+export type ListKind = 'aufgaben' | 'einkauf';
+
 export interface Database {
 	public: {
 		Tables: {
@@ -11,6 +14,7 @@ export interface Database {
 					icon: string;
 					position: number;
 					visible: boolean;
+					kind: ListKind;
 					created_at: string;
 					updated_at: string;
 					version: number;
@@ -22,6 +26,7 @@ export interface Database {
 					icon?: string;
 					position?: number;
 					visible?: boolean;
+					kind?: ListKind;
 					created_at?: string;
 					updated_at?: string;
 					version?: number;
@@ -33,6 +38,7 @@ export interface Database {
 					icon?: string;
 					position?: number;
 					visible?: boolean;
+					kind?: ListKind;
 					updated_at?: string;
 					version?: number;
 				};
@@ -59,6 +65,7 @@ export interface Database {
 					parent_id: string | null;
 					assigned_to: string | null;
 					calendar_event_id: string | null;
+					abgelegt: boolean;
 					created_at: string;
 					updated_at: string;
 					version: number;
@@ -83,6 +90,7 @@ export interface Database {
 					parent_id?: string | null;
 					assigned_to?: string | null;
 					calendar_event_id?: string | null;
+					abgelegt?: boolean;
 					created_at?: string;
 					updated_at?: string;
 					version?: number;
@@ -107,6 +115,7 @@ export interface Database {
 					parent_id?: string | null;
 					assigned_to?: string | null;
 					calendar_event_id?: string | null;
+					abgelegt?: boolean;
 					updated_at?: string;
 					version?: number;
 				};

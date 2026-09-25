@@ -287,7 +287,7 @@ export function createTaskStore(optionen: TaskStoreOptionen = {}) {
 			id: crypto.randomUUID(), list_id: listId, user_id: userId, parent_id: null,
 			text, type: 'task', divider_label: null, done: false, priority: 'normal',
 			timeframe: null, highlighted: false, pinned: false, pinned_by: null, emoji: null, note: null,
-			due_date: null, assigned_to: null, calendar_event_id: null, position,
+			due_date: null, assigned_to: null, calendar_event_id: null, abgelegt: false, position,
 			created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1
 		};
 		tasks = [...tasks, optimisticTask];
@@ -475,7 +475,7 @@ export function createTaskStore(optionen: TaskStoreOptionen = {}) {
 			id: crypto.randomUUID(), list_id: parentTask.list_id, user_id: userId, parent_id: parentId,
 			text, type: 'task', divider_label: null, done: false, priority: 'normal',
 			timeframe: null, highlighted: false, pinned: false, pinned_by: null, emoji: null, note: null,
-			due_date: null, assigned_to: null, calendar_event_id: null, position,
+			due_date: null, assigned_to: null, calendar_event_id: null, abgelegt: false, position,
 			created_at: new Date().toISOString(), updated_at: new Date().toISOString(), version: 1
 		};
 		tasks = [...tasks, optimisticSub];

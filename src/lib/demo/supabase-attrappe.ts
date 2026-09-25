@@ -50,14 +50,18 @@ function vervollstaendige(tabelle: Tabelle, eingabe: Zeile): Zeile {
 	}
 	const basis: Zeile = { id: eingabe.id ?? neueId(tabelle), created_at: jetzt, updated_at: jetzt };
 	if (tabelle === 'lists') {
-		return { visible: true, version: 1, icon: '📋', title: 'Neue Liste', position: 0, ...basis, ...eingabe };
+		return {
+			visible: true, version: 1, icon: '📋', title: 'Neue Liste', position: 0, kind: 'aufgaben',
+			...basis,
+			...eingabe
+		};
 	}
 	if (tabelle === 'tasks') {
 		return {
 			done: false, priority: 'normal', timeframe: null, highlighted: false, pinned: false,
 			pinned_by: null, emoji: null, note: null, due_date: null, position: 0,
 			type: 'task', divider_label: null, parent_id: null, assigned_to: null,
-			calendar_event_id: null, version: 1,
+			calendar_event_id: null, abgelegt: false, version: 1,
 			...basis,
 			...eingabe
 		};
