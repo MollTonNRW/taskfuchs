@@ -39,9 +39,9 @@ export type KategorieRegel = { schluessel: string; namen: string[]; woerter: str
 /**
  * Stichwort-Tabelle. `namen`: so darf die Kategorie in einer Liste heissen
  * (normalisiert). `woerter`: normalisierte Artikel-Stichwoerter. Deutsche
- * Komposita tragen das Grundwort hinten ("Hafermilch") — ein Wort trifft,
+ * Komposita tragen das Grundwort hinten („Hafermilch") — ein Wort trifft,
  * wenn es gleich ist, damit beginnt (Plural) oder damit endet (ab 4 Zeichen).
- * Der LAENGSTE Treffer gewinnt ("Kindermilch" -> Kind, nicht Kuehl).
+ * Der LAENGSTE Treffer gewinnt („Kindermilch" -> Kind, nicht Kuehl).
  */
 export const KATEGORIEN: KategorieRegel[] = [
 	{
@@ -139,7 +139,7 @@ function nameTrifft(kategorieName: string, regel: KategorieRegel): boolean {
 	return regel.namen.some((n) => name === n || name.split(' ').includes(n));
 }
 
-/** Kategorie der Liste fuer einen Artikel — oder null (dann "Sonstiges"). */
+/** Kategorie der Liste fuer einen Artikel — oder null (dann „Sonstiges"). */
 export function findeKategorie<K extends { id: string; text: string }>(
 	artikelText: string,
 	kategorien: K[]
