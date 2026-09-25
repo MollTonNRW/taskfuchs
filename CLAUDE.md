@@ -42,7 +42,7 @@ Tailwind und daisyUI tragen **nur noch** `/auth/login` und `/auth/register`. Die
 │   └── deploy.yml                  # GitHub Actions → Cloudflare Pages
 ├── twa/                            # TWA Build (Gradle, Keystore-Referenz, APK)
 ├── prototype/                      # HTML-Prototyp-Snapshots (historisch)
-├── supabase/migrations/            # DB Migrations (chronologisch, 001–023; 021 = G2-Kopplung)
+├── supabase/migrations/            # DB Migrations (chronologisch, 001–024; 021 = G2-Kopplung)
 ├── static/
 │   ├── fonts/                      # Instrument Sans, self-hosted woff2
 │   ├── icons/                      # PWA Icons (48–512px)
@@ -253,7 +253,7 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 
 ### Migrations
 
-`supabase/migrations/001` bis `023`, chronologisch anzuwenden (021, die G2-Kopplung, steht nicht als Datei im Repo). Die Grundlagen:
+`supabase/migrations/001` bis `024`, chronologisch anzuwenden (021, die G2-Kopplung, steht nicht als Datei im Repo). Die Grundlagen:
 
 | Nr | Datei | Inhalt |
 |----|-------|--------|
@@ -275,6 +275,7 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 | 022 | `task_history.sql` | Aufgabenhistorie: Tabelle, Helfer, RLS, Stempel-Trigger, Realtime |
 | 022b | `task_history_trigger_rechte.sql` | Trigger-Funktionen der Historie nicht per RPC aufrufbar (Advisor) |
 | 023 | `drop_task_progress.sql` | `progress`-Werte als Stand-Eintrag übernehmen, Spalte entfernen — erst nach dem Deploy des Codes ohne `progress` |
+| 024 | `besitz_und_verschieben_absichern.sql` | Trigger: `tasks.user_id`/`lists.user_id` unveränderlich, Verschieben nur in beschreibbare Listen, Unteraufgaben nur an bearbeitbare Aufgaben — greift auch in den Reorder-RPCs; n8n (service_role) unberührt |
 
 ### Auth
 - Google OAuth + Email/Passwort (Supabase Auth)
