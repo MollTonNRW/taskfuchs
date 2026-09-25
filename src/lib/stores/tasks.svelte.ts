@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '$lib/types/database';
+import type { Database, ListKind } from '$lib/types/database';
 import type { Priority } from '$lib/constants';
 import { browser } from '$app/environment';
 import * as crud from '$lib/services/supabase-crud';
@@ -896,6 +896,88 @@ export function createTaskStore(optionen: TaskStoreOptionen = {}) {
 		if (neuIds.length > 0) neuIds = neuIds.filter((id) => bekannt.has(id));
 	}
 
+	// ==========================================
+	// GENERISCHE PRIMITIVE (Einkaufs-Modus)
+	// ==========================================
+	/**
+	 * Mehrere Aufgaben feldgenau aendern — optimistisch, bei einem Fehler
+	 * nimmt die Ruecknahme ALLE Patches zurueck. `leise`: ohne Fehler-Toast
+	 * (Hintergrund-Einsortieren; ein Betrachter darf nicht schreiben, das ist
+	 * kein Fehler, den er sehen muss).
+	 */
+	async function aendereAufgaben(
+		patches: { id: string; felder: Partial<Task> }[],
+		opt: { leise?: boolean } = {}
+	): Promise<boolean> {
+		if (patches.length === 0) return true;
+		const zurueck = setzeFelderJeAufgabe(patches);
+		const ergebnisse = await Promise.all(
+			patches.map((p) => crud.updateTaskField(sb, p.id, p.felder))
+		);
+		if (ergebnisse.some((r) => r.error)) {
+			zurueck();
+			if (!opt.leise) toasts.error('Speichern fehlgeschlagen');
+			return false;
+		}
+		return true;
+	}
+
+	/** Eine Zeile einfuegen (Aufgabe, Unteraufgabe oder Trenner) — optimistisch. */
+	async function fuegeEin(zeile: {
+		list_id: string;
+		text: string;
+		parent_id?: string | null;
+		type?: 'task' | 'divider';
+		position?: number;
+	}): Promise<Task | null> {
+		const parent_id = zeile.parent_id ?? null;
+		const type = zeile.type ?? 'task';
+		const position =
+			zeile.position ??
+			tasks.filter((t) => t.list_id === zeile.list_id && (t.parent_id ?? null) === parent_id).length;
+		const jetzt = new Date().toISOString();
+		const optimistisch: Task = {
+			id: crypto.randomUUID(), list_id: zeile.list_id, user_id: userId, parent_id,
+			text: zeile.text, type, divider_label: null, done: false, abgelegt: false, priority: 'normal',
+			timeframe: null, highlighted: false, pinned: false, pinned_by: null, emoji: null, note: null,
+			due_date: null, assigned_to: null, calendar_event_id: null, position,
+			created_at: jetzt, updated_at: jetzt, version: 1
+		};
+		tasks = [...tasks, optimistisch];
+		pendingTaskIds.add(optimistisch.id);
+		const fp = taskFingerprint(optimistisch);
+		pendingFingerprints.add(fp);
+		// Die ID vergibt der Client: eine Kategorie und der erste Artikel darin
+		// werden oft direkt nacheinander angelegt — der Artikel muss auf die
+		// ID zeigen, die auch auf dem Server steht.
+		const { data, error } = await crud.insertTask(sb, {
+			id: optimistisch.id, list_id: zeile.list_id, user_id: userId, parent_id, text: zeile.text, position, type
+		});
+		pendingTaskIds.delete(optimistisch.id);
+		pendingFingerprints.delete(fp);
+		if (error || !data) {
+			tasks = tasks.filter((t) => t.id !== optimistisch.id);
+			toasts.error('Speichern fehlgeschlagen');
+			return null;
+		}
+		const server = data as Task;
+		tasks = tasks.filter((t) => t.id === optimistisch.id || t.id !== server.id);
+		tasks = tasks.map((t) => (t.id === optimistisch.id ? server : t));
+		return server;
+	}
+
+	/** Listentyp setzen — optimistisch, mit Ruecknahme. */
+	async function setzeListenart(listId: string, kind: ListKind): Promise<boolean> {
+		const zurueck = setzeListenfelder(listId, { kind });
+		const { error } = await crud.setListKind(sb, listId, kind);
+		if (error) {
+			zurueck();
+			toasts.error('Speichern fehlgeschlagen');
+			return false;
+		}
+		return true;
+	}
+
 	return {
 		get tasks() { return tasks; },
 		get lists() { return lists; },
@@ -917,6 +999,8 @@ export function createTaskStore(optionen: TaskStoreOptionen = {}) {
 		bulkToggleDone, bulkChangePriority, bulkDelete, bulkMoveToList,
 		// Reorder
 		reorderTask, reorderSubtask,
+		// Generische Primitive (Einkaufs-Modus)
+		aendereAufgaben, fuegeEin, setzeListenart, loescheMitUndo,
 		// „neu"-Marker
 		istNeu, listeGesehen,
 		// Realtime

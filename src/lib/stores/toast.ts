@@ -7,6 +7,8 @@ export interface Toast {
 	message: string;
 	type: ToastType;
 	onUndo?: () => void;
+	/** Beschriftung des Aktionsknopfes; ohne Angabe „Rueckgaengig". */
+	aktionLabel?: string;
 }
 
 const { subscribe, update } = writable<Toast[]>([]);
@@ -66,6 +68,12 @@ export const toasts = {
 		});
 		const id = `toast-${++counter}`;
 		anzeigen({ id, message, type: 'undo', onUndo }, duration);
+		return { id, cancel: () => entfernen(id) };
+	},
+	/** Hinweis mit EINER Aktion unter eigenem Label (z. B. „Aendern"). */
+	aktion(message: string, label: string, onAktion: () => void, duration = 6000) {
+		const id = `toast-${++counter}`;
+		anzeigen({ id, message, type: 'info', onUndo: onAktion, aktionLabel: label }, duration);
 		return { id, cancel: () => entfernen(id) };
 	},
 	dismiss(id: string) {

@@ -3,6 +3,8 @@
 
 	/**
 	 * Toast — dunkle Flaeche, helle Schrift, „Rueckgaengig" in --toast-undo.
+	 * Derselbe Knopf traegt das eigene Label eines `toasts.aktion`
+	 * (z. B. „Aendern").
 	 *
 	 * Die Positionierung steckt in src/tf.css (.tf-toasts): Desktop mittig auf
 	 * bottom 20, mobil zwischen die Raender gespannt und um die Hoehe der
@@ -21,7 +23,7 @@
 				role={toast.type === 'error' ? 'alert' : 'status'}
 			>
 				<span class="txt">{toast.message}</span>
-				{#if toast.type === 'undo' && toast.onUndo}
+				{#if toast.onUndo}
 					<button
 						class="undo"
 						onclick={() => {
@@ -29,7 +31,7 @@
 							toasts.dismiss(toast.id);
 						}}
 					>
-						R&uuml;ckg&auml;ngig
+						{toast.aktionLabel ?? 'Rückgängig'}
 					</button>
 				{:else}
 					<button class="zu" onclick={() => toasts.dismiss(toast.id)} aria-label="Schlie&szlig;en">
