@@ -19,7 +19,7 @@ function fake(start: T[], kind: 'aufgaben' | 'einkauf' = 'einkauf') {
 	let tasks = [...start];
 	let lists: L[] = [{ id: 'L', user_id: 'u', title: 'Einkaufen', icon: '🛒', position: 0, visible: true, kind, created_at: '', updated_at: '', version: 1 } as L];
 	const toasts: string[] = [];
-	let letztesUndo: (() => void) | null = null;
+	let letztesUndo: (() => unknown) | null = null;
 	const deps: EinkaufDeps = {
 		get tasks() { return tasks; },
 		get lists() { return lists; },
@@ -36,7 +36,15 @@ function fake(start: T[], kind: 'aufgaben' | 'einkauf' = 'einkauf') {
 			return neu;
 		},
 		async setzeListenart(id, k) { lists = lists.map((l) => (l.id === id ? { ...l, kind: k } : l)); return true; },
-		async loescheMitUndo(g) { const ids = new Set(g.map((t) => t.id)); tasks = tasks.filter((t) => !ids.has(t.id)); },
+		// Wie der echte Store: sofort weg, Rueckgaengig fuegt die Zeilen wieder
+		// ein und ruft erst danach den Folgeschritt des Aufrufers.
+		async loescheMitUndo(g, m, nachUndo) {
+			const ids = new Set(g.map((t) => t.id));
+			tasks = tasks.filter((t) => !ids.has(t.id));
+			toasts.push(m);
+			letztesUndo = async () => { tasks = [...tasks, ...g]; await nachUndo?.(); };
+		},
+		async entferne(g) { const ids = new Set(g.map((t) => t.id)); tasks = tasks.filter((t) => !ids.has(t.id)); return true; },
 		toast: {
 			undo(m, f) { toasts.push(m); letztesUndo = f; },
 			aktion(m) { toasts.push(m); },
@@ -163,5 +171,54 @@ describe('kategorieLoeschen', () => {
 		expect(sonst?.text).toBe('Sonstiges');
 		expect(f.tasks.find((t) => t.id === 'a')?.parent_id).toBe(sonst?.id);
 		expect(f.tasks.some((t) => t.id === 'k')).toBe(false);
+	});
+	it('Rueckgaengig holt Kategorie und Artikel zurueck und raeumt ein nur dafuer angelegtes Sonstiges weg', async () => {
+		const k = zeile({ id: 'k', type: 'divider', text: 'Snacks' });
+		const a = zeile({ id: 'a', parent_id: 'k', text: 'Chips', position: 4 });
+		const b = zeile({ id: 'b', parent_id: 'k', text: 'Salzstangen', position: 7 });
+		const f = fake([k, a, b]);
+		await createEinkauf(f.deps).kategorieLoeschen('k');
+		expect(f.toasts).toEqual(['Kategorie gelöscht']);
+		await f.undo();
+		expect(f.tasks.filter((t) => t.type === 'divider').map((t) => t.id)).toEqual(['k']);
+		expect(f.tasks.find((t) => t.id === 'a')).toMatchObject({ parent_id: 'k', position: 4 });
+		expect(f.tasks.find((t) => t.id === 'b')).toMatchObject({ parent_id: 'k', position: 7 });
+	});
+	it('Rueckgaengig laesst ein schon vorhandenes Sonstiges stehen, auch wenn es wieder leer ist', async () => {
+		const k = zeile({ id: 'k', type: 'divider', text: 'Snacks' });
+		const s = zeile({ id: 's', type: 'divider', text: 'Sonstiges', position: 1 });
+		const a = zeile({ id: 'a', parent_id: 'k', text: 'Chips', position: 2 });
+		const f = fake([k, s, a]);
+		await createEinkauf(f.deps).kategorieLoeschen('k');
+		expect(f.tasks.find((t) => t.id === 'a')?.parent_id).toBe('s');
+		await f.undo();
+		expect(f.tasks.find((t) => t.id === 'a')).toMatchObject({ parent_id: 'k', position: 2 });
+		expect(f.tasks.some((t) => t.id === 's')).toBe(true);
+	});
+	it('Rueckgaengig nach dem Loeschen von Sonstiges haengt die Artikel wieder darunter', async () => {
+		const s = zeile({ id: 's', type: 'divider', text: 'Sonstiges' });
+		const x = zeile({ id: 'x', parent_id: 's', text: 'Grillkohle', position: 3 });
+		const f = fake([s, x]);
+		await createEinkauf(f.deps).kategorieLoeschen('s');
+		expect(f.tasks.find((t) => t.id === 'x')?.parent_id).toBe(null);
+		await f.undo();
+		expect(f.tasks.find((t) => t.id === 'x')).toMatchObject({ parent_id: 's', position: 3 });
+	});
+	it('Rueckgaengig laesst Aenderungen aus der Zwischenzeit stehen', async () => {
+		const k = zeile({ id: 'k', type: 'divider', text: 'Snacks' });
+		const g = zeile({ id: 'g', type: 'divider', text: 'Gemüse', position: 1 });
+		const a = zeile({ id: 'a', parent_id: 'k', text: 'Chips' });
+		const b = zeile({ id: 'b', parent_id: 'k', text: 'Salzstangen', position: 1 });
+		const f = fake([k, g, a, b]);
+		const e = createEinkauf(f.deps);
+		await e.kategorieLoeschen('k');
+		const sonst = f.tasks.find((t) => t.text === 'Sonstiges')!;
+		await e.kategorieWechseln('b', 'g');
+		await e.artikelHinzufuegen('L', 'Grillkohle');
+		await f.undo();
+		expect(f.tasks.find((t) => t.id === 'a')?.parent_id).toBe('k');
+		expect(f.tasks.find((t) => t.id === 'b')?.parent_id).toBe('g');
+		expect(f.tasks.find((t) => t.text === 'Grillkohle')?.parent_id).toBe(sonst.id);
+		expect(f.tasks.some((t) => t.id === sonst.id)).toBe(true);
 	});
 });

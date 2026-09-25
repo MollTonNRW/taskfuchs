@@ -727,20 +727,18 @@ export function createTaskStore(optionen: TaskStoreOptionen = {}) {
 	 * Den Verlauf der Aufgaben nimmt die Kaskade mit; die Datenbank legt ihn
 	 * dabei in einen Papierkorb, aus dem `aufgabenZurueck` ihn nach dem
 	 * Wiedereinfuegen zurueckholt — samt Autor, Zeiten und „Ist da".
+	 *
+	 * `nachUndo`: Folgeschritt des Aufrufers, der erst laeuft, wenn die Zeilen
+	 * wieder auf dem Server stehen (Kategorie loeschen: die Artikel zurueck
+	 * unter die Kategorie haengen — vorher gaebe es sie dort noch nicht).
 	 */
-	async function loescheMitUndo(geloescht: Task[], meldung: string) {
+	async function loescheMitUndo(geloescht: Task[], meldung: string, nachUndo?: () => Promise<void>) {
 		if (geloescht.length === 0) return;
-		const ids = geloescht.map((t) => t.id);
-		const idSet = new Set(ids);
-		tasks = tasks.filter((t) => !idSet.has(t.id));
-
-		const { error } = await crud.bulkDeleteTasks(sb, ids);
-		if (error) {
-			wiederEinsetzen(geloescht);
-			optionen.aufgabenZurueck?.(ids, false);
+		if (!(await entferne(geloescht))) {
 			toasts.error('Fehler beim Löschen');
 			return;
 		}
+		const ids = geloescht.map((t) => t.id);
 
 		// Eltern vor Kindern wieder einfuegen — `parent_id` zeigt auf eine
 		// Zeile, die dann schon steht.
@@ -767,7 +765,28 @@ export function createTaskStore(optionen: TaskStoreOptionen = {}) {
 			setTimeout(() => {
 				for (const t of reihenfolge) pendingTaskIds.delete(t.id);
 			}, 3000);
+			await nachUndo?.();
 		});
+	}
+
+	/**
+	 * Zeilen loeschen, ohne Undo-Toast — optimistisch, bei einem Fehler
+	 * stehen sie wieder da. Der Kern von `loescheMitUndo`; allein nur fuer
+	 * Aufraeumen, das selbst Teil eines Rueckgaengig ist (ein nur fuer das
+	 * Loeschen einer Kategorie angelegtes, wieder leeres „Sonstiges").
+	 */
+	async function entferne(zeilen: Task[]): Promise<boolean> {
+		if (zeilen.length === 0) return true;
+		const ids = zeilen.map((t) => t.id);
+		const idSet = new Set(ids);
+		tasks = tasks.filter((t) => !idSet.has(t.id));
+		const { error } = await crud.bulkDeleteTasks(sb, ids);
+		if (error) {
+			wiederEinsetzen(zeilen);
+			optionen.aufgabenZurueck?.(ids, false);
+			return false;
+		}
+		return true;
 	}
 
 	/**
@@ -1000,7 +1019,7 @@ export function createTaskStore(optionen: TaskStoreOptionen = {}) {
 		// Reorder
 		reorderTask, reorderSubtask,
 		// Generische Primitive (Einkaufs-Modus)
-		aendereAufgaben, fuegeEin, setzeListenart, loescheMitUndo,
+		aendereAufgaben, fuegeEin, setzeListenart, loescheMitUndo, entferne,
 		// „neu"-Marker
 		istNeu, listeGesehen,
 		// Realtime

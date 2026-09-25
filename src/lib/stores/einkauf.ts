@@ -17,7 +17,8 @@ export type EinkaufDeps = {
 	aendereAufgaben(patches: { id: string; felder: Partial<Task> }[], opt?: { leise?: boolean }): Promise<boolean>;
 	fuegeEin(zeile: { list_id: string; text: string; parent_id?: string | null; type?: 'task' | 'divider'; position?: number }): Promise<Task | null>;
 	setzeListenart(listId: string, kind: ListKind): Promise<boolean>;
-	loescheMitUndo(geloescht: Task[], meldung: string): Promise<void>;
+	loescheMitUndo(geloescht: Task[], meldung: string, nachUndo?: () => Promise<void>): Promise<void>;
+	entferne(zeilen: Task[]): Promise<boolean>;
 	toast: {
 		undo(message: string, onUndo: () => void): unknown;
 		aktion(message: string, label: string, onAktion: () => void): unknown;
@@ -146,13 +147,18 @@ export function createEinkauf(deps: EinkaufDeps) {
 		return deps.fuegeEin({ list_id: listId, text, type: 'divider', position: naechstePosition(listId, null) });
 	}
 
-	/** Artikel wandern nach „Sonstiges", dann faellt die Kategorie (Aufrufer fragt vorher nach). */
+	/**
+	 * Artikel wandern nach „Sonstiges", dann faellt die Kategorie. Das
+	 * Rueckgaengig im Toast nimmt BEIDES zurueck — darum ohne Rueckfrage
+	 * (ein Bestaetigungsdialog steht nur, wo es kein Rueckgaengig gibt).
+	 */
 	async function kategorieLoeschen(kategorieId: string): Promise<boolean> {
 		const k = deps.tasks.find((t) => t.id === kategorieId);
 		if (!k) return false;
 		const kinder = deps.tasks.filter((t) => t.parent_id === kategorieId);
+		const vorher = new Set(kategorienVon(k.list_id).map((t) => t.id));
+		let ziel: Task | null = null;
 		if (kinder.length > 0) {
-			let ziel: Task | null = null;
 			if (!istSonstiges(k.text)) ziel = await sonstigesSicherstellen(k.list_id);
 			if (!ziel) {
 				// „Sonstiges" selbst loeschen: Artikel auf die oberste Ebene (Ohne Kategorie).
@@ -166,7 +172,33 @@ export function createEinkauf(deps: EinkaufDeps) {
 				if (!ok) return false;
 			}
 		}
-		await deps.loescheMitUndo([deps.tasks.find((t) => t.id === kategorieId) ?? k], 'Kategorie gelöscht');
+		const zielId = ziel?.id ?? null;
+		const sonstigesNeu = ziel && !vorher.has(ziel.id) ? ziel.id : null;
+
+		// Rueckgaengig — laeuft, wenn die Kategorie wieder auf dem Server steht.
+		// Zurueck an den alten Platz nur, was noch dort steht, wo das Loeschen es
+		// hingestellt hat; was inzwischen jemand umgehaengt hat, bleibt. Ein nur
+		// dafuer angelegtes „Sonstiges" faellt wieder weg, solange es leer ist.
+		async function zuruecknehmen() {
+			const zurueck = kinder.filter((a) =>
+				deps.tasks.some((t) => t.id === a.id && (t.parent_id ?? null) === zielId)
+			);
+			if (zurueck.length > 0) {
+				const ok = await deps.aendereAufgaben(
+					zurueck.map((a) => ({ id: a.id, felder: { parent_id: kategorieId, position: a.position } }))
+				);
+				if (!ok) return;
+			}
+			if (!sonstigesNeu || deps.tasks.some((t) => t.parent_id === sonstigesNeu)) return;
+			const leer = deps.tasks.find((t) => t.id === sonstigesNeu);
+			if (leer) await deps.entferne([leer]);
+		}
+
+		await deps.loescheMitUndo(
+			[deps.tasks.find((t) => t.id === kategorieId) ?? k],
+			'Kategorie gelöscht',
+			zuruecknehmen
+		);
 		return true;
 	}
 
