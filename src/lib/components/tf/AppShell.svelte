@@ -75,7 +75,16 @@
 	} from '$lib/composables/tf/useContextMenus.svelte';
 	import { createSortFilter, sortLabels, validSortModes, type SortMode } from '$lib/composables/tf/useSortFilter.svelte';
 	import { createShareDialog } from '$lib/composables/tf/useShareDialog.svelte';
-	import { bestaetigen, toasts } from '$lib/stores/toast';
+	import {
+		bestaetigen,
+		toasts,
+		confirmStore,
+		inputDialogStore,
+		resolveConfirm,
+		resolveInput
+	} from '$lib/stores/toast';
+	import { pushState } from '$app/navigation';
+	import { page } from '$app/state';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 	type Task = Database['public']['Tables']['tasks']['Row'];
@@ -808,6 +817,85 @@
 	function zurueck() {
 		nav.back();
 	}
+
+	// ==========================================
+	// ZURUECK-TASTE (Android, TWA) — nur mobil
+	// ==========================================
+	// Ohne eigenen Verlaufseintrag findet die Zurueck-Taste nichts, wohin sie
+	// zurueck koennte, und schliesst die App. Darum liegt, solange mobil
+	// irgendeine Ebene ueber der Listenuebersicht offen ist, genau EIN
+	// Waechter-Eintrag im Verlauf (SvelteKit-Shallow-Routing, `pushState`).
+	// Die Taste nimmt ihn weg; wir schliessen daraufhin die oberste Ebene —
+	// dieselbe Reihenfolge wie Escape — und legen ihn neu an, falls noch
+	// etwas offen ist. Schliesst die Oberflaeche die letzte Ebene selbst,
+	// nehmen wir den Waechter per `history.back()` wieder heraus; sonst
+	// braeuchte es in der Uebersicht zwei Druecke zum Beenden.
+	// Erst in der Listenuebersicht schliesst Zurueck die App.
+
+	/** Irgendeine Ebene ueber der Listenuebersicht offen? */
+	function ebeneOffen(): boolean {
+		return (
+			$confirmStore.show ||
+			$inputDialogStore.show ||
+			ctx.contextMenu.show ||
+			listIconPicker.show ||
+			share.shareDialog.show ||
+			bulkMode ||
+			!!nav.selectedTaskId ||
+			nav.listOpenMobile ||
+			nav.mobileTab !== 'listen'
+		);
+	}
+
+	/** Die oberste offene Ebene schliessen — Reihenfolge wie bei Escape. */
+	function obersteEbeneSchliessen() {
+		if ($confirmStore.show) return resolveConfirm(false);
+		if ($inputDialogStore.show) return resolveInput(null);
+		if (ctx.contextMenu.show) return ctx.close();
+		if (listIconPicker.show) {
+			listIconPicker = { show: false, listId: '', x: 0, y: 0 };
+			return;
+		}
+		if (share.shareDialog.show) return share.close();
+		if (bulkMode) return clearBulkSelection();
+		if (nav.selectedTaskId || nav.listOpenMobile) return nav.back();
+		if (nav.mobileTab !== 'listen') nav.setTab('listen');
+	}
+
+	let zurueckTief = $derived(isMobile && ebeneOffen());
+	let waechterImVerlauf = $derived(!!page.state.tfEbene);
+	/** Wir haben den Waechter gelegt und er wurde noch nicht verbraucht. */
+	let waechterGelegt = false;
+
+	$effect(() => {
+		const tief = zurueckTief;
+		const imVerlauf = waechterImVerlauf;
+		untrack(() => {
+			if (tief && !imVerlauf) {
+				if (waechterGelegt) {
+					// Zurueck-Taste: der Waechter ist weg, die Ebene noch offen.
+					waechterGelegt = false;
+					obersteEbeneSchliessen();
+					// Noch etwas offen (Sheet zu, Liste steht noch)? Dann gleich
+					// den naechsten Waechter legen. Der Effekt liefe dafuer nicht
+					// erneut: `zurueckTief` war vorher true und bleibt true.
+					if (isMobile && ebeneOffen()) {
+						pushState('', { tfEbene: true });
+						waechterGelegt = true;
+					}
+				} else {
+					pushState('', { tfEbene: true });
+					waechterGelegt = true;
+				}
+			} else if (!tief && imVerlauf && waechterGelegt) {
+				// Die Oberflaeche hat die letzte Ebene selbst geschlossen.
+				waechterGelegt = false;
+				history.back();
+			} else if (!tief) {
+				waechterGelegt = false;
+			}
+		});
+	});
 
 	// ==========================================
 	// VORSCHAU-ZUSTAENDE (nur /vorschau)

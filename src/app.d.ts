@@ -18,6 +18,10 @@ declare global {
 			session: Session | null;
 			user: User | null;
 		}
+		/** Shallow Routing: Waechter-Eintrag fuer die mobile Zurueck-Taste (AppShell). */
+		interface PageState {
+			tfEbene?: boolean;
+		}
 	}
 }
 
