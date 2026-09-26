@@ -297,7 +297,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 				danger: true,
 				action: () => void deps.einkauf.kategorieLoeschen(kategorie.id)
 			}
-		]);
+		], 220, kategorie.id);
 	}
 
 	/** Menue an einem Artikel (⋮ am Zeiger, langes Tippen am Finger) — drei Eintraege. */

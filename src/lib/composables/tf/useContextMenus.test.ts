@@ -61,6 +61,8 @@ describe('Kategoriemenue', () => {
 		expect(ctx.contextMenu.show).toBe(true);
 		expect(items.map((i) => i.label)).toEqual(['Umbenennen', 'Löschen']);
 		expect(items[1].danger).toBe(true);
+		// Der ⋮ an der Ueberschrift bleibt markiert, solange ihr Menue offen steht.
+		expect(ctx.offeneTaskId).toBe('k1');
 		await ausfuehren(items[1].action);
 		expect(einkauf.kategorieLoeschen).toHaveBeenCalledWith('k1');
 		expect(get(confirmStore).show).toBe(false);

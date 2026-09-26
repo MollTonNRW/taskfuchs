@@ -25,7 +25,8 @@
 		onKategorieMenue,
 		onArtikelMenue,
 		onKategorieNeu,
-		quickAddVorgabe = ''
+		quickAddVorgabe = '',
+		menuOffenId = null
 	}: {
 		list: List;
 		/** Alle Zeilen DIESER Liste (Kategorien, Artikel, abgelegte). */
@@ -37,6 +38,8 @@
 		onKategorieNeu: () => void;
 		/** Quick-Add aktiv mit diesem Text — nur die Vorschau-Route. */
 		quickAddVorgabe?: string;
+		/** Kategorie oder Artikel, deren Menue gerade offen steht — ihr ⋮ bleibt sichtbar. */
+		menuOffenId?: string | null;
 	} = $props();
 
 	const CHIPS_MAX = 8;
@@ -178,6 +181,7 @@
 				</button>
 				<button
 					class="tf-more"
+					class:on={menuOffenId === s.kategorie.id}
 					aria-label="Kategoriemenü öffnen"
 					onclick={(e) => menue(e, s.kategorie, 'kategorie')}
 				>
@@ -247,7 +251,12 @@
 			<span class="txt">{a.text}</span>
 		</button>
 		{#if !mobil}
-			<button class="tf-more" aria-label="Artikelmenü öffnen" onclick={(e) => menue(e, a, 'artikel')}>
+			<button
+				class="tf-more"
+				class:on={menuOffenId === a.id}
+				aria-label="Artikelmenü öffnen"
+				onclick={(e) => menue(e, a, 'artikel')}
+			>
 				<Icon name="mehr" size={16} />
 			</button>
 		{/if}

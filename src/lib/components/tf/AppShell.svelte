@@ -1204,6 +1204,7 @@
 			onArtikelMenue={ctx.handleArtikelContext}
 			onKategorieNeu={kategorieNeu}
 			quickAddVorgabe={vorschauQuickAdd}
+			menuOffenId={ctx.contextMenu.show ? ctx.offeneTaskId : null}
 		/>
 	{:else if activeList}
 		<TaskList
