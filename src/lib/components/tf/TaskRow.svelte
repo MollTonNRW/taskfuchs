@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { get } from 'svelte/store';
 	import type { Database } from '$lib/types/database';
 	import Icon from './Icon.svelte';
 	import SubtaskRow from './SubtaskRow.svelte';
 	import { formatFaellig, formatSeit } from '$lib/utils/datum';
-	import { dragState } from '$lib/actions/touchDrag';
+	import { createLangesTippen } from '$lib/actions/langesTippen';
 	import type { Mitnutzer } from '$lib/utils/mitnutzer';
 	import { warteHinweis, type Eintrag } from '$lib/utils/verlauf';
 	import type { Zeigerpunkt } from '$lib/composables/tf/useContextMenus.svelte';
@@ -128,63 +127,12 @@
 	// Zeigen und Tippen
 	// ------------------------------------------------------------------
 	// Auf dem Mobilgeraet traegt die Zeile kein ⋮ (Spezifikation Abschnitt 5);
-	// das Menue kommt ueber langes Tippen. Das Ziehen beginnt laut Gesten-
-	// Modell nach 300 ms Halten UND Bewegung (siehe actions/touchDrag.ts) —
-	// Halten ohne Bewegung ist dort eine Leerstelle und gehoert hier dem Menue.
-	/** Ab hier gilt ein Tippen als Halten und oeffnet das Menue. */
-	const LANGES_TIPPEN = 450;
-	/** So lange nach einer Beruehrung ist ein `contextmenu` das native Menue. */
-	const NATIV_SPERRE = 700;
-	/** Ab dieser Strecke war es kein Halten, sondern ein Wischen. */
-	const WACKELN = 8;
-
-	let tippStart = 0;
-	let tippX = 0;
-	let tippY = 0;
-	let bewegt = false;
-	/** Verhindert, dass der Klick nach einem langen Tippen die Zeile oeffnet. */
-	let menueGeoeffnet = false;
-
-	function beruehrungStart(e: TouchEvent) {
-		tippStart = Date.now();
-		bewegt = false;
-		menueGeoeffnet = false;
-		const t = e.touches[0];
-		if (!t) return;
-		tippX = t.clientX;
-		tippY = t.clientY;
-	}
-
-	function beruehrungBewegt(e: TouchEvent) {
-		const t = e.touches[0];
-		if (!t) return;
-		if (Math.abs(t.clientX - tippX) > WACKELN || Math.abs(t.clientY - tippY) > WACKELN)
-			bewegt = true;
-	}
-
-	function beruehrungEnde(e: TouchEvent) {
-		if (bewegt || Date.now() - tippStart < LANGES_TIPPEN) return;
-		// Laeuft gerade ein Umsortieren, gehoert das Halten dem Ziehen.
-		if (get(dragState).active) return;
-		const t = e.changedTouches[0];
-		if (!t) return;
-		menueGeoeffnet = true;
-		onMenu({ clientX: t.clientX, clientY: t.clientY, preventDefault() {} }, task);
-	}
-
-	function kontextmenue(e: MouseEvent) {
-		e.preventDefault();
-		// Android feuert `contextmenu` selbst beim langen Tippen; dort hat das
-		// Halten bereits gewirkt und das native Menue stoert nur.
-		if (Date.now() - tippStart < NATIV_SPERRE) return;
-		onMenu(e, task);
-	}
+	// das Menue kommt ueber langes Tippen (actions/langesTippen.ts). Der Klick
+	// danach wird geschluckt, sonst oeffnete er die Zeile.
+	const tippen = createLangesTippen<Task>((p, t) => onMenu(p, t));
 
 	function zeileGeklickt() {
-		if (menueGeoeffnet) {
-			menueGeoeffnet = false;
-			return;
-		}
+		if (tippen.klickGeschluckt()) return;
 		if (bulkMode) {
 			onBulkToggle?.(task.id);
 			return;
@@ -246,10 +194,10 @@
 	class:erledigt={task.done}
 	class:gewaehlt={bulkSelected}
 	onclick={zeileGeklickt}
-	oncontextmenu={kontextmenue}
-	ontouchstart={beruehrungStart}
-	ontouchmove={beruehrungBewegt}
-	ontouchend={beruehrungEnde}
+	oncontextmenu={(e) => tippen.kontextmenue(e, task)}
+	ontouchstart={tippen.start}
+	ontouchmove={tippen.bewegt}
+	ontouchend={(e) => tippen.ende(e, task)}
 >
 	<span class="tf-bar {task.priority}"></span>
 

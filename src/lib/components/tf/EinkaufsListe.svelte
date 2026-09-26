@@ -6,6 +6,7 @@
 	import { SvelteMap } from 'svelte/reactivity';
 	import { einkaufsAnsicht } from '$lib/utils/einkauf';
 	import { toasts } from '$lib/stores/toast';
+	import { createLangesTippen } from '$lib/actions/langesTippen';
 	import QuickAdd from './QuickAdd.svelte';
 	import Icon from './Icon.svelte';
 
@@ -85,64 +86,13 @@
 		(art === 'kategorie' ? onKategorieMenue : onArtikelMenue)(e, t);
 	}
 
-	// ------------------------------------------------------------------
-	// Langes Tippen am Finger — dasselbe Muster wie TaskRow.svelte
-	// ------------------------------------------------------------------
 	// Am Finger traegt ein Artikel kein ⋮; das Menue kommt ueber langes
-	// Tippen. Android meldet das zwar selbst als `contextmenu`, iOS nicht —
-	// und nach dem Loslassen schickt Android noch einen Klick hinterher, der
-	// den Artikel ungewollt in den Wagen legte. Darum wie bei den Aufgaben:
-	// selbst messen, Menue beim Loslassen, den folgenden Klick schlucken.
-	/** Ab hier gilt ein Tippen als Halten und oeffnet das Menue. */
-	const LANGES_TIPPEN = 450;
-	/** So lange nach einer Beruehrung ist ein `contextmenu` das native Menue. */
-	const NATIV_SPERRE = 700;
-	/** Ab dieser Strecke war es kein Halten, sondern ein Wischen. */
-	const WACKELN = 8;
-
-	let tippStart = 0;
-	let tippX = 0;
-	let tippY = 0;
-	let bewegt = false;
-	/** Verhindert, dass der Klick nach einem langen Tippen abhakt. */
-	let menueNachTippen = false;
-
-	function beruehrungStart(e: TouchEvent) {
-		tippStart = Date.now();
-		bewegt = false;
-		menueNachTippen = false;
-		const t = e.touches[0];
-		if (!t) return;
-		tippX = t.clientX;
-		tippY = t.clientY;
-	}
-
-	function beruehrungBewegt(e: TouchEvent) {
-		const t = e.touches[0];
-		if (!t) return;
-		if (Math.abs(t.clientX - tippX) > WACKELN || Math.abs(t.clientY - tippY) > WACKELN) bewegt = true;
-	}
-
-	function beruehrungEnde(e: TouchEvent, a: Task) {
-		if (bewegt || Date.now() - tippStart < LANGES_TIPPEN) return;
-		const t = e.changedTouches[0];
-		if (!t) return;
-		menueNachTippen = true;
-		onArtikelMenue({ clientX: t.clientX, clientY: t.clientY, preventDefault() {} }, a);
-	}
-
-	function kontextmenue(e: MouseEvent, a: Task) {
-		e.preventDefault();
-		// Am Finger hat das Halten schon gewirkt (siehe oben).
-		if (Date.now() - tippStart < NATIV_SPERRE) return;
-		menue(e, a, 'artikel');
-	}
+	// Tippen — dasselbe Muster wie bei den Aufgaben (actions/langesTippen.ts).
+	// Der Klick danach wird geschluckt, sonst laege der Artikel im Wagen.
+	const tippen = createLangesTippen<Task>((p, a) => onArtikelMenue(p, a));
 
 	function umschalten(a: Task) {
-		if (menueNachTippen) {
-			menueNachTippen = false;
-			return;
-		}
+		if (tippen.klickGeschluckt()) return;
 		void einkauf.artikelUmschalten(a.id);
 	}
 </script>
@@ -235,10 +185,10 @@
 		class="tf-ek-artikel"
 		class:wagen={imWagen}
 		data-tf-artikel={a.id}
-		oncontextmenu={(e) => kontextmenue(e, a)}
-		ontouchstart={beruehrungStart}
-		ontouchmove={beruehrungBewegt}
-		ontouchend={(e) => beruehrungEnde(e, a)}
+		oncontextmenu={(e) => tippen.kontextmenue(e, a)}
+		ontouchstart={tippen.start}
+		ontouchmove={tippen.bewegt}
+		ontouchend={(e) => tippen.ende(e, a)}
 	>
 		<button
 			class="tf-ek-haken"
