@@ -10,12 +10,15 @@
  * Der Zaehler haelt genau einen Satz Ereignis-Hoerer, egal wie viele
  * Komponenten gerade zusehen.
  */
+import { untrack } from 'svelte';
 
 /** Darunter ist es die ein- und ausfahrende Browserleiste, keine Tastatur. */
 const SCHWELLE = 120;
 
 let hoehe = $state(0);
 let zuschauer = 0;
+/** Wie viele Quick-Add-Felder gerade angedockt sind (hoechstens eins). */
+let angedockt = $state(0);
 let abmelden: (() => void) | null = null;
 
 function messen() {
@@ -58,11 +61,35 @@ export function beobachteTastatur(): () => void {
 	};
 }
 
+/**
+ * Das angedockte Quick-Add-Feld meldet sich an, solange es steht — der
+ * Toast-Stapel weicht ihm aus (ToastContainer). Rueckgabe: die Abmeldung.
+ */
+export function meldeAndocken(): () => void {
+	// untrack: aufgerufen aus einem `$effect` — das Lesen fuer `+= 1` machte
+	// den Zaehler sonst zu dessen Abhaengigkeit, und der Effekt liefe endlos.
+	untrack(() => (angedockt += 1));
+	return () => {
+		untrack(() => (angedockt -= 1));
+	};
+}
+
+/** Unterkante des angedockten Feldes: ueber der Tastatur, sonst ueber der Tab-Leiste. */
+export function dockUnten(): string {
+	return hoehe > 0 ? `${hoehe}px` : 'calc(var(--tf-tabbar) + env(safe-area-inset-bottom))';
+}
+
+/** Hoehe des angedockten Feldes: 6 + 48 + 8 Polster/Zeile plus 1 px Rand. */
+export const DOCK_HOEHE = 63;
+
 export const tastatur = {
 	get hoehe() {
 		return hoehe;
 	},
 	get offen() {
 		return hoehe > 0;
+	},
+	get angedockt() {
+		return angedockt > 0;
 	}
 };

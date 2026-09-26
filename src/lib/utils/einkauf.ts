@@ -174,6 +174,8 @@ export type EinkaufsZeile = {
 export type Abschnitt<T> = { kategorie: T; offen: T[]; wagen: T[]; abgelegt: T[] };
 export type EinkaufsAnsicht<T> = {
 	ohneKategorie: T[];
+	/** Abgelegte ohne Kategorie — Chips im Abschnitt „Ohne Kategorie". */
+	ohneKategorieAbgelegt: T[];
 	abschnitte: Abschnitt<T>[];
 	offenAnzahl: number;
 	wagenAnzahl: number;
@@ -196,15 +198,22 @@ export function einkaufsAnsicht<T extends EinkaufsZeile>(zeilen: T[]): EinkaufsA
 		};
 	});
 	// Artikel ohne Kategorie: Zeilen der obersten Ebene (von n8n, G2, einem
-	// zweiten Geraet) und Kinder, deren Kategorie es nicht mehr gibt.
-	const alleIds = new Set(zeilen.map((t) => t.id));
-	const ohneKategorie = zeilen
-		.filter((t) => t.type !== 'divider' && (!t.parent_id || !alleIds.has(t.parent_id)))
-		.filter((t) => artikelZustand(t) !== 'abgelegt')
+	// zweiten Geraet), Kinder, deren Kategorie es nicht mehr gibt, und Kinder
+	// einer Zeile, die KEINE Kategorie ist (eine in die Liste verschobene
+	// Aufgabe mit Unteraufgaben). Ohne den letzten Fall waeren solche Kinder
+	// unsichtbar, zaehlten aber in der Navigation mit.
+	const kategorieIds = new Set(kategorien.map((k) => k.id));
+	const ohne = zeilen
+		.filter((t) => t.type !== 'divider' && (!t.parent_id || !kategorieIds.has(t.parent_id)))
 		.sort(nachPosition);
+	const ohneKategorie = ohne.filter((t) => artikelZustand(t) !== 'abgelegt');
+	const ohneKategorieAbgelegt = ohne
+		.filter((t) => artikelZustand(t) === 'abgelegt')
+		.sort(neuesteZuerst);
 	const alle = [...abschnitte.flatMap((a) => [...a.offen, ...a.wagen]), ...ohneKategorie];
 	return {
 		ohneKategorie,
+		ohneKategorieAbgelegt,
 		abschnitte,
 		offenAnzahl: alle.filter((t) => artikelZustand(t) === 'offen').length,
 		wagenAnzahl: alle.filter((t) => artikelZustand(t) === 'wagen').length

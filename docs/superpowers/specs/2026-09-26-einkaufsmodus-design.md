@@ -50,20 +50,29 @@ Tipp zurück auf die Liste.
   „+ N weitere" klappt auf). Leere Kategorien ohne Chips sind eingeklappt.
 - Artikel: großer Haken (44 px), Tippen auf die Zeile = abhaken. Langes Tippen / ⋮ → Umbenennen,
   Kategorie ändern, Löschen. Keine Priorität, kein Fällig, kein Verlauf, kein Detail-Sheet.
-- Kopf: statt „Erledigte löschen" der Knopf **„Einkauf fertig"** (nur wenn etwas im Wagen ist) →
-  alle Artikel im Wagen `abgelegt=true`, Undo-Toast.
+- Statt „Erledigte löschen" **„Einkauf fertig"** (nur wenn etwas im Wagen ist) →
+  alle Artikel im Wagen `abgelegt=true`, Undo-Toast. Als Leiste unten in der Liste plus Eintrag im
+  Listenmenü (Ruling R2, nicht im Kopf).
 - Kategorien verwalten: ⋮ an der Überschrift (Umbenennen, Löschen — Artikel wandern nach „Sonstiges")
   und „+ Kategorie" am Ende. Reihenfolge per Ziehen wie bisher bei Top-Level-Zeilen.
 - Artikel ohne Kategorie (z. B. von n8n/Telegram als Top-Level-Aufgabe angelegt) sortiert der Client
-  beim Laden bzw. beim Realtime-Insert mit denselben Regeln ein (deterministisch, daher auch bei zwei
-  Geräten gleichzeitig unkritisch).
+  beim Laden bzw. beim Realtime-Insert per Stichwort-Tabelle ein (deterministisch, daher auch bei zwei
+  Geräten gleichzeitig unkritisch). Nachtrag 26.09. (Gesamt-Review): Anders als das Quick-Add legt das
+  Einsortieren von außen **nie** eine Kategorie an (Ruling R4) und fällt **nicht** auf „Sonstiges"
+  zurück — ohne Stichwort-Treffer bleibt der Artikel unter „Ohne Kategorie". Grund: Löscht ein zweites
+  Gerät gerade „Sonstiges", würden dessen kurz losen Artikel sonst zurückgehängt und von der
+  Lösch-Kaskade mitgenommen. Zeilen mit Unteraufgaben sind nie ein Artikel und werden nie einsortiert;
+  ihre Kinder zeigt „Ohne Kategorie" mit an.
 - Zähler in Navigation/Übersicht: offene Artikel (nicht Kategorien, nicht Chips).
 
 **Listentyp umschalten**: Listenmenü „Als Einkaufsliste" / „Als Aufgabenliste".
 - Aufgaben → Einkauf: Top-Level-Aufgaben MIT Unteraufgaben werden Kategorien, Top-Level-Aufgaben ohne
-  Unteraufgaben werden Artikel und einsortiert.
-- Einkauf → Aufgaben: Kategorien werden wieder Aufgaben (`type='task'`), abgelegte Artikel bleiben
-  erledigte Unteraufgaben. Beide Richtungen verlustfrei.
+  Unteraufgaben werden Artikel und einsortiert. Vorhandene Trenner sind Kategorien.
+- Einkauf → Aufgaben: Kategorien MIT Artikeln werden wieder Aufgaben (`type='task'`), leere bleiben
+  Trenner (Zwischenüberschrift). Abgelegte Artikel und Artikel im Wagen sind erledigte Unteraufgaben.
+  Beide Richtungen verlustfrei, auch im Rundlauf: Der Wechsel ändert nie `done` oder `abgelegt` eines
+  Artikels (Nachtrag 26.09.). Eine erstmals umgestellte Aufgabenliste hat ihre erledigten Unteraufgaben
+  darum im Wagen, „Einkauf fertig" legt sie ab. Die Erstübernahme von „Einkaufen" (026b) legt sie direkt ab.
 
 **Überall sonst**: Suche findet Artikel (nicht Kategorien); Smart-Ansichten „Angepinnt"/„Dringend"
 ignorieren Einkaufslisten-Artikel; abgelegte Artikel zählen nirgends.

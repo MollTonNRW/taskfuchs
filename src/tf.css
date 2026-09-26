@@ -1048,6 +1048,17 @@
 	}
 }
 
+/* Leiste „Einkauf fertig" sichtbar (65 px hoch, am unteren Rand der Liste):
+   der Stapel steht darueber, sonst verdeckt er den Hauptknopf im Laden. */
+body:has(.tf-ek-fertig) .tf-toasts {
+	bottom: 84px;
+}
+@media (max-width: 899px) {
+	body:has(.tf-ek-fertig) .tf-toasts {
+		bottom: calc(var(--tf-tabbar) + 77px + env(safe-area-inset-bottom));
+	}
+}
+
 /* =====================================================================
    AUFGABENZEILE, UNTERAUFGABEN, ERLEDIGT-BEREICH, QUICK-ADD
    Verbindliche Quelle: A-klar-spec.md, Abschnitt 5 (Masse woertlich).
@@ -3189,7 +3200,17 @@
    abgelegte Artikel Chips. Nur Token, keine eigenen Farben.
    --------------------------------------------------------------------- */
 .tf-ek { padding: 4px 0 96px; }
-.tf-ek-abschnitt { border-bottom: 1px solid var(--line-2); padding: 6px 0 10px; }
+.tf-ek-abschnitt { position: relative; border-bottom: 1px solid var(--line-2); padding: 6px 0 10px; }
+/* Kategorien umsortieren: gezogener Abschnitt blass, Einfuegestelle als
+   Linie in --accent wie bei den Zeilen der Aufgabenliste. */
+.tf-ek-abschnitt.zieht { opacity: 0.4; }
+.tf-ek-abschnitt.ziel-oben::before,
+.tf-ek-abschnitt.ziel-unten::after {
+	content: ''; position: absolute; left: 0; right: 0; height: 2px;
+	border-radius: 1px; background: var(--accent); z-index: 2;
+}
+.tf-ek-abschnitt.ziel-oben::before { top: -1px; }
+.tf-ek-abschnitt.ziel-unten::after { bottom: -1px; }
 .tf-ek-kopf { display: flex; align-items: center; gap: 4px; padding: 0 12px 0 16px; }
 .tf-ek-titel {
 	display: flex; align-items: center; gap: 6px; flex: 1; min-height: 40px;

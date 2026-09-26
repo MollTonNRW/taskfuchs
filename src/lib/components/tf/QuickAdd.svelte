@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import Icon from './Icon.svelte';
-	import { beobachteTastatur, tastatur } from '$lib/stores/tf/tastatur.svelte';
+	import { beobachteTastatur, dockUnten, meldeAndocken } from '$lib/stores/tf/tastatur.svelte';
 
 	/**
 	 * Quick-Add — Spezifikation Abschnitt 5: die ERSTE Zeile jeder Liste,
@@ -58,11 +58,14 @@
 
 	/** Angedockt wird nur mobil und nur, solange wirklich getippt wird. */
 	let angedockt = $derived(mobil && aktiv);
-	let dockUnten = $derived(
-		tastatur.offen
-			? `${tastatur.hoehe}px`
-			: 'calc(var(--tf-tabbar) + env(safe-area-inset-bottom))'
-	);
+	let dockAbstand = $derived(dockUnten());
+
+	// Solange angedockt: den Toasts Bescheid geben, damit sie ueber dem Feld
+	// stehen statt auf der Eingabe (sonst ist das Getippte 6 s unsichtbar).
+	$effect(() => {
+		if (!angedockt) return;
+		return meldeAndocken();
+	});
 
 	async function oeffnen() {
 		if (aktiv) return;
@@ -139,7 +142,7 @@
 </div>
 
 {#if angedockt}
-	<div class="tf-qa-sticky" style="bottom:{dockUnten}">
+	<div class="tf-qa-sticky" style="bottom:{dockAbstand}">
 		<div class="tf-qa active">
 			<span class="plus">
 				<span><Icon name="plus" size={16} /></span>

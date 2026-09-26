@@ -152,7 +152,9 @@ export function createTaskStore(optionen: TaskStoreOptionen = {}) {
 	 */
 	type Feldsatz = Partial<Task>;
 
-	function setzeFelderJeAufgabe(patches: { id: string; felder: Feldsatz }[]): () => void {
+	function setzeFelderJeAufgabe(
+		patches: { id: string; felder: Feldsatz }[]
+	): (nur?: Set<string>) => void {
 		const nachId = new Map(patches.map((p) => [p.id, p.felder]));
 		const vorher = new Map<string, Feldsatz>();
 		for (const t of tasks) {
@@ -166,10 +168,12 @@ export function createTaskStore(optionen: TaskStoreOptionen = {}) {
 			const felder = nachId.get(t.id);
 			return felder ? { ...t, ...felder } : t;
 		});
-		return () => {
+		// `nur`: nur diese Zeilen zuruecknehmen — die uebrigen stehen so
+		// schon auf dem Server (Teilerfolg mehrerer Requests).
+		return (nur?: Set<string>) => {
 			tasks = tasks.map((t) => {
 				const alt = vorher.get(t.id);
-				return alt ? { ...t, ...alt } : t;
+				return alt && (!nur || nur.has(t.id)) ? { ...t, ...alt } : t;
 			});
 		};
 	}
@@ -828,12 +832,16 @@ export function createTaskStore(optionen: TaskStoreOptionen = {}) {
 		);
 	}
 
-	/** Einzelne Aufgabe loeschen — samt Unteraufgaben, mit Undo-Toast. */
-	async function deleteTaskDirect(id: string) {
+	/**
+	 * Einzelne Aufgabe loeschen — samt Unteraufgaben, mit Undo-Toast.
+	 * `meldung`: der Text im Toast; ein Artikel der Einkaufsliste meldet
+	 * „Artikel gelöscht".
+	 */
+	async function deleteTaskDirect(id: string, meldung = 'Aufgabe gelöscht') {
 		const task = tasks.find((t) => t.id === id);
 		if (!task) return;
 		const kinder = tasks.filter((t) => t.parent_id === id);
-		await loescheMitUndo([task, ...kinder], 'Aufgabe gelöscht');
+		await loescheMitUndo([task, ...kinder], meldung);
 	}
 
 	// ==========================================
@@ -919,26 +927,54 @@ export function createTaskStore(optionen: TaskStoreOptionen = {}) {
 	// GENERISCHE PRIMITIVE (Einkaufs-Modus)
 	// ==========================================
 	/**
-	 * Mehrere Aufgaben feldgenau aendern — optimistisch, bei einem Fehler
-	 * nimmt die Ruecknahme ALLE Patches zurueck. `leise`: ohne Fehler-Toast
-	 * (Hintergrund-Einsortieren; ein Betrachter darf nicht schreiben, das ist
-	 * kein Fehler, den er sehen muss).
+	 * Mehrere Aufgaben feldgenau aendern — optimistisch.
+	 *
+	 * Patches mit GLEICHEM Feldsatz gehen gebuendelt als EIN Request
+	 * (`.in('id', ids)`), und ein Request ist eine Transaktion: „Als
+	 * Aufgabenliste" oder „Einkauf fertig" stehen damit auf dem Server ganz
+	 * oder gar nicht. Vorher ging jeder Patch einzeln raus (bei 70 Zeilen 70
+	 * Requests); scheiterte einer, nahm der Client ALLES zurueck, der Server
+	 * behielt den Rest — die Liste stand halb umgestellt da.
+	 *
+	 * Verschiedene Feldsaetze (z. B. je Zeile eine eigene Position) bleiben
+	 * getrennte Requests. Zurueckgenommen wird nur, was der Server NICHT
+	 * uebernommen hat; was er hat, bleibt stehen — sonst ueberschriebe die
+	 * Ruecknahme dessen schon eingetroffene Realtime-Echos.
+	 *
+	 * `leise`: ohne Fehler-Toast (Hintergrund-Einsortieren). Einem Betrachter
+	 * gibt der Server dabei KEINEN Fehler: RLS filtert die Zeilen still, die
+	 * Antwort ist nur kuerzer. Genau das wertet `bulkUpdateMitIds` aus.
+	 * `ruecknahme: false`: nichts zuruecknehmen — nur fuer Nachzuegler wie
+	 * Positionen, deren Scheitern nichts verliert.
 	 */
 	async function aendereAufgaben(
 		patches: { id: string; felder: Partial<Task> }[],
-		opt: { leise?: boolean } = {}
+		opt: { leise?: boolean; ruecknahme?: boolean } = {}
 	): Promise<boolean> {
 		if (patches.length === 0) return true;
 		const zurueck = setzeFelderJeAufgabe(patches);
-		const ergebnisse = await Promise.all(
-			patches.map((p) => crud.updateTaskField(sb, p.id, p.felder))
-		);
-		if (ergebnisse.some((r) => r.error)) {
-			zurueck();
-			if (!opt.leise) toasts.error('Speichern fehlgeschlagen');
-			return false;
+		const gruppen = new Map<string, { felder: Partial<Task>; ids: string[] }>();
+		for (const p of patches) {
+			const f = p.felder as Record<string, unknown>;
+			const schluessel = JSON.stringify(Object.keys(f).sort().map((k) => [k, f[k]]));
+			const g = gruppen.get(schluessel);
+			if (g) g.ids.push(p.id);
+			else gruppen.set(schluessel, { felder: p.felder, ids: [p.id] });
 		}
-		return true;
+		const gescheitert = (
+			await Promise.all(
+				[...gruppen.values()].map(async (g) => {
+					const { data, error } = await crud.bulkUpdateMitIds(sb, g.ids, g.felder);
+					if (error) return g.ids;
+					const geaendert = new Set((data ?? []).map((r) => r.id));
+					return g.ids.filter((id) => !geaendert.has(id));
+				})
+			)
+		).flat();
+		if (gescheitert.length === 0) return true;
+		if (opt.ruecknahme !== false) zurueck(new Set(gescheitert));
+		if (!opt.leise) toasts.error('Speichern fehlgeschlagen');
+		return false;
 	}
 
 	/** Eine Zeile einfuegen (Aufgabe, Unteraufgabe oder Trenner) — optimistisch. */

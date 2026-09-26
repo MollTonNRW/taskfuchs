@@ -105,4 +105,22 @@ describe('einkaufsAnsicht', () => {
 		expect(a.offenAnzahl).toBe(3);
 		expect(a.wagenAnzahl).toBe(1);
 	});
+	it('zeigt Kinder einer Zeile, die keine Kategorie ist, unter „Ohne Kategorie"', () => {
+		// Eine Aufgabe mit Unteraufgaben, in die Einkaufsliste verschoben —
+		// oder ein Artikel, der auf der dritten Ebene gelandet ist.
+		const zeilen = [
+			z({ id: 'k', type: 'divider', text: 'Sonstiges' }),
+			z({ id: 'p', text: 'Grillparty', position: 0 }),
+			z({ id: 'c1', parent_id: 'p', text: 'Kohle', position: 1 }),
+			z({ id: 'c2', parent_id: 'p', text: 'Würstchen', done: true, position: 2 }),
+			z({ id: 'a', parent_id: 'k', text: 'Kerzen' }),
+			z({ id: 'e', parent_id: 'a', text: 'Teelichter', position: 3 }),
+			z({ id: 'x', parent_id: 'p', text: 'Senf', done: true, abgelegt: true })
+		];
+		const a = einkaufsAnsicht(zeilen);
+		expect(a.ohneKategorie.map((t) => t.id)).toEqual(['p', 'c1', 'c2', 'e']);
+		expect(a.ohneKategorieAbgelegt.map((t) => t.id)).toEqual(['x']);
+		expect(a.offenAnzahl).toBe(4);
+		expect(a.wagenAnzahl).toBe(1);
+	});
 });

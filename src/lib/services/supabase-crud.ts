@@ -137,6 +137,17 @@ export async function bulkUpdateField(sb: Sb, ids: string[], fields: TaskUpdate)
 	return sb.from('tasks').update(fields).in('id', ids);
 }
 
+/**
+ * Wie `bulkUpdateField`, liefert aber die IDs, die der Server tatsaechlich
+ * geaendert hat. Ein Request ist eine Transaktion — entweder alle Zeilen
+ * oder keine. Ausnahme ohne Fehler: RLS filtert Zeilen, die der Nutzer nicht
+ * aendern darf (Betrachter), STILL heraus; erst die kuerzere Antwort
+ * verraet das.
+ */
+export async function bulkUpdateMitIds(sb: Sb, ids: string[], fields: TaskUpdate) {
+	return sb.from('tasks').update(fields).in('id', ids).select('id');
+}
+
 export async function bulkDeleteTasks(sb: Sb, ids: string[]) {
 	return sb.from('tasks').delete().in('id', ids);
 }

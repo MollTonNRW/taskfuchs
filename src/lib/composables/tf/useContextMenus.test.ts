@@ -132,13 +132,13 @@ describe('Artikelmenue', () => {
 		expect(einkauf.kategorieWechseln).toHaveBeenCalledWith('a1', 'k2');
 	});
 
-	it('loescht mit Undo-Toast ueber den Store', async () => {
+	it('loescht mit Undo-Toast ueber den Store und meldet einen Artikel', async () => {
 		const { ctx, store, milch } = aufbau();
 		ctx.handleArtikelContext(punkt, milch);
 		const loeschen = ctx.contextMenu.items.find((i) => i.label === 'Löschen')!;
 		expect(loeschen.danger).toBe(true);
 		await ausfuehren(loeschen.action);
-		expect(store.deleteTaskDirect).toHaveBeenCalledWith('a1');
+		expect(store.deleteTaskDirect).toHaveBeenCalledWith('a1', 'Artikel gelöscht');
 	});
 });
 

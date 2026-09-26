@@ -189,8 +189,10 @@
 	/**
 	 * Artikel von aussen (n8n, G2, ein zweites Geraet) kommen als Aufgabe der
 	 * obersten Ebene an. Beim Oeffnen und bei jedem Neuzugang einsortieren —
-	 * mit denselben Regeln wie das Quick-Add, aber ohne je eine Kategorie
-	 * anzulegen (sonst entstuende „Sonstiges" auf zwei Geraeten doppelt).
+	 * per Stichwort-Tabelle wie das Quick-Add, aber ohne je eine Kategorie
+	 * anzulegen (sonst entstuende „Sonstiges" auf zwei Geraeten doppelt) und
+	 * ohne Rueckfall auf „Sonstiges" (Begruendung in `ohneKategorieEinsortieren`).
+	 * Zeilen MIT Kindern sind nie ein Artikel und bleiben, wo sie sind.
 	 * Jede Zeile wird nur EINMAL versucht: schlaegt das Schreiben fehl
 	 * (Betrachter) oder passt keine Kategorie, bleibt sie „Ohne Kategorie",
 	 * statt den Effekt in eine Schleife zu schicken. Bewusst ein einfaches
@@ -201,9 +203,11 @@
 	$effect(() => {
 		if (!activeList || activeList.kind !== 'einkauf') return;
 		const listId = activeList.id;
-		const lose = tasks.filter(
+		const zeilen = tasks.filter((t: Task) => t.list_id === listId);
+		const eltern = new Set(zeilen.map((t: Task) => t.parent_id).filter(Boolean));
+		const lose = zeilen.filter(
 			(t: Task) =>
-				t.list_id === listId && !t.parent_id && t.type === 'task' && !einsortiertVersucht.has(t.id)
+				!t.parent_id && t.type === 'task' && !eltern.has(t.id) && !einsortiertVersucht.has(t.id)
 		);
 		if (lose.length === 0) return;
 		for (const t of lose) einsortiertVersucht.add(t.id);
@@ -569,7 +573,7 @@
 			togglePin: (taskId: string) => store.togglePin(taskId),
 			updateTask: (taskId: string, text: string) => store.updateTask(taskId, text),
 			moveTaskToList: (taskId: string, listId: string) => store.moveTaskToList(taskId, listId),
-			deleteTaskDirect: (taskId: string) => store.deleteTaskDirect(taskId)
+			deleteTaskDirect: (taskId: string, meldung?: string) => store.deleteTaskDirect(taskId, meldung)
 		},
 		startBulkSelect: (taskId?: string) => {
 			explicitBulkMode = true;

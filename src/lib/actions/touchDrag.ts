@@ -92,7 +92,7 @@ function findScrollContainer(_clientY: number): HTMLElement | null {
 
 // ── Ghost element ──────────────────────────────────────────────────
 function createGhost(sourceEl: HTMLElement): HTMLElement {
-	const taskEl = sourceEl.closest('.tf-rowwrap, .tf-row');
+	const taskEl = sourceEl.closest('.tf-rowwrap, .tf-row, .tf-ek-abschnitt');
 	const cloneSource = taskEl || sourceEl;
 	const rect = cloneSource.getBoundingClientRect();
 
@@ -116,7 +116,7 @@ function createGhost(sourceEl: HTMLElement): HTMLElement {
 	// Simple text preview inside ghost
 	const label = document.createElement('div');
 	label.style.cssText = 'padding: 8px 12px; font-size: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;';
-	const textEl = cloneSource.querySelector('.tf-t .tx');
+	const textEl = cloneSource.querySelector('.tf-t .tx, .tf-ek-titel .name');
 	label.textContent = textEl?.textContent?.trim() || 'Verschieben...';
 	ghost.appendChild(label);
 
@@ -180,7 +180,7 @@ export function touchDragHandle(
 			dragStarted = true;
 
 			const ghost = createGhost(node);
-			node.closest('.tf-rowwrap, .tf-row')?.classList.add('touch-dragging-source');
+			node.closest('.tf-rowwrap, .tf-row, .tf-ek-abschnitt')?.classList.add('touch-dragging-source');
 			dragState.set({
 				active: true,
 				type: currentParams.type,
@@ -274,7 +274,7 @@ export function touchDragHandle(
 		}
 
 		if (state.ghost) state.ghost.remove();
-		state.sourceEl?.closest('.tf-rowwrap, .tf-row')?.classList.remove('touch-dragging-source');
+		state.sourceEl?.closest('.tf-rowwrap, .tf-row, .tf-ek-abschnitt')?.classList.remove('touch-dragging-source');
 		if (state.currentDropZone) {
 			const oldZone = dropZones.find((z) => z.el === state.currentDropZone);
 			oldZone?.onDragLeave?.(state.currentDropZone);

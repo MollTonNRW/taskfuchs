@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { toasts } from '$lib/stores/toast';
+	import { DOCK_HOEHE, dockUnten, tastatur } from '$lib/stores/tf/tastatur.svelte';
 
 	/**
 	 * Toast — dunkle Flaeche, helle Schrift, „Rueckgaengig" in --toast-undo.
@@ -10,11 +11,19 @@
 	 * bottom 20, mobil zwischen die Raender gespannt und um die Hoehe der
 	 * Tab-Leiste plus Safe-Area angehoben. Vorher stand hier fest bottom:80px —
 	 * auf einem iPhone reicht die Leiste bis 87 px, der Toast lag dahinter.
+	 *
+	 * Steht mobil das angedockte Quick-Add-Feld, rueckt der Stapel darueber —
+	 * sonst deckte der Einsortier-Toast („Milch → Kühlabteilung") genau die
+	 * Eingabe ab, in die schon der naechste Artikel getippt wird. Die Leiste
+	 * „Einkauf fertig" hebt ihn per CSS (`:has(.tf-ek-fertig)`).
 	 */
+	let ueberDock = $derived(
+		tastatur.angedockt ? `calc(${dockUnten()} + ${DOCK_HOEHE + 8}px)` : null
+	);
 </script>
 
 {#if $toasts.length > 0}
-	<div class="tf-toasts" role="status" aria-live="polite">
+	<div class="tf-toasts" role="status" aria-live="polite" style:bottom={ueberDock}>
 		{#each $toasts as toast (toast.id)}
 			<div
 				class="tf-toast"

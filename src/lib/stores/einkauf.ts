@@ -14,7 +14,10 @@ type List = Database['public']['Tables']['lists']['Row'];
 export type EinkaufDeps = {
 	readonly tasks: Task[];
 	readonly lists: List[];
-	aendereAufgaben(patches: { id: string; felder: Partial<Task> }[], opt?: { leise?: boolean }): Promise<boolean>;
+	aendereAufgaben(
+		patches: { id: string; felder: Partial<Task> }[],
+		opt?: { leise?: boolean; ruecknahme?: boolean }
+	): Promise<boolean>;
 	fuegeEin(zeile: { list_id: string; text: string; parent_id?: string | null; type?: 'task' | 'divider'; position?: number }): Promise<Task | null>;
 	setzeListenart(listId: string, kind: ListKind): Promise<boolean>;
 	loescheMitUndo(geloescht: Task[], meldung: string, nachUndo?: () => Promise<void>): Promise<void>;
@@ -54,11 +57,19 @@ export function createEinkauf(deps: EinkaufDeps) {
 			.sort((a, b) => a.position - b.position);
 	}
 
+	/**
+	 * Alle Artikel einer Liste — jede Zeile, die kein Trenner ist, auf jeder
+	 * Ebene. Dieselbe Menge, die die Ansicht zeigt (`einkaufsAnsicht`) und die
+	 * Navigation zaehlt: auch Kinder einer Nicht-Kategorie (eine Aufgabe mit
+	 * Unteraufgaben, in die Liste verschoben) sind Artikel.
+	 */
 	function artikelVon(listId: string): Task[] {
-		const kat = new Set(kategorienVon(listId).map((k) => k.id));
-		return zeilenVon(listId).filter(
-			(t) => t.type !== 'divider' && (!t.parent_id || kat.has(t.parent_id))
-		);
+		return zeilenVon(listId).filter((t) => t.type !== 'divider');
+	}
+
+	/** Zeilen, unter denen etwas haengt — die sind nie ein einzelner Artikel. */
+	function elternIn(zeilen: Task[]): Set<string> {
+		return new Set(zeilen.filter((t) => t.parent_id).map((t) => t.parent_id!));
 	}
 
 	function naechstePosition(listId: string, parentId: string | null): number {
@@ -129,6 +140,7 @@ export function createEinkauf(deps: EinkaufDeps) {
 	async function einkaufFertig(listId: string): Promise<number> {
 		const imWagen = artikelVon(listId).filter((t) => artikelZustand(t) === 'wagen');
 		if (imWagen.length === 0) return 0;
+		// Ein Feldsatz fuer alle: EIN Request, auf dem Server ganz oder gar nicht.
 		const ok = await deps.aendereAufgaben(imWagen.map((t) => ({ id: t.id, felder: { abgelegt: true } })));
 		if (!ok) return 0;
 		const ids = imWagen.map((t) => t.id);
@@ -144,9 +156,39 @@ export function createEinkauf(deps: EinkaufDeps) {
 	async function kategorieWechseln(artikelId: string, kategorieId: string) {
 		const a = deps.tasks.find((t) => t.id === artikelId);
 		if (!a || a.parent_id === kategorieId) return;
+		// Eine Zeile mit Unterpunkten ist kein Artikel — unter einer Kategorie
+		// stuenden ihre Kinder auf der dritten Ebene.
+		if (deps.tasks.some((t) => t.parent_id === artikelId)) {
+			deps.toast.show('Einträge mit Unterpunkten bleiben ohne Kategorie');
+			return;
+		}
 		await deps.aendereAufgaben([
 			{ id: artikelId, felder: { parent_id: kategorieId, position: naechstePosition(a.list_id, kategorieId) } }
 		]);
+	}
+
+	/**
+	 * Kategorie per Ziehen an eine neue Stelle — `zielIndex` ist die
+	 * Einfuegestelle in der Reihenfolge MIT der gezogenen Kategorie (0 = vor
+	 * der ersten, n = hinter der letzten), wie sie die Oberflaeche misst.
+	 * Die Kategorien bekommen fortlaufende Positionen ab ihrer bisher
+	 * kleinsten; lose Zeilen der obersten Ebene bleiben, wo sie sind.
+	 */
+	async function kategorieVerschieben(kategorieId: string, zielIndex: number) {
+		const k = deps.tasks.find((t) => t.id === kategorieId);
+		if (!k || k.type !== 'divider' || k.parent_id) return;
+		const alle = kategorienVon(k.list_id);
+		const von = alle.findIndex((t) => t.id === kategorieId);
+		const rest = alle.filter((t) => t.id !== kategorieId);
+		const ziel = Math.max(0, Math.min(zielIndex > von ? zielIndex - 1 : zielIndex, rest.length));
+		if (ziel === von) return;
+		rest.splice(ziel, 0, k);
+		const start = Math.min(...alle.map((t) => t.position));
+		const patches = rest
+			.map((t, i) => ({ id: t.id, alt: t.position, position: start + i }))
+			.filter((p) => p.alt !== p.position)
+			.map((p) => ({ id: p.id, felder: { position: p.position } }));
+		await deps.aendereAufgaben(patches);
 	}
 
 	async function kategorieAnlegen(listId: string, name: string): Promise<Task | null> {
@@ -177,17 +219,25 @@ export function createEinkauf(deps: EinkaufDeps) {
 		const vorher = new Set(kategorienVon(k.list_id).map((t) => t.id));
 		let ziel: Task | null = null;
 		if (kinder.length > 0) {
-			if (!istSonstiges(k.text)) ziel = await sonstigesSicherstellen(k.list_id);
-			if (!ziel) {
-				// „Sonstiges" selbst loeschen: Artikel auf die oberste Ebene (Ohne Kategorie).
-				const ok = await deps.aendereAufgaben(kinder.map((t) => ({ id: t.id, felder: { parent_id: null } })));
-				if (!ok) return false;
-			} else {
+			if (!istSonstiges(k.text)) {
+				ziel = await sonstigesSicherstellen(k.list_id);
+				// „Sonstiges" liess sich nicht anlegen (Netz): NICHT loeschen —
+				// sonst naehme der Server die Artikel mit (on delete cascade).
+				if (!ziel) return false;
+			}
+			// Umhaengen als EIN Request (ein Feldsatz): alle oder keiner.
+			// „Sonstiges" selbst loeschen: Artikel auf die oberste Ebene (Ohne Kategorie).
+			const zielId = ziel?.id ?? null;
+			const ok = await deps.aendereAufgaben(kinder.map((t) => ({ id: t.id, felder: { parent_id: zielId } })));
+			if (!ok) return false;
+			if (ziel) {
+				// Ans Ende der Zielkategorie. Scheitert das, stimmt nur die
+				// Reihenfolge nicht — darum ohne Ruecknahme.
 				let pos = naechstePosition(k.list_id, ziel.id);
-				const ok = await deps.aendereAufgaben(
-					kinder.map((t) => ({ id: t.id, felder: { parent_id: ziel!.id, position: pos++ } }))
+				await deps.aendereAufgaben(
+					kinder.map((t) => ({ id: t.id, felder: { position: pos++ } })),
+					{ leise: true, ruecknahme: false }
 				);
-				if (!ok) return false;
 			}
 		}
 		const zielId = ziel?.id ?? null;
@@ -203,9 +253,13 @@ export function createEinkauf(deps: EinkaufDeps) {
 			);
 			if (zurueck.length > 0) {
 				const ok = await deps.aendereAufgaben(
-					zurueck.map((a) => ({ id: a.id, felder: { parent_id: kategorieId, position: a.position } }))
+					zurueck.map((a) => ({ id: a.id, felder: { parent_id: kategorieId } }))
 				);
 				if (!ok) return;
+				await deps.aendereAufgaben(
+					zurueck.map((a) => ({ id: a.id, felder: { position: a.position } })),
+					{ leise: true, ruecknahme: false }
+				);
 			}
 			if (!sonstigesNeu || deps.tasks.some((t) => t.parent_id === sonstigesNeu)) return;
 			const leer = deps.tasks.find((t) => t.id === sonstigesNeu);
@@ -221,18 +275,35 @@ export function createEinkauf(deps: EinkaufDeps) {
 	}
 
 	/**
-	 * Zeilen ohne Kategorie (von n8n, G2, anderem Geraet) einsortieren — legt
-	 * NIE Kategorien an und zielt nie auf eine, die gerade geloescht wird.
+	 * Zeilen ohne Kategorie (von n8n, G2, anderem Geraet) einsortieren.
+	 *
+	 * Nur per Stichwort — KEIN Rueckfall auf „Sonstiges": dorthin zeigt das
+	 * Hintergrund-Einsortieren nie. Loescht ein zweites Geraet gerade
+	 * „Sonstiges", werden dessen Artikel kurz lose; haengte dieses Geraet sie
+	 * per Rueckfall zurueck und kaeme sein Schreiben vor dem Loeschen an, naehme
+	 * die Kaskade (tasks.parent_id on delete cascade) sie auf dem Server mit.
+	 * Eine Stichwort-Kategorie wird dabei nie geloescht. Ohne Treffer bleibt
+	 * eine Zeile „Ohne Kategorie".
+	 *
+	 * Nimmt nur Zeilen OHNE Kinder: eine Zeile mit Unteraufgaben ist nie ein
+	 * Artikel (z. B. eine auf einem anderen Geraet gerade wieder zur Aufgabe
+	 * gewordene Kategorie, oder eine hierher verschobene Aufgabe mit
+	 * Unteraufgaben). Unter eine Kategorie gehaengt, stuenden ihre Kinder
+	 * sonst auf der dritten Ebene.
+	 *
+	 * Legt NIE Kategorien an (Ruling R4) und zielt nie auf eine, die gerade
+	 * geloescht wird.
 	 */
 	async function ohneKategorieEinsortieren(listId: string) {
 		const kategorien = kategorienVon(listId).filter((k) => !wirdGeloescht.has(k.id));
 		if (kategorien.length === 0) return;
-		const sonst = kategorien.find((k) => istSonstiges(k.text)) ?? null;
-		const lose = zeilenVon(listId).filter((t) => !t.parent_id && t.type === 'task');
+		const zeilen = zeilenVon(listId);
+		const eltern = elternIn(zeilen);
+		const lose = zeilen.filter((t) => !t.parent_id && t.type === 'task' && !eltern.has(t.id));
 		const patches: { id: string; felder: Partial<Task> }[] = [];
 		const naechste = new Map<string, number>();
 		for (const t of lose) {
-			const ziel = findeKategorie(t.text, kategorien) ?? sonst;
+			const ziel = findeKategorie(t.text, kategorien);
 			if (!ziel) continue;
 			const pos = naechste.get(ziel.id) ?? naechstePosition(listId, ziel.id);
 			naechste.set(ziel.id, pos + 1);
@@ -241,30 +312,49 @@ export function createEinkauf(deps: EinkaufDeps) {
 		if (patches.length > 0) await deps.aendereAufgaben(patches, { leise: true });
 	}
 
+	/**
+	 * Listentyp wechseln — beide Richtungen verlustfrei (Spezifikation
+	 * „Listentyp umschalten"), auch im Rundlauf:
+	 *
+	 * - Artikelzustaende (`done`, `abgelegt`) fasst der Wechsel NIE an. In
+	 *   einer Aufgabenliste ist ein abgelegter Artikel eine erledigte
+	 *   Unteraufgabe wie einer im Wagen; zurueck in der Einkaufsliste steht
+	 *   jeder wieder, wo er war. Frueher setzte der Hinweg `abgelegt=false` und
+	 *   der Rueckweg jede erledigte Unteraufgabe auf abgelegt — „im Wagen" ging
+	 *   im Rundlauf verloren. Eine erstmals umgestellte Liste hat ihre
+	 *   erledigten Unteraufgaben darum im Wagen; „Einkauf fertig" legt sie ab.
+	 * - Nur Kategorien MIT Artikeln werden Aufgaben. Eine leere bleibt Trenner
+	 *   — in der Aufgabenliste eine Zwischenueberschrift, zurueck wieder
+	 *   Kategorie. Als Aufgabe ohne Unteraufgaben kaeme sie als Artikel zurueck.
+	 * - Jede Richtung ist EIN Request fuer die Zeilen (ein Feldsatz) plus
+	 *   einer fuer die Liste; scheitert der zweite, wird der erste
+	 *   zurueckgestellt.
+	 */
 	async function listeUmstellen(listId: string, kind: ListKind): Promise<boolean> {
 		const zeilen = zeilenVon(listId);
+		const eltern = elternIn(zeilen);
 		if (kind === 'einkauf') {
-			const elternIds = new Set(zeilen.filter((t) => t.parent_id).map((t) => t.parent_id!));
-			const patches: { id: string; felder: Partial<Task> }[] = [];
-			for (const t of zeilen) {
-				if (!t.parent_id && t.type === 'task' && elternIds.has(t.id)) {
-					patches.push({ id: t.id, felder: { type: 'divider', done: false } });
-				} else if (t.parent_id && t.done && !t.abgelegt) {
-					patches.push({ id: t.id, felder: { abgelegt: true } });
-				}
+			const neu = zeilen.filter((t) => !t.parent_id && t.type === 'task' && eltern.has(t.id));
+			const alsTyp = (type: 'task' | 'divider') => neu.map((t) => ({ id: t.id, felder: { type } }));
+			if (!(await deps.aendereAufgaben(alsTyp('divider')))) return false;
+			if (!(await deps.setzeListenart(listId, 'einkauf'))) {
+				// Trenner mit Unteraufgaben kann eine Aufgabenliste nicht zeigen.
+				await deps.aendereAufgaben(alsTyp('task'));
+				return false;
 			}
-			if (!(await deps.aendereAufgaben(patches))) return false;
-			if (!(await deps.setzeListenart(listId, 'einkauf'))) return false;
 			await ohneKategorieEinsortieren(listId);
 			return true;
 		}
-		const patches: { id: string; felder: Partial<Task> }[] = [];
-		for (const t of zeilen) {
-			if (!t.parent_id && t.type === 'divider') patches.push({ id: t.id, felder: { type: 'task' } });
-			else if (t.abgelegt) patches.push({ id: t.id, felder: { abgelegt: false } });
+		// Erst die Listenart: andere Geraete schalten ihren Einsortier-Effekt
+		// ab, BEVOR Kategorien zu Aufgaben werden (Realtime kommt je Zeile).
+		if (!(await deps.setzeListenart(listId, 'aufgaben'))) return false;
+		const kategorien = zeilen.filter((t) => !t.parent_id && t.type === 'divider' && eltern.has(t.id));
+		const ok = await deps.aendereAufgaben(kategorien.map((t) => ({ id: t.id, felder: { type: 'task' } })));
+		if (!ok) {
+			await deps.setzeListenart(listId, 'einkauf');
+			return false;
 		}
-		if (!(await deps.aendereAufgaben(patches))) return false;
-		return deps.setzeListenart(listId, 'aufgaben');
+		return true;
 	}
 
 	return {
@@ -274,6 +364,7 @@ export function createEinkauf(deps: EinkaufDeps) {
 		wiederDrauf,
 		einkaufFertig,
 		kategorieWechseln,
+		kategorieVerschieben,
 		kategorieAnlegen,
 		kategorieLoeschen,
 		ohneKategorieEinsortieren,

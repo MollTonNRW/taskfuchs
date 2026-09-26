@@ -19,11 +19,17 @@ function fake(start: T[], kind: 'aufgaben' | 'einkauf' = 'einkauf') {
 	let tasks = [...start];
 	let lists: L[] = [{ id: 'L', user_id: 'u', title: 'Einkaufen', icon: '🛒', position: 0, visible: true, kind, created_at: '', updated_at: '', version: 1 } as L];
 	const toasts: string[] = [];
+	/** Reihenfolge der Schreibvorgaenge: 'zeilen' oder 'art:<kind>'. */
+	const aufrufe: string[] = [];
+	/** Jeder `aendereAufgaben`-Aufruf mit seinen Patches. */
+	const patchAufrufe: { id: string; felder: Partial<T> }[][] = [];
 	let letztesUndo: (() => unknown) | null = null;
 	const deps: EinkaufDeps = {
 		get tasks() { return tasks; },
 		get lists() { return lists; },
 		async aendereAufgaben(patches) {
+			aufrufe.push('zeilen');
+			patchAufrufe.push(patches);
 			tasks = tasks.map((t) => {
 				const p = patches.find((x) => x.id === t.id);
 				return p ? { ...t, ...p.felder } : t;
@@ -35,7 +41,7 @@ function fake(start: T[], kind: 'aufgaben' | 'einkauf' = 'einkauf') {
 			tasks = [...tasks, neu];
 			return neu;
 		},
-		async setzeListenart(id, k) { lists = lists.map((l) => (l.id === id ? { ...l, kind: k } : l)); return true; },
+		async setzeListenart(id, k) { aufrufe.push(`art:${k}`); lists = lists.map((l) => (l.id === id ? { ...l, kind: k } : l)); return true; },
 		// Wie der echte Store: sofort weg, Rueckgaengig fuegt die Zeilen wieder
 		// ein und ruft erst danach den Folgeschritt des Aufrufers.
 		async loescheMitUndo(g, m, nachUndo) {
@@ -51,7 +57,12 @@ function fake(start: T[], kind: 'aufgaben' | 'einkauf' = 'einkauf') {
 			show(m) { toasts.push(m); }
 		}
 	};
-	return { deps, get tasks() { return tasks; }, get lists() { return lists; }, toasts, undo: () => letztesUndo?.() };
+	return { deps, get tasks() { return tasks; }, get lists() { return lists; }, toasts, aufrufe, patchAufrufe, undo: () => letztesUndo?.() };
+}
+
+/** Haben alle Patches eines Aufrufs denselben Feldsatz (= EIN Request im Store)? */
+function einFeldsatz(patches: { felder: object }[]): boolean {
+	return new Set(patches.map((p) => JSON.stringify(p.felder))).size <= 1;
 }
 
 describe('artikelHinzufuegen', () => {
@@ -119,6 +130,7 @@ describe('Einkauf fertig', () => {
 		const f = fake([k, a, b, c]);
 		const n = await createEinkauf(f.deps).einkaufFertig('L');
 		expect(n).toBe(1);
+		expect(f.patchAufrufe.every(einFeldsatz)).toBe(true);
 		expect(f.tasks.find((t) => t.id === 'a')?.abgelegt).toBe(true);
 		f.undo();
 		await Promise.resolve();
@@ -128,6 +140,31 @@ describe('Einkauf fertig', () => {
 });
 
 describe('ohneKategorieEinsortieren', () => {
+	it('laesst eine Aufgabe MIT Unteraufgaben stehen, auch wenn Sonstiges da ist (Regression)', async () => {
+		// Zwei Geraete: auf dem anderen ist „Kühlabteilung" gerade wieder
+		// Aufgabe geworden, hier steht die Liste noch auf „Einkaufen".
+		const s = zeile({ id: 'sonst', type: 'divider', text: 'Sonstiges' });
+		const kuehl = zeile({ id: 'kuehl', text: 'Kühlabteilung', position: 1 });
+		const milch = zeile({ id: 'milch', parent_id: 'kuehl', text: 'Milch' });
+		const grill = zeile({ id: 'grill', text: 'Grillparty', position: 2 });
+		const kohle = zeile({ id: 'kohle', parent_id: 'grill', text: 'Kohle' });
+		const f = fake([s, kuehl, milch, grill, kohle]);
+		await createEinkauf(f.deps).ohneKategorieEinsortieren('L');
+		expect(f.tasks.find((t) => t.id === 'kuehl')?.parent_id).toBe(null);
+		expect(f.tasks.find((t) => t.id === 'grill')?.parent_id).toBe(null);
+		expect(f.tasks.find((t) => t.id === 'milch')?.parent_id).toBe('kuehl');
+		expect(f.patchAufrufe).toEqual([]);
+	});
+	it('faellt ohne Stichwort-Treffer NICHT auf Sonstiges zurueck', async () => {
+		const g = zeile({ id: 'g', type: 'divider', text: 'Gemüse' });
+		const s = zeile({ id: 's', type: 'divider', text: 'Sonstiges', position: 1 });
+		const x = zeile({ id: 'x', text: 'Tomaten' });
+		const y = zeile({ id: 'y', text: 'Batterien' });
+		const f = fake([g, s, x, y]);
+		await createEinkauf(f.deps).ohneKategorieEinsortieren('L');
+		expect(f.tasks.find((t) => t.id === 'x')?.parent_id).toBe('g');
+		expect(f.tasks.find((t) => t.id === 'y')?.parent_id).toBe(null);
+	});
 	it('sortiert Artikel von aussen ein, legt aber nie Kategorien an', async () => {
 		const k = zeile({ id: 'g', type: 'divider', text: 'Gemüse' });
 		const x = zeile({ id: 'x', text: 'Tomaten' });
@@ -151,13 +188,109 @@ describe('listeUmstellen', () => {
 		expect(await e.listeUmstellen('L', 'einkauf')).toBe(true);
 		expect(f.lists[0].kind).toBe('einkauf');
 		expect(f.tasks.find((t) => t.id === 'p')?.type).toBe('divider');
-		expect(f.tasks.find((t) => t.id === 's1')).toMatchObject({ done: true, abgelegt: true });
+		// Erledigte Unteraufgaben liegen im Wagen — „Einkauf fertig" legt sie ab.
+		expect(f.tasks.find((t) => t.id === 's1')).toMatchObject({ done: true, abgelegt: false });
 		expect(await e.listeUmstellen('L', 'aufgaben')).toBe(true);
 		expect(f.lists[0].kind).toBe('aufgaben');
 		expect(f.tasks).toHaveLength(4);
 		expect(f.tasks.find((t) => t.id === 'p')?.type).toBe('task');
 		expect(f.tasks.find((t) => t.id === 's1')).toMatchObject({ done: true, abgelegt: false });
 		expect(f.tasks.find((t) => t.id === 's2')?.done).toBe(false);
+	});
+	it('Einkauf -> Aufgaben -> Einkauf: Wagen, Abgelegtes und leere Kategorien bleiben', async () => {
+		const gn = zeile({ id: 'gn', type: 'divider', text: 'Grundnahrung', position: 0 });
+		const hafer = zeile({ id: 'hafer', parent_id: 'gn', text: 'Haferflocken' });
+		const brot = zeile({ id: 'brot', parent_id: 'gn', text: 'Brot', done: true, position: 1 });
+		const kuehl = zeile({ id: 'kuehl', type: 'divider', text: 'Kühlabteilung', position: 1 });
+		const milch = zeile({ id: 'milch', parent_id: 'kuehl', text: 'Milch' });
+		const eier = zeile({ id: 'eier', parent_id: 'kuehl', text: 'Eier', done: true, position: 1 });
+		const butter = zeile({ id: 'butter', parent_id: 'kuehl', text: 'Butter', done: true, abgelegt: true, position: 2 });
+		const snacks = zeile({ id: 'snacks', type: 'divider', text: 'Snacks', position: 2 });
+		const sonst = zeile({ id: 'sonst', type: 'divider', text: 'Sonstiges', position: 3 });
+		const start = [gn, hafer, brot, kuehl, milch, eier, butter, snacks, sonst];
+		const f = fake(start);
+		const e = createEinkauf(f.deps);
+		expect(await e.listeUmstellen('L', 'aufgaben')).toBe(true);
+		// Kategorien mit Artikeln sind Aufgaben, leere bleiben Trenner.
+		expect(f.tasks.find((t) => t.id === 'gn')?.type).toBe('task');
+		expect(f.tasks.find((t) => t.id === 'snacks')?.type).toBe('divider');
+		// Erst die Listenart, dann die Zeilen — und die in EINEM Request.
+		expect(f.aufrufe).toEqual(['art:aufgaben', 'zeilen']);
+		expect(f.patchAufrufe.every(einFeldsatz)).toBe(true);
+		expect(await e.listeUmstellen('L', 'einkauf')).toBe(true);
+		expect(f.lists[0].kind).toBe('einkauf');
+		for (const vorher of start) {
+			const jetzt = f.tasks.find((t) => t.id === vorher.id)!;
+			expect(jetzt).toMatchObject({
+				type: vorher.type, parent_id: vorher.parent_id, done: vorher.done, abgelegt: vorher.abgelegt
+			});
+		}
+		expect(f.tasks).toHaveLength(start.length);
+	});
+	it('Aufgaben -> Einkauf: eine erledigte Aufgabe mit Unteraufgaben behaelt ihren Haken im Rundlauf', async () => {
+		const p = zeile({ id: 'p', text: 'Grillparty', done: true });
+		const k = zeile({ id: 'k', parent_id: 'p', text: 'Kohle', done: true });
+		const f = fake([p, k], 'aufgaben');
+		const e = createEinkauf(f.deps);
+		await e.listeUmstellen('L', 'einkauf');
+		await e.listeUmstellen('L', 'aufgaben');
+		expect(f.tasks.find((t) => t.id === 'p')).toMatchObject({ type: 'task', done: true });
+	});
+	it('Scheitert das Umstellen der Zeilen, steht die Listenart wieder auf Einkauf', async () => {
+		const k = zeile({ id: 'k', type: 'divider', text: 'Gemüse' });
+		const a = zeile({ id: 'a', parent_id: 'k', text: 'Tomaten' });
+		const f = fake([k, a]);
+		f.deps.aendereAufgaben = async () => false;
+		expect(await createEinkauf(f.deps).listeUmstellen('L', 'aufgaben')).toBe(false);
+		expect(f.lists[0].kind).toBe('einkauf');
+		expect(f.tasks.find((t) => t.id === 'k')?.type).toBe('divider');
+	});
+	it('Scheitert die Listenart beim Hinweg, werden die neuen Kategorien wieder Aufgaben', async () => {
+		const p = zeile({ id: 'p', text: 'Gemüse' });
+		const s1 = zeile({ id: 's1', parent_id: 'p', text: 'Tomaten' });
+		const f = fake([p, s1], 'aufgaben');
+		f.deps.setzeListenart = async () => false;
+		expect(await createEinkauf(f.deps).listeUmstellen('L', 'einkauf')).toBe(false);
+		expect(f.tasks.find((t) => t.id === 'p')?.type).toBe('task');
+	});
+});
+
+describe('kategorieVerschieben', () => {
+	const reihenfolge = (f: ReturnType<typeof fake>) =>
+		f.tasks.filter((t) => t.type === 'divider').sort((a, b) => a.position - b.position).map((t) => t.id);
+	it('zieht eine Kategorie nach vorn und nach hinten', async () => {
+		const a = zeile({ id: 'a', type: 'divider', text: 'Gemüse', position: 0 });
+		const b = zeile({ id: 'b', type: 'divider', text: 'Kühlabteilung', position: 1 });
+		const c = zeile({ id: 'c', type: 'divider', text: 'Sonstiges', position: 2 });
+		const f = fake([a, b, c]);
+		const e = createEinkauf(f.deps);
+		await e.kategorieVerschieben('c', 0);
+		expect(reihenfolge(f)).toEqual(['c', 'a', 'b']);
+		await e.kategorieVerschieben('c', 3);
+		expect(reihenfolge(f)).toEqual(['a', 'b', 'c']);
+		await e.kategorieVerschieben('a', 2);
+		expect(reihenfolge(f)).toEqual(['b', 'a', 'c']);
+	});
+	it('an die eigene Stelle: kein Schreiben', async () => {
+		const a = zeile({ id: 'a', type: 'divider', text: 'Gemüse', position: 0 });
+		const b = zeile({ id: 'b', type: 'divider', text: 'Obst', position: 1 });
+		const f = fake([a, b]);
+		const e = createEinkauf(f.deps);
+		await e.kategorieVerschieben('a', 0);
+		await e.kategorieVerschieben('a', 1);
+		expect(f.patchAufrufe).toEqual([]);
+	});
+});
+
+describe('kategorieWechseln', () => {
+	it('haengt eine Zeile mit Unterpunkten nie unter eine Kategorie', async () => {
+		const k = zeile({ id: 'k', type: 'divider', text: 'Sonstiges' });
+		const p = zeile({ id: 'p', text: 'Grillparty' });
+		const c = zeile({ id: 'c', parent_id: 'p', text: 'Kohle' });
+		const f = fake([k, p, c]);
+		await createEinkauf(f.deps).kategorieWechseln('p', 'k');
+		expect(f.tasks.find((t) => t.id === 'p')?.parent_id).toBe(null);
+		expect(f.toasts).toHaveLength(1);
 	});
 });
 
@@ -171,6 +304,24 @@ describe('kategorieLoeschen', () => {
 		expect(sonst?.text).toBe('Sonstiges');
 		expect(f.tasks.find((t) => t.id === 'a')?.parent_id).toBe(sonst?.id);
 		expect(f.tasks.some((t) => t.id === 'k')).toBe(false);
+	});
+	it('laesst die Kategorie stehen, wenn Sonstiges sich nicht anlegen laesst', async () => {
+		const k = zeile({ id: 'k', type: 'divider', text: 'Snacks' });
+		const a = zeile({ id: 'a', parent_id: 'k', text: 'Chips' });
+		const f = fake([k, a]);
+		f.deps.fuegeEin = async () => null;
+		expect(await createEinkauf(f.deps).kategorieLoeschen('k')).toBe(false);
+		expect(f.tasks.some((t) => t.id === 'k')).toBe(true);
+		expect(f.tasks.find((t) => t.id === 'a')?.parent_id).toBe('k');
+	});
+	it('haengt die Artikel in EINEM Feldsatz um, die Positionen folgen getrennt', async () => {
+		const k = zeile({ id: 'k', type: 'divider', text: 'Snacks' });
+		const s = zeile({ id: 's', type: 'divider', text: 'Sonstiges', position: 1 });
+		const a = zeile({ id: 'a', parent_id: 'k', text: 'Chips' });
+		const b = zeile({ id: 'b', parent_id: 'k', text: 'Salzstangen', position: 1 });
+		const f = fake([k, s, a, b]);
+		await createEinkauf(f.deps).kategorieLoeschen('k');
+		expect(f.patchAufrufe[0].map((p) => p.felder)).toEqual([{ parent_id: 's' }, { parent_id: 's' }]);
 	});
 	it('Rueckgaengig holt Kategorie und Artikel zurueck und raeumt ein nur dafuer angelegtes Sonstiges weg', async () => {
 		const k = zeile({ id: 'k', type: 'divider', text: 'Snacks' });
@@ -245,10 +396,13 @@ describe('kategorieLoeschen', () => {
 
 		await f.undo();
 		expect(f.tasks.find((t) => t.id === 'y')).toMatchObject({ parent_id: 's', position: 1 });
-		// Nach dem Loeschen ist „Sonstiges" wieder ein gewoehnliches Ziel.
+		// Nach dem Loeschen ist „Gemüse" wieder ein gewoehnliches Ziel;
+		// „Sonstiges" ist fuer das Hintergrund-Einsortieren nie eins.
+		await f.deps.fuegeEin({ list_id: 'L', text: 'Gurke' });
 		await f.deps.fuegeEin({ list_id: 'L', text: 'Grillkohle' });
 		await e.ohneKategorieEinsortieren('L');
-		expect(f.tasks.find((t) => t.text === 'Grillkohle')?.parent_id).toBe('s');
+		expect(f.tasks.find((t) => t.text === 'Gurke')?.parent_id).toBe('g');
+		expect(f.tasks.find((t) => t.text === 'Grillkohle')?.parent_id).toBe(null);
 	});
 	it('Rueckgaengig laesst Aenderungen aus der Zwischenzeit stehen', async () => {
 		const k = zeile({ id: 'k', type: 'divider', text: 'Snacks' });

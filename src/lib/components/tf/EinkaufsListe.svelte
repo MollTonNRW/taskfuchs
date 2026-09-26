@@ -7,6 +7,7 @@
 	import { einkaufsAnsicht } from '$lib/utils/einkauf';
 	import { toasts } from '$lib/stores/toast';
 	import { createLangesTippen } from '$lib/actions/langesTippen';
+	import { touchDragHandle, touchDropZone } from '$lib/actions/touchDrag';
 	import QuickAdd from './QuickAdd.svelte';
 	import Icon from './Icon.svelte';
 
@@ -103,6 +104,63 @@
 		if (tippen.klickGeschluckt()) return;
 		void einkauf.artikelUmschalten(a.id);
 	}
+
+	// ------------------------------------------------------------------
+	// Kategorien umsortieren — am Kopf ziehen, HTML5-Drag (Zeigergeraet)
+	// und touchDrag (Finger, nach kurzem Halten) wie die Zeilen der
+	// Aufgabenliste. Eigener Datentyp, damit eine Kategorie nie als Aufgabe
+	// in eine andere Liste faellt. `zielIndex`: Einfuegestelle in der
+	// Reihenfolge der Kategorien MIT der gezogenen.
+	// ------------------------------------------------------------------
+	const ZUG_TYP = 'application/x-tf-kategorie';
+	let zielIndex: number | null = $state(null);
+	let ziehId: string | null = $state(null);
+
+	function ziehStart(e: DragEvent, k: Task) {
+		if (!e.dataTransfer) return;
+		ziehId = k.id;
+		e.dataTransfer.effectAllowed = 'move';
+		e.dataTransfer.setData(ZUG_TYP, k.id);
+	}
+
+	function ziehEnde() {
+		ziehId = null;
+		zielIndex = null;
+	}
+
+	function ziehUeber(e: DragEvent, idx: number) {
+		if (!e.dataTransfer?.types.includes(ZUG_TYP)) return;
+		e.preventDefault();
+		e.dataTransfer.dropEffect = 'move';
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		zielIndex = e.clientY > rect.top + rect.height / 2 ? idx + 1 : idx;
+	}
+
+	function fallen(e: DragEvent, idx: number) {
+		const id = e.dataTransfer?.getData(ZUG_TYP);
+		if (!id) return;
+		e.preventDefault();
+		const ziel = zielIndex ?? idx;
+		ziehEnde();
+		void einkauf.kategorieVerschieben(id, ziel);
+	}
+
+	/** Einfuegestelle aus einer Bildschirmhoehe (Finger-Variante). */
+	function stelleAus(behaelter: Element, y: number): number {
+		const abschnitte = behaelter.querySelectorAll('[data-tf-kategorie]');
+		for (let i = 0; i < abschnitte.length; i++) {
+			const rect = abschnitte[i].getBoundingClientRect();
+			if (y < rect.top + rect.height / 2) return i;
+		}
+		return abschnitte.length;
+	}
+
+	function fingerFallen(daten: unknown, el: HTMLElement, _x: number, y: number) {
+		const id = (daten as { kategorieId?: string } | null)?.kategorieId;
+		const ziel = stelleAus(el, y);
+		ziehEnde();
+		if (id) void einkauf.kategorieVerschieben(id, ziel);
+	}
 </script>
 
 <QuickAdd
@@ -113,21 +171,52 @@
 	onAdd={hinzufuegen}
 />
 
-<div class="tf-ek">
-	{#if ansicht.ohneKategorie.length > 0}
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	class="tf-ek"
+	use:touchDropZone={{
+		type: 'kategorie',
+		onDragOver: (el, _x, y) => (zielIndex = stelleAus(el, y)),
+		onDragLeave: () => (zielIndex = null),
+		onDrop: fingerFallen
+	}}
+>
+	{#if ansicht.ohneKategorie.length > 0 || ansicht.ohneKategorieAbgelegt.length > 0}
 		<section class="tf-ek-abschnitt" aria-label="Ohne Kategorie">
 			<div class="tf-ek-kopf"><span class="tf-ek-titel">Ohne Kategorie</span></div>
 			{#each ansicht.ohneKategorie as a (a.id)}
 				{@render artikelZeile(a)}
 			{/each}
+			{@render chips('ohne', ansicht.ohneKategorieAbgelegt)}
 		</section>
 	{/if}
 
-	{#each ansicht.abschnitte as s (s.kategorie.id)}
+	{#each ansicht.abschnitte as s, idx (s.kategorie.id)}
 		{@const leer = s.offen.length === 0 && s.wagen.length === 0}
 		{@const geschlossen = istZu(s.kategorie.id, leer && s.abgelegt.length === 0)}
-		<section class="tf-ek-abschnitt" aria-label={s.kategorie.text}>
-			<div class="tf-ek-kopf">
+		<section
+			class="tf-ek-abschnitt"
+			class:zieht={ziehId === s.kategorie.id}
+			class:ziel-oben={zielIndex === idx}
+			class:ziel-unten={zielIndex === idx + 1 && idx === ansicht.abschnitte.length - 1}
+			aria-label={s.kategorie.text}
+			data-tf-kategorie={s.kategorie.id}
+			ondragover={(e) => ziehUeber(e, idx)}
+			ondrop={(e) => fallen(e, idx)}
+		>
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				class="tf-ek-kopf"
+				draggable="true"
+				ondragstart={(e) => ziehStart(e, s.kategorie)}
+				ondragend={ziehEnde}
+				use:touchDragHandle={{
+					data: { kategorieId: s.kategorie.id },
+					type: 'kategorie',
+					onStart: () => (ziehId = s.kategorie.id),
+					onEnd: ziehEnde
+				}}
+			>
 				<button
 					class="tf-ek-titel"
 					aria-expanded={!geschlossen}
@@ -149,26 +238,7 @@
 			{#if !geschlossen}
 				{#each s.offen as a (a.id)}{@render artikelZeile(a)}{/each}
 				{#each s.wagen as a (a.id)}{@render artikelZeile(a)}{/each}
-				{#if s.abgelegt.length > 0}
-					{@const alle = alleChips.get(s.kategorie.id) ?? false}
-					<div class="tf-ek-chips" role="group" aria-label="Zuletzt gekauft">
-						<span class="lbl">Zuletzt gekauft</span>
-						{#each alle ? s.abgelegt : s.abgelegt.slice(0, CHIPS_MAX) as a (a.id)}
-							<button
-								class="tf-ek-chip"
-								onclick={() => einkauf.wiederDrauf(a.id)}
-								aria-label={`${a.text} wieder auf die Liste`}
-							>
-								<Icon name="plus" size={14} />{a.text}
-							</button>
-						{/each}
-						{#if !alle && s.abgelegt.length > CHIPS_MAX}
-							<button class="tf-ek-chip mehr" onclick={() => alleChips.set(s.kategorie.id, true)}>
-								+ {s.abgelegt.length - CHIPS_MAX} weitere
-							</button>
-						{/if}
-					</div>
-				{/if}
+				{@render chips(s.kategorie.id, s.abgelegt)}
 			{/if}
 		</section>
 	{/each}
@@ -185,6 +255,29 @@
 		</button>
 	</div>
 {/if}
+
+{#snippet chips(schluessel: string, abgelegt: Task[])}
+	{#if abgelegt.length > 0}
+		{@const alle = alleChips.get(schluessel) ?? false}
+		<div class="tf-ek-chips" role="group" aria-label="Zuletzt gekauft">
+			<span class="lbl">Zuletzt gekauft</span>
+			{#each alle ? abgelegt : abgelegt.slice(0, CHIPS_MAX) as a (a.id)}
+				<button
+					class="tf-ek-chip"
+					onclick={() => einkauf.wiederDrauf(a.id)}
+					aria-label={`${a.text} wieder auf die Liste`}
+				>
+					<Icon name="plus" size={14} />{a.text}
+				</button>
+			{/each}
+			{#if !alle && abgelegt.length > CHIPS_MAX}
+				<button class="tf-ek-chip mehr" onclick={() => alleChips.set(schluessel, true)}>
+					+ {abgelegt.length - CHIPS_MAX} weitere
+				</button>
+			{/if}
+		</div>
+	{/if}
+{/snippet}
 
 {#snippet artikelZeile(a: Task)}
 	{@const imWagen = a.done}

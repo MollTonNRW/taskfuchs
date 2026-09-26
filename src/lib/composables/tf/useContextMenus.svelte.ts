@@ -69,7 +69,8 @@ export interface ContextMenuDeps {
 		togglePin: (taskId: string) => void;
 		updateTask: (taskId: string, text: string) => void;
 		moveTaskToList: (taskId: string, listId: string) => void;
-		deleteTaskDirect: (taskId: string) => void;
+		/** `meldung`: Text im Undo-Toast (ohne Angabe „Aufgabe gelöscht"). */
+		deleteTaskDirect: (taskId: string, meldung?: string) => void;
 	};
 	/** Mehrfachauswahl starten; ohne Aufgabe nur den Modus einschalten. */
 	startBulkSelect: (taskId?: string) => void;
@@ -172,8 +173,9 @@ export function createContextMenus(deps: ContextMenuDeps) {
 						submenu: [
 							{
 								label: 'Als Aufgabenliste',
-								// Ohne Rueckfrage: der Rueckweg ist verlustfrei, Kategorien
-								// werden wieder Aufgaben, Abgelegtes bleibt erledigt.
+								// Ohne Rueckfrage: der Rueckweg ist verlustfrei — Kategorien
+								// mit Artikeln werden Aufgaben, leere bleiben Trenner, kein
+								// Artikel aendert seinen Zustand (Wagen, abgelegt).
 								action: async () => {
 									if (await deps.einkauf.listeUmstellen(list.id, 'aufgaben')) {
 										toasts.show('Wieder eine Aufgabenliste');
@@ -220,7 +222,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 							action: async () => {
 								const ok = await bestaetigen({
 									titel: `„${list.title}“ als Einkaufsliste nutzen?`,
-									text: 'Aufgaben mit Unteraufgaben werden Kategorien, alle anderen Artikel. Zurückstellen geht jederzeit über „Ansicht“.',
+									text: 'Aufgaben mit Unteraufgaben werden Kategorien, alle anderen Artikel; Erledigtes liegt im Wagen. Zurückstellen geht jederzeit über „Ansicht“.',
 									knopf: 'Umstellen',
 									destruktiv: false
 								});
@@ -410,7 +412,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 					icon: 'loeschen',
 					danger: true,
 					// Kein Dialog: `deleteTaskDirect` legt einen Undo-Toast nach.
-					action: () => deps.store.deleteTaskDirect(artikel.id)
+					action: () => deps.store.deleteTaskDirect(artikel.id, 'Artikel gelöscht')
 				}
 			],
 			deps.mobil ? 232 : 220,

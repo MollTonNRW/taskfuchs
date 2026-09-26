@@ -70,8 +70,26 @@ export const toasts = {
 		anzeigen({ id, message, type: 'undo', onUndo }, duration);
 		return { id, cancel: () => entfernen(id) };
 	},
-	/** Hinweis mit EINER Aktion unter eigenem Label (z. B. „Aendern"). */
+	/**
+	 * Hinweis mit EINER Aktion unter eigenem Label (z. B. „Aendern").
+	 *
+	 * Wie beim Undo-Toast loest ein neuer den vorherigen ab: wer im Laden
+	 * fuenf Artikel hintereinander eintippt, bekam sonst fuenf gestapelte
+	 * Toasts ueber dem Knopf „Einkauf fertig" — und das „Aendern" des
+	 * letzten Artikels steht ohnehin im neuesten.
+	 */
 	aktion(message: string, label: string, onAktion: () => void, duration = 6000) {
+		update((all) => {
+			const alt = all.filter((t) => t.aktionLabel !== undefined);
+			for (const offen of alt) {
+				const uhr = uhren.get(offen.id);
+				if (uhr) {
+					clearTimeout(uhr);
+					uhren.delete(offen.id);
+				}
+			}
+			return all.filter((t) => t.aktionLabel === undefined);
+		});
 		const id = `toast-${++counter}`;
 		anzeigen({ id, message, type: 'info', onUndo: onAktion, aktionLabel: label }, duration);
 		return { id, cancel: () => entfernen(id) };
