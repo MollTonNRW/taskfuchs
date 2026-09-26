@@ -123,10 +123,11 @@
 			confirm: p.get('confirm') === 'liste' ? 'liste' : undefined,
 			// Unteraufgaben starten eingeklappt. Das Mockup zeigt je Ansicht
 			// genau eine ausgeklappte Aufgabe: „Ferienwohnung Nordsee" in der
-			// Liste Familie (Frames 1, 2, 3, 10) und „Grundnahrung" auf der
-			// Pinnwand (Frame 9). Beide stehen hier fest, weil das
-			// Abnahmeskript dafuer keinen Parameter kennt.
-			aufklappen: ['t-nordsee', 't-grundnahrung']
+			// Liste Familie (Frames 1, 2, 3, 10). Steht hier fest, weil das
+			// Abnahmeskript dafuer keinen Parameter kennt. „Grundnahrung" aus
+			// Frame 9 ist seit dem Einkaufs-Modus eine Kategorie der
+			// Einkaufsliste — die Pinnwand zeigt keine Einkaufslisten-Zeilen.
+			aufklappen: ['t-nordsee']
 		};
 	});
 </script>

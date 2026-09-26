@@ -17,7 +17,7 @@
  * `utils/mitnutzer.ts` genau die beiden Farben der Spezifikation trifft:
  * `--avatar-a` (#4f7c9b) fuer Haushalt, `--avatar-b` (#6f8f5a) fuer Ingo.
  */
-import type { Database } from '$lib/types/database';
+import type { Database, ListKind } from '$lib/types/database';
 
 type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
@@ -42,13 +42,24 @@ function tag(versatz: number, uhrzeit?: string): string {
 	return uhrzeit ? `${iso}T${uhrzeit}:00` : iso;
 }
 
+/**
+ * Zeitpunkt vor so vielen Minuten — relativ wie die Faelligkeiten. Steht
+ * hier oben, weil schon `DEMO_AUFGABEN` es braucht (Einkaufsliste), nicht
+ * erst die Aufgabenhistorie.
+ */
+function vor(minuten: number): string {
+	return new Date(Date.now() - minuten * 60_000).toISOString();
+}
+const STUNDE = 60;
+const TAG = 24 * STUNDE;
+
 export const DEMO_PROFILE: Profile[] = [
 	{ id: 'frank', username: 'frank', display_name: 'Frank', avatar_url: null, created_at: FRUEHER, updated_at: FRUEHER },
 	{ id: 'haushalt', username: 'haushalt', display_name: 'Haushalt', avatar_url: null, created_at: FRUEHER, updated_at: FRUEHER },
 	{ id: 'ingo', username: 'ingo', display_name: 'Ingo', avatar_url: null, created_at: FRUEHER, updated_at: FRUEHER }
 ];
 
-function liste(id: string, title: string, icon: string, position: number): List {
+function liste(id: string, title: string, icon: string, position: number, kind: ListKind = 'aufgaben'): List {
 	return {
 		id,
 		user_id: DEMO_ICH.id,
@@ -56,7 +67,7 @@ function liste(id: string, title: string, icon: string, position: number): List 
 		icon,
 		position,
 		visible: true,
-		kind: 'aufgaben',
+		kind,
 		created_at: FRUEHER,
 		updated_at: FRUEHER,
 		version: 1
@@ -68,7 +79,7 @@ export const DEMO_LISTEN: List[] = [
 	liste('l-moll', 'Moll GmbH', '💼', 1),
 	liste('l-homelab', 'Homelab', '🖥️', 2),
 	liste('l-familie', 'Familie', '❤️', 3),
-	liste('l-einkaufen', 'Einkaufen', '🌱', 4),
+	liste('l-einkaufen', 'Einkaufen', '🌱', 4, 'einkauf'),
 	liste('l-garten', 'Garten', '🌍', 5),
 	liste('l-pflege', 'Pflege', '🩺', 6)
 ];
@@ -99,14 +110,14 @@ function aufgabe(a: Abweichung): Task {
 		note: a.note ?? null,
 		due_date: a.due_date ?? null,
 		position: a.position ?? 0,
-		type: 'task',
+		type: a.type ?? 'task',
 		divider_label: null,
 		parent_id: a.parent_id ?? null,
 		assigned_to: null,
 		calendar_event_id: null,
 		abgelegt: a.abgelegt ?? false,
 		created_at: a.created_at ?? FRUEHER,
-		updated_at: a.created_at ?? FRUEHER,
+		updated_at: a.updated_at ?? a.created_at ?? FRUEHER,
 		version: 1
 	};
 }
@@ -124,6 +135,46 @@ const FAMILIE_ERLEDIGT = [
 ].map((text, i) =>
 	aufgabe({ id: `t-fam-done-${i}`, list_id: 'l-familie', text, done: true, position: 100 + i })
 );
+
+// ── Einkaufsliste ────────────────────────────────────────────────────
+const EINKAUFEN = 'l-einkaufen';
+
+/** Kategorie der Einkaufsliste: ein Trenner der obersten Ebene. */
+function kategorie(id: string, text: string, position: number): Task {
+	return aufgabe({ id, list_id: EINKAUFEN, text, type: 'divider', position });
+}
+
+/** Laufende Minute je abgehaktem Artikel — keine zwei Chips mit demselben Zeitpunkt. */
+let kassenzettel = 0;
+
+/**
+ * Die Artikel einer Kategorie in ihren drei Zustaenden. `gekauft` nennt je
+ * Artikel, vor wie vielen Tagen er abgelegt wurde: daraus wird `updated_at`,
+ * nach dem die Chips „Zuletzt gekauft" ordnen (neueste zuerst).
+ */
+function artikel(
+	kategorieId: string,
+	z: { offen?: string[]; wagen?: string[]; gekauft?: [string, number][] }
+): Task[] {
+	let position = 0;
+	const zeile = (text: string, felder: Partial<Task>) =>
+		aufgabe({
+			id: `${kategorieId}-${position}`,
+			list_id: EINKAUFEN,
+			parent_id: kategorieId,
+			text,
+			position: position++,
+			...felder
+		});
+	return [
+		...(z.offen ?? []).map((text) => zeile(text, {})),
+		// Eben in den Wagen gelegt: nach „Einkauf fertig" die neuesten Chips.
+		...(z.wagen ?? []).map((text) => zeile(text, { done: true, updated_at: vor(15 + kassenzettel++) })),
+		...(z.gekauft ?? []).map(([text, tage]) =>
+			zeile(text, { done: true, abgelegt: true, updated_at: vor(tage * TAG + kassenzettel++) })
+		)
+	];
+}
 
 export const DEMO_AUFGABEN: Task[] = [
 	// ── Familie — die Liste aller drei Desktop-Frames ────────────────────
@@ -285,25 +336,43 @@ export const DEMO_AUFGABEN: Task[] = [
 	aufgabe({ id: 't-homelab-3', list_id: 'l-homelab', text: 'Zertifikate erneuern', timeframe: 'mittelfristig', position: 3 }),
 	aufgabe({ id: 't-homelab-4', list_id: 'l-homelab', text: 'Router-Firmware prüfen', priority: 'low', position: 4 }),
 
-	// ── Einkaufen — Kategorie mit Eintraegen (Checkliste Punkt 5) ────────
-	aufgabe({
-		id: 't-grundnahrung',
-		list_id: 'l-einkaufen',
-		text: 'Grundnahrung',
-		pinned: true,
-		pinned_by: 'ingo',
-		position: 0
+	// ── Einkaufen — Einkaufsliste (Einkaufs-Modus) ───────────────────────
+	// Jeder Zustand der Oberflaeche kommt vor: offene Artikel, Artikel im
+	// Wagen, „Zuletzt gekauft"-Chips; „Kühlabteilung" mit mehr als acht Chips
+	// („+ N weitere"), „Snacks" leer (eingeklappt), „Getränke" nur mit Chips.
+	// Die fruehere Kategorie-Aufgabe „Grundnahrung" ist jetzt ein Trenner.
+	kategorie('t-ek-gemuese', 'Gemüse', 0),
+	...artikel('t-ek-gemuese', {
+		offen: ['Tomaten', 'Gurke'],
+		gekauft: [['Bananen', 2], ['Zwiebeln', 2], ['Kartoffeln', 6], ['Paprika', 9]]
 	}),
-	aufgabe({ id: 't-grund-s1', list_id: 'l-einkaufen', parent_id: 't-grundnahrung', text: 'Brot', position: 0 }),
-	aufgabe({ id: 't-grund-s2', list_id: 'l-einkaufen', parent_id: 't-grundnahrung', text: 'Hafermilch', position: 1 }),
-	aufgabe({ id: 't-grund-s3', list_id: 'l-einkaufen', parent_id: 't-grundnahrung', text: 'Eier', position: 2 }),
-	// Eine Einkaufsliste ist die laengste Liste im Bestand — ohne sie sieht die
-	// Navigationsspalte in der Vorschau leerer aus, als TaskFuchs je ist.
-	...[
-		'Zwiebeln', 'Kartoffeln', 'Butter', 'Käse', 'Kaffeebohnen', 'Olivenöl', 'Nudeln',
-		'Passierte Tomaten', 'Spülmaschinentabs', 'Waschmittel', 'Klopapier', 'Zahnpasta',
-		'Katzenfutter', 'Apfelsaft', 'Schokolade'
-	].map((text, i) => aufgabe({ id: `t-eink-${i}`, list_id: 'l-einkaufen', text, position: 1 + i })),
+	kategorie('t-grundnahrung', 'Grundnahrung', 1),
+	...artikel('t-grundnahrung', {
+		offen: ['Haferflocken'],
+		wagen: ['Brot'],
+		gekauft: [['Nudeln', 6], ['Olivenöl', 13], ['Kaffeebohnen', 13]]
+	}),
+	kategorie('t-ek-kuehl', 'Kühlabteilung', 2),
+	...artikel('t-ek-kuehl', {
+		offen: ['Milch', 'Joghurt'],
+		wagen: ['Eier'],
+		gekauft: [
+			['Butter', 2], ['Käse', 2], ['Hafermilch', 2], ['Quark', 6], ['Sahne', 6],
+			['Frischkäse', 6], ['Mozzarella', 9], ['Schinken', 9], ['Feta', 13], ['Schmand', 13]
+		]
+	}),
+	kategorie('t-ek-getraenke', 'Getränke', 3),
+	...artikel('t-ek-getraenke', { gekauft: [['Sprudel', 2], ['Apfelsaft', 6]] }),
+	kategorie('t-ek-snacks', 'Snacks', 4),
+	kategorie('t-ek-sonstiges', 'Sonstiges', 5),
+	...artikel('t-ek-sonstiges', {
+		offen: ['Batterien'],
+		gekauft: [['Spülmaschinentabs', 6], ['Klopapier', 9], ['Katzenfutter', 13]]
+	}),
+	// Wie von n8n/Telegram angelegt: oberste Ebene, ohne Kategorie. Beim
+	// Oeffnen sortiert die Oberflaeche sie ein — keine Regel passt, also
+	// nach „Sonstiges" (angelegt wird dabei nie etwas).
+	aufgabe({ id: 't-ek-grillkohle', list_id: EINKAUFEN, text: 'Grillkohle', position: 6 }),
 
 	// ── Garten und Pflege ────────────────────────────────────────────────
 	aufgabe({ id: 't-garten-1', list_id: 'l-garten', text: 'Hochbeet auffüllen', priority: 'low', position: 0 }),
@@ -313,13 +382,6 @@ export const DEMO_AUFGABEN: Task[] = [
 ];
 
 // ── Aufgabenhistorie ─────────────────────────────────────────────────
-/** Zeitpunkt vor so vielen Minuten — relativ wie die Faelligkeiten oben. */
-function vor(minuten: number): string {
-	return new Date(Date.now() - minuten * 60_000).toISOString();
-}
-const STUNDE = 60;
-const TAG = 24 * STUNDE;
-
 type VerlaufAbweichung = Partial<Verlaufseintrag> &
 	Pick<Verlaufseintrag, 'id' | 'task_id' | 'kind' | 'body' | 'created_by' | 'created_at'>;
 

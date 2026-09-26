@@ -8,7 +8,7 @@ Eine User-orientierte Kurzbeschreibung steht in [README.md](README.md). Setup-Sc
 
 ## Projekt-Überblick
 
-TaskFuchs ist eine Multi-User Task-Management-App (Mobile-First PWA + Android APK). Listen mit Unteraufgaben (genau eine Ebene), Prioritäten, Zeitrahmen, Pinnwand und Echtzeit-Sync.
+TaskFuchs ist eine Multi-User Task-Management-App (Mobile-First PWA + Android APK). Listen mit Unteraufgaben (genau eine Ebene), Prioritäten, Zeitrahmen, Pinnwand und Echtzeit-Sync. Eine Liste ist entweder Aufgabenliste oder **Einkaufsliste** (Einkaufs-Modus, siehe unten).
 
 - **Zielgruppe:** Familien, WGs, kleine Teams — Einkaufslisten, Putzpläne, gemeinsame Aufgaben
 - **Plattformen:** Web (PWA) + Android (TWA)
@@ -26,6 +26,7 @@ TaskFuchs ist eine Multi-User Task-Management-App (Mobile-First PWA + Android AP
 | Build | Vite 7 | vite ^7.3 |
 | Sprache | TypeScript (strict mode) | ^5.9 |
 | Linting | ESLint + Prettier + svelte-check | eslint ^10, prettier ^3.8 |
+| Tests | Vitest (Unit, `src/**/*.test.ts`, Umgebung node) | vitest ^4.1 |
 | Mobile | TWA (Trusted Web Activity) | Gradle-Projekt unter `twa/` |
 
 Tailwind und daisyUI tragen **nur noch** `/auth/login` und `/auth/register`. Die App selbst rührt sie nicht an.
@@ -42,7 +43,7 @@ Tailwind und daisyUI tragen **nur noch** `/auth/login` und `/auth/register`. Die
 │   └── deploy.yml                  # GitHub Actions → Cloudflare Pages
 ├── twa/                            # TWA Build (Gradle, Keystore-Referenz, APK)
 ├── prototype/                      # HTML-Prototyp-Snapshots (historisch)
-├── supabase/migrations/            # DB Migrations (chronologisch, 001–025; 021 = G2-Kopplung)
+├── supabase/migrations/            # DB Migrations (chronologisch, 001–026b; 021 = G2-Kopplung)
 ├── static/
 │   ├── fonts/                      # Instrument Sans, self-hosted woff2
 │   ├── icons/                      # PWA Icons (48–512px)
@@ -50,20 +51,20 @@ Tailwind und daisyUI tragen **nur noch** `/auth/login` und `/auth/register`. Die
 │   └── .well-known/                # Digital Asset Links (TWA)
 ├── _headers                        # CSP + Security Headers (Cloudflare)
 ├── src/
-│   ├── tf.css                      # ~2950 Zeilen: Token, Reset, ALLE App-Styles
+│   ├── tf.css                      # ~3280 Zeilen: Token, Reset, ALLE App-Styles
 │   ├── app.css                     # ~95 Zeilen: Tailwind/daisyUI (nur Auth), Body-Reset
 │   ├── app.html                    # HTML Shell (viewport-fit=cover, Theme-Startskript)
 │   ├── hooks.server.ts             # Supabase SSR Auth + Riegel vor /vorschau
 │   ├── hooks.client.ts
 │   ├── service-worker.ts           # Basic Service Worker (Cache)
 │   ├── lib/
-│   │   ├── components/tf/          # Die Oberfläche (28 Svelte-Dateien)
+│   │   ├── components/tf/          # Die Oberfläche (29 Svelte-Dateien)
 │   │   ├── composables/tf/         # Menüs, Teilen-Dialog, Sortierung
 │   │   ├── stores/tf/              # Navigation, Theme, Tastatur-Attrappe
-│   │   ├── stores/                 # tasks.svelte.ts, history.svelte.ts, toast.ts, filters.ts
-│   │   ├── utils/                  # datum.ts, mitnutzer.ts, suche.ts, verlauf.ts
+│   │   ├── stores/                 # tasks.svelte.ts, history.svelte.ts, einkauf.ts, toast.ts, filters.ts
+│   │   ├── utils/                  # datum.ts, einkauf.ts, mitnutzer.ts, suche.ts, verlauf.ts
 │   │   ├── services/               # supabase-crud.ts
-│   │   ├── actions/                # touchDrag.ts
+│   │   ├── actions/                # touchDrag.ts, langesTippen.ts
 │   │   ├── demo/                   # Fixtures + Supabase-Attrappe + Vorschau-Inhalt
 │   │   ├── types/                  # TypeScript DB-Typen
 │   │   ├── constants.ts            # Der EINZIGE Labelsatz (Priorität, Zeitrahmen)
@@ -90,11 +91,11 @@ Es gibt genau **eine** Oberfläche. Kein Ansichts-Umschalter, kein zweiter Kompo
 |---|---|
 | Route | `/app` |
 | Einstiegsseite | `src/routes/app/+page.svelte` (31 Zeilen — mountet nur die Shell) |
-| Shell | `src/lib/components/tf/AppShell.svelte` (~1270 Zeilen) |
+| Shell | `src/lib/components/tf/AppShell.svelte` (~1610 Zeilen) |
 | Wurzelelement | `src/lib/components/tf/TfRoot.svelte` (Theme-Klasse, Statusleistenfarbe) |
-| Komponenten | `src/lib/components/tf/` (28 Stück) |
+| Komponenten | `src/lib/components/tf/` (29 Stück) |
 | Composables | `src/lib/composables/tf/` (3 Stück) |
-| Stores | `src/lib/stores/tf/` + `src/lib/stores/tasks.svelte.ts` |
+| Stores | `src/lib/stores/tf/` + `src/lib/stores/tasks.svelte.ts` + `src/lib/stores/einkauf.ts` |
 | Styles | `src/tf.css` — ein Token-Set, hell und dunkel |
 | Vorschau ohne Login | `/vorschau` (nur Dev-Modus, Demodaten im Arbeitsspeicher) |
 
@@ -107,7 +108,7 @@ Es gibt genau **eine** Oberfläche. Kein Ansichts-Umschalter, kein zweiter Kompo
 ```
 
 1. **Navigation** — Marke, Suchzeile (⌘K), Smart-Ansichten „Angepinnt" und „Dringend", Listen mit Emoji/Avataren/Zähler, „Neue Liste", Fußzeile (Avatar, Mond, Zahnrad).
-2. **Liste** — Kopf (64 px: Name, Zähler, Geteilt-Pille, Sortier-Knopf, ⋮), Quick-Add als erste Zeile, Aufgabenzeilen, Erledigt-Balken. **Alle Overlays gehören in diese Spalte:** Teilen-Popover (`top:58px; right:20px`), Aufgabenmenü (`right:24px`), Toast (mittig unten). `ContextMenu` und `ShareDialog` klemmen sich deshalb gegen `.tf-main`, nicht gegen das Fenster.
+2. **Liste** — Kopf (64 px: Name, Zähler, Geteilt-Pille, Sortier-Knopf, ⋮), Quick-Add als erste Zeile, Aufgabenzeilen, Erledigt-Balken. Eine Einkaufsliste zeigt statt `TaskList` die `EinkaufsListe` (Kategorien, Artikel, Chips, unten die Leiste „Einkauf fertig"); ihr Kopf hat keinen Sortier-Knopf, die Detailspalte bleibt leer. **Alle Overlays gehören in diese Spalte:** Teilen-Popover (`top:58px; right:20px`), Aufgabenmenü (`right:24px`), Toast (mittig unten). `ContextMenu` und `ShareDialog` klemmen sich deshalb gegen `.tf-main`, nicht gegen das Fenster.
 3. **Detail** — Titel, Priorität (Segment), Zeitrahmen (Chips), Fällig, Unteraufgaben mit Fortschritt, Notiz, Verlauf (Aufgabenhistorie), unten Anpinnen/Verschieben/Löschen.
 
 **Mobil (unter 900 px): Tab-Leiste statt Spalten.** Drei Tabs — Listen · Angepinnt · Suche. „Liste geöffnet" ist ein Unterschirm des Tabs „Listen"; das Aufgabendetail ist ein Bottom-Sheet. Toast liegt oberhalb der Tab-Leiste.
@@ -147,13 +148,14 @@ Wer alten Code oder alte Dokumentation liest, sucht sonst danach:
 
 | Komponente | Zeilen | Beschreibung |
 |-----------|--------|-------------|
-| `AppShell.svelte` | ~1270 | Die ganze Oberfläche: drei Spalten bzw. Tab-Leiste, Store-Anbindung, Realtime, Tastatur, Overlay-Regie, Vorschau-Regie |
+| `AppShell.svelte` | ~1610 | Die ganze Oberfläche: drei Spalten bzw. Tab-Leiste, Store-Anbindung, Realtime, Tastatur, Overlay-Regie, Vorschau-Regie; verzweigt je Listentyp auf `TaskList` oder `EinkaufsListe` und sortiert Artikel ohne Kategorie ein |
 | `TaskDetail.svelte` | ~605 | Detailspalte und Sheet-Inhalt: Priorität, Zeitrahmen, Fällig, Unteraufgaben, Notiz, Verlauf, Aktionsleiste |
 | `TaskHistory.svelte` | ~350 | Gruppe „Verlauf": Eingabe (Stand · Wartet auf), Einträge neueste zuerst, „Ist da", Bearbeiten, Löschen mit Undo; Betrachter nur lesen |
 | `TaskRow.svelte` | ~345 | Aufgabenzeile: Prioritätsbalken, 44-px-Checkbox, Titelzeile mit Chips/Pin, Metazeile, ⋮ |
-| `TaskList.svelte` | ~315 | Listenkörper: Quick-Add, Zeilen, ausgeklappte Unteraufgaben, Erledigt-Bereich, Drag & Drop |
+| `TaskList.svelte` | ~320 | Listenkörper: Quick-Add, Zeilen, ausgeklappte Unteraufgaben, Erledigt-Bereich, Drag & Drop |
+| `EinkaufsListe.svelte` | ~220 | Listenkörper einer Einkaufsliste: Quick-Add „Artikel hinzufügen …" mit Einsortieren, Abschnitte je Kategorie (⋮: Umbenennen, Löschen), Artikel mit 44-px-Haken (offen, im Wagen durchgestrichen), Chips „Zuletzt gekauft" (max. 8, „+ N weitere"), „Ohne Kategorie", „+ Kategorie", Leiste „Einkauf fertig · N" |
 | `NavColumn.svelte` | ~210 | Navigationsspalte inkl. Smart-Ansichten, „Neue Liste", Fußzeile |
-| `ContextMenu.svelte` | ~210 | Popover-Menü mit Untermenü; klemmt gegen die Listenspalte |
+| `ContextMenu.svelte` | ~215 | Popover-Menü mit Untermenü (auch mit Trennstrich); klemmt gegen die Listenspalte |
 | `ShareDialog.svelte` | ~190 | Teilen-Popover: Mitnutzer, Rollen, Einladen. **Keine UUIDs** |
 | `SearchPalette.svelte` | ~180 | ⌘K-Palette (Desktop), Liste springt live mit |
 | `QuickAdd.svelte` | ~165 | Quick-Add-Zeile, mobil angedockt über der Tastatur |
@@ -180,20 +182,21 @@ Wer alten Code oder alte Dokumentation liest, sucht sonst danach:
 
 | Datei | Beschreibung |
 |-------|-------------|
-| `useContextMenus.svelte.ts` | Aufgabenmenü (4 Einträge), Listenmenü (7), Pinnwandmenü (2) |
+| `useContextMenus.svelte.ts` | Aufgabenmenü (4 Einträge), Listenmenü (7, je Listentyp), Pinnwandmenü (2), Kategoriemenü (2), Artikelmenü (3) |
 | `useShareDialog.svelte.ts` | Teilen-Dialog: lädt `profiles` nach und löst Anzeigenamen auf |
-| `useSortFilter.svelte.ts` | Sortierung (5 Modi — „Fortschritt" ist mit `tasks.progress` entfallen), Persistenz unter `tf-sort-mode` |
+| `useSortFilter.svelte.ts` | Sortierung (5 Modi — „Fortschritt" ist mit `tasks.progress` entfallen), Persistenz unter `tf-sort-mode`; erreichbar über den Sortier-Knopf im Kopf und das Listenmenü „Ansicht" |
 
 ### Stores
 
 | Store | Typ | Beschreibung |
 |-------|-----|-------------|
-| `stores/tasks.svelte.ts` | Runes (~905 Zeilen) | Haupt-Store: Listen + Tasks CRUD, Optimistic Updates, Realtime, Reorder, Bulk, Pins, Undo — via `createTaskStore()` |
+| `stores/tasks.svelte.ts` | Runes (~1030 Zeilen) | Haupt-Store: Listen + Tasks CRUD, Optimistic Updates, Realtime, Reorder, Bulk, Pins, Undo — via `createTaskStore()`. Dazu generische Primitive für den Einkaufs-Modus: `aendereAufgaben`, `fuegeEin`, `setzeListenart`, `loescheMitUndo`, `entferne` |
+| `stores/einkauf.ts` | Modul (ohne Runes) | Einkaufs-Aktionen über die Primitive des Task-Stores: Artikel hinzufügen/einsortieren, Wagen umschalten, „Einkauf fertig", Kategorien anlegen/wechseln/löschen, Einsortieren von außen (legt nie Kategorien an), Listentyp umstellen — via `createEinkauf()` |
 | `stores/history.svelte.ts` | Runes | Aufgabenhistorie: offene Warte-Einträge (eine Abfrage beim Start), Verlauf lazy je Detail, optimistisch mit Rücknahme, Realtime, Löschen verzögert mit Undo — via `createHistoryStore()` |
 | `stores/tf/navigation.svelte.ts` | Runes | Aktive Liste, ausgewählte Aufgabe, mobiler Tab, Unterschirm, Smart-Ansicht — durchgehend über IDs, nie über Indizes |
 | `stores/tf/theme.svelte.ts` | Runes | Genau zwei Zustände: hell (Default) und dunkel, `tf-dark` |
 | `stores/tf/tastatur.svelte.ts` | Runes | Höhe der Bildschirmtastatur (VisualViewport) für das angedockte Quick-Add |
-| `stores/toast.ts` | Store | Toasts inkl. Undo, dazu `showInputDialog` / `showConfirmDialog` |
+| `stores/toast.ts` | Store | Toasts inkl. Undo, `toasts.aktion` (eigenes Knopf-Label, z. B. „Ändern"), dazu `showInputDialog` / `showConfirmDialog` |
 | `stores/filters.ts` | writable | Einzige verbliebene Voreinstellung: Unteraufgaben eingeklappt (`tf-subtasks-collapsed`) |
 
 ### Services, Utils, Actions
@@ -203,9 +206,11 @@ Wer alten Code oder alte Dokumentation liest, sucht sonst danach:
 | `services/supabase-crud.ts` | Alle Supabase-DB-Operationen |
 | `utils/mitnutzer.ts` | Anzeigename → Initiale → Avatarfarbe. Gibt **nie** eine UUID heraus |
 | `utils/datum.ts` | Deutsche Datumsausgabe („heute 12:00", „Sa 20.09. · 09:00") — nie ISO |
-| `utils/suche.ts` | Suche über Titel, Unteraufgaben und Notizen aller Listen |
+| `utils/suche.ts` | Suche über Titel, Unteraufgaben und Notizen aller Listen; in Einkaufslisten nur Artikel (nie Kategorien), Pfad „Kategorie · Liste" |
+| `utils/einkauf.ts` | Einkaufs-Modus, reine Logik: Artikelzustand (offen/Wagen/abgelegt), Normalisierung (Mengen, Umlaute), Stichwort-Tabelle `KATEGORIEN`, `findeKategorie`/`findeArtikel`/`istSonstiges`, `einkaufsAnsicht` (Abschnitte, „Ohne Kategorie", Zähler) |
 | `utils/verlauf.ts` | Aufgabenhistorie: Typ `Eintrag`, Sortierung neueste zuerst, Sanduhr-Text „Wartet auf: … und N weitere" |
 | `actions/touchDrag.ts` | Touch-Drag & Drop: Ghost, Auto-Scroll, Drop-Zonen, 8-px-Schwelle |
+| `actions/langesTippen.ts` | Langes Tippen öffnet das Menü einer Zeile ohne ⋮ (Aufgabe, Artikel) und schluckt den Klick danach |
 | `constants.ts` | Der einzige Labelsatz: Low · Normal · High · ASAP, Zeitrahmen |
 | `seed-data.ts` | Demo-Daten für neue User (nur `/api/seed`) |
 | `demo/fixtures.ts`, `demo/supabase-attrappe.ts`, `demo/VorschauInhalt.svelte` | Nur für `/vorschau`, siehe unten |
@@ -222,14 +227,14 @@ Wer alten Code oder alte Dokumentation liest, sucht sonst danach:
 
 ## Vorschau-Route `/vorschau`
 
-Abnahme- und Vorführartefakt: dieselbe Shell, dieselben Komponenten, Demodaten im Arbeitsspeicher, kein Login, kein Zugriff auf die Produktivdatenbank. Der Zustand kommt aus Abfrageparametern (`liste`, `task`, `tab`, `offen`, `dunkel`, `teilen`, `menu`, `listenmenu`, `neueliste`, `suche`, `quickadd`, `toast`, `confirm`). `rolle=betrachter` macht Frank in der Liste „Familie" zum Betrachter (andere Demodaten, kein gestellter Zustand) — so ist der Verlauf im Nur-lesen-Zustand prüfbar. Die Attrappe spielt für `task_history` den Stempel-Trigger und die Kaskade aus Migration 022 nach.
+Abnahme- und Vorführartefakt: dieselbe Shell, dieselben Komponenten, Demodaten im Arbeitsspeicher, kein Login, kein Zugriff auf die Produktivdatenbank. Der Zustand kommt aus Abfrageparametern (`liste`, `task`, `tab`, `offen`, `dunkel`, `teilen`, `menu`, `listenmenu`, `neueliste`, `suche`, `quickadd`, `toast`, `confirm`). `rolle=betrachter` macht Frank in der Liste „Familie" zum Betrachter (andere Demodaten, kein gestellter Zustand) — so ist der Verlauf im Nur-lesen-Zustand prüfbar. `liste=l-einkaufen` ist die Demo-Einkaufsliste mit allen Zuständen: offene Artikel, Artikel im Wagen, Chips (eine Kategorie mit mehr als acht), eine leere Kategorie und „Grillkohle" ohne Kategorie, die beim Öffnen nach „Sonstiges" einsortiert wird. Die Attrappe spielt für `task_history` den Stempel-Trigger und die Kaskade aus Migration 022 nach.
 
 **Sie existiert produktiv nicht:**
 
 1. `src/hooks.server.ts` beantwortet `/vorschau` außerhalb des Dev-Modus vor dem Routing mit **HTTP 404**. (Der Riegel in `+page.ts` allein reichte nicht: die Route trägt `ssr = false` und der Riegel griff erst im Browser — der Server lieferte 200 mit leerer Hülle.)
 2. `routes/vorschau/+page.svelte` lädt `$lib/demo/VorschauInhalt.svelte` **nur** hinter `import.meta.env.DEV` dynamisch nach. Vite ersetzt das beim Bauen durch `false`, der Zweig fällt weg und mit ihm der Chunk. Im Produktionsbündel steht kein Demobestand mehr.
 
-Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/output/` muss leer bleiben.
+Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt\|Grillkohle" .svelte-kit/output/` muss leer bleiben. `src/lib/demo/fixtures.test.ts` hält fest, dass die Demo-Einkaufsliste alle Zustände enthält.
 
 ## Backend / Supabase
 
@@ -238,8 +243,8 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 | Tabelle | Primär-Felder | Zweck |
 |---------|---------------|-------|
 | `profiles` | id (FK auth.users), username, display_name, avatar_url | User-Profile, auto-erstellt bei Signup via Trigger. **Keine E-Mail-Spalte** — fremde Mitnutzer haben darum nur Anzeigename und Rolle |
-| `lists` | id, user_id, title, icon, position, visible, version | Aufgabenlisten pro User |
-| `tasks` | id, list_id, user_id, parent_id, text, type, done, priority, timeframe, position, emoji, note, due_date, highlighted, pinned, pinned_by, assigned_to, version | Unified: Tasks + Unteraufgaben + Trenner (via parent_id + type). `progress` entfällt mit Migration 023 |
+| `lists` | id, user_id, title, icon, position, visible, kind, version | Listen pro User. `kind`: `'aufgaben'` (Default) oder `'einkauf'` (Migration 026) |
+| `tasks` | id, list_id, user_id, parent_id, text, type, done, abgelegt, priority, timeframe, position, emoji, note, due_date, highlighted, pinned, pinned_by, assigned_to, version | Unified: Tasks + Unteraufgaben + Trenner (via parent_id + type). `progress` entfällt mit Migration 023. `abgelegt` (Migration 026, Default false): Artikel nach „Einkauf fertig" — nur noch Chip |
 | `task_history` | id, task_id, kind (stand/wartet), body, created_by/at, edited_by/at, resolved_by/at | Aufgabenhistorie, nur an Aufgaben oberster Ebene. Autor, Zeiten und „Ist da" stempelt ein Trigger; Rechte über `can_view_task` / `can_edit_task` |
 | `list_shares` | id, list_id, user_id, role (owner/editor/viewer) | Multi-User Sharing |
 
@@ -247,13 +252,14 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 - **Unified Tasks-Tabelle:** Tasks, Unteraufgaben und Trenner in einer Tabelle (via `parent_id` + `type`)
 - **parent_id = null:** Top-Level Task oder Divider
 - **parent_id = task_id:** Unteraufgabe — **genau eine Ebene**, tiefer geht die Oberfläche nicht
-- **Trenner (`type = 'divider'`):** Restbestand. Die Oberfläche legt keine neuen an, vorhandene bleiben bedienbar
+- **Trenner (`type = 'divider'`):** In Aufgabenlisten Restbestand — die Oberfläche legt dort keine neuen an, vorhandene bleiben bedienbar. In Einkaufslisten sind Trenner die **Kategorien** (Name in `text`), Artikel ihre Unteraufgaben
+- **Artikelzustand (Einkaufsliste):** offen (`done=false`) → im Wagen (`done=true, abgelegt=false`) → zuletzt gekauft (`done=true, abgelegt=true`, nur Chip). Wieder draufsetzen = beides false
 - **version-Feld:** Existiert für Optimistic Concurrency Control, wird client-seitig nicht geprüft
 - **RLS:** Aktiv auf allen Tabellen, Owner-Isolation + Sharing via list_shares. In `list_shares` einer FREMDEN Liste sieht man nur den Besitzer und sich selbst (Migration 003) — wer dort gepinnt hat, wird über sein Profil nachgeladen
 
 ### Migrations
 
-`supabase/migrations/001` bis `025`, chronologisch anzuwenden (021, die G2-Kopplung, steht nicht als Datei im Repo). Die Grundlagen:
+`supabase/migrations/001` bis `026b`, chronologisch anzuwenden (021, die G2-Kopplung, steht nicht als Datei im Repo). Die Grundlagen:
 
 | Nr | Datei | Inhalt |
 |----|-------|--------|
@@ -277,6 +283,8 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 | 023 | `drop_task_progress.sql` | `progress`-Werte als Stand-Eintrag übernehmen, Spalte entfernen — erst nach dem Deploy des Codes ohne `progress` |
 | 024 | `besitz_und_verschieben_absichern.sql` | Trigger: `tasks.user_id`/`lists.user_id` unveränderlich, Verschieben nur in beschreibbare Listen, Unteraufgaben nur an bearbeitbare Aufgaben — greift auch in den Reorder-RPCs; n8n (service_role) unberührt |
 | 025 | `rpc_rechte_aufraeumen.sql` | `lookup_user_by_email` nur noch angemeldet, Gamification-RPCs gesperrt, Trigger-Funktionen nicht per RPC |
+| 026 | `einkaufsmodus.sql` | Einkaufs-Modus, rein additiv: `lists.kind` (`aufgaben`/`einkauf`, Check-Constraint) und `tasks.abgelegt` — beide mit Default, die alte App-Fassung merkt nichts |
+| 026b | `einkaufen_umstellen.sql` | Liste „Einkaufen" umstellen: Aufgaben der obersten Ebene → Kategorien (Trenner), abgehakte Artikel → `abgelegt`, `kind = 'einkauf'` — **erst nach dem Deploy des Codes**, die alte Fassung kann Trenner mit Unteraufgaben nicht darstellen |
 
 ### Auth
 - Google OAuth + Email/Passwort (Supabase Auth)
@@ -303,14 +311,25 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt" .svelte-kit/ou
 - [x] Verlauf je Aufgabe: „Stand" und „Wartet auf" mit „Ist da"; Sanduhr in der Zeile, solange etwas offen ist
 - [x] Supabase Realtime + Optimistic UI
 
+### Einkaufs-Modus
+Spezifikation: [docs/superpowers/specs/2026-09-26-einkaufsmodus-design.md](docs/superpowers/specs/2026-09-26-einkaufsmodus-design.md)
+
+- [x] Listentyp „Einkaufsliste" — umschaltbar im Listenmenü unter „Ansicht" („Als Einkaufsliste" mit Rückfrage, „Als Aufgabenliste" ohne), beide Richtungen ohne Datenverlust. Zur Einkaufsliste: Aufgaben mit Unteraufgaben werden Kategorien, alle anderen Artikel (auch eine leere Kategorie nach dem Hin und Zurück); zur Aufgabenliste: Kategorien werden Aufgaben, abgelegte Artikel erledigte Unteraufgaben
+- [x] Kategorien als Abschnitte ohne Haken (zählen nicht als offen); ⋮ an der Überschrift: Umbenennen, Löschen (Artikel wandern nach „Sonstiges", Undo-Toast); „+ Kategorie" am Ende
+- [x] Artikel: Tippen auf die Zeile = in den Wagen (durchgestrichen am Abschnittsende) und zurück; ⋮ bzw. langes Tippen: Umbenennen, Kategorie ändern, Löschen
+- [x] „Einkauf fertig · N" als Leiste unten in der Liste und im Listenmenü: Artikel im Wagen werden „Zuletzt gekauft"-Chips (Undo-Toast); ein Tipp auf einen Chip setzt den Artikel wieder auf die Liste
+- [x] Quick-Add sortiert automatisch ein: gleichnamiger Artikel wird reaktiviert („steht schon auf der Liste", wenn offen), sonst Stichwort-Tabelle, sonst „Sonstiges"; Toast „Pizza → Sonstiges · Ändern"
+- [x] Artikel von außen (n8n, G2, zweites Gerät) sortiert der Client beim Öffnen ein — ohne je eine Kategorie anzulegen
+- [x] Zähler in Navigation, Übersicht und Kopf: offene Artikel; Suche findet Artikel (nicht Kategorien) und öffnet nur die Liste; „Angepinnt"/„Dringend" ignorieren Einkaufslisten
+
 ### UI/UX
 - [x] Desktop: drei Spalten. Mobil: Tab-Leiste (Listen · Angepinnt · Suche) + Bottom-Sheet
 - [x] Hell/Dunkel — ein Token-Set, keine Presets
 - [x] Smart-Ansichten „Angepinnt" (Pinnwand) und „Dringend"
-- [x] Kontextmenü: Aufgabe 4 Einträge, Liste 7, Pinnwand 2 — alles Weitere lebt im Detail
+- [x] Kontextmenü: Aufgabe 4 Einträge, Liste 7, Pinnwand 2, Kategorie 2, Artikel 3 — alles Weitere lebt im Detail. Das Listenmenü trägt „Ansicht" (Untermenü: Sortierung und Listentyp) statt „Sortierung"; in Einkaufslisten „Kategorie hinzufügen" und „Einkauf fertig" statt „Auswählen" und „Erledigte löschen"
 - [x] Drag & Drop inkl. Touch (300 ms halten + ziehen)
 - [x] Suche: ⌘K-Palette am Zeiger, eigener Tab am Finger — über Titel, Unteraufgaben und Notizen
-- [x] Sortierung: 5 Modi
+- [x] Sortierung: 5 Modi (Kopf-Knopf oder Listenmenü „Ansicht"; nicht in Einkaufslisten)
 - [x] Bulk-Aktionen (Mehrfachauswahl)
 - [x] Undo-Toast statt Bestätigungsdialog, außer beim Löschen einer Liste
 - [x] Touch-Ziele 44 px, iOS Safe Area, `viewport-fit=cover`
@@ -378,13 +397,13 @@ Die folgenden Stellen weichen **absichtlich** von `A-klar-spec.md` ab. Sie sind 
 ## Bekannte Probleme / offene Punkte
 
 **Mittel:**
-1. `AppShell.svelte` ist mit ~1270 Zeilen die größte Datei des Projekts. Menüs, Teilen und Sortierung sind bereits in Composables ausgelagert; Realtime und Vorschau-Regie wären die nächsten Kandidaten.
+1. `AppShell.svelte` ist mit ~1610 Zeilen die größte Datei des Projekts. Menüs, Teilen und Sortierung sind bereits in Composables ausgelagert; Realtime und Vorschau-Regie wären die nächsten Kandidaten.
 2. `version`-Feld existiert, wird client-seitig nicht geprüft
 3. N+1-Queries bei einzelnen Reorder-Pfaden (die RPC aus Migration 007 deckt nicht alle ab)
 4. Code-Duplikation: das Optimistic-Pattern wiederholt sich in `tasks.svelte.ts` vielfach
 
 **Niedrig:**
-5. Keine Tests (Unit, Integration, E2E). Die Abnahme läuft über Screenshots gegen die Mockup-Frames (`abnahme/shot.mjs` im Redesign-Projekt)
+5. Unit-Tests (Vitest, `npm test`) nur für reine Logik, Stores ohne Runes und Composables (Einkaufs-Modus, Suche, Menüs, langes Tippen); keine Komponenten-, Integrations- oder E2E-Tests. Die Abnahme läuft über Screenshots gegen die Mockup-Frames (`abnahme/shot.mjs` im Redesign-Projekt), der Einkaufs-Modus über `einkauf-shots/sicht.mjs` dort
 6. `svelte-check` meldet 5 Fehler in `routes/app/g2-koppeln/+page.svelte`: die Tabelle `g2_pairing_codes` fehlt in den generierten DB-Typen
 7. `eslint` meldet 1 Fehler in `service-worker.ts` (`ServiceWorkerGlobalScope` ist der ESLint-Umgebung unbekannt)
 8. Kein Offline-Support
@@ -420,6 +439,7 @@ npm run build        # Production Build
 npm run preview      # Production Preview
 npm run check        # svelte-check + TypeScript
 npm run lint         # ESLint
+npm test             # Vitest (Unit-Tests, src/**/*.test.ts)
 npm run format       # Prettier
 ```
 

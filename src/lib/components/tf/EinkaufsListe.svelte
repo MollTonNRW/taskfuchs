@@ -68,7 +68,11 @@
 	/**
 	 * „Aendern" im Toast: das Artikelmenue an der Zeile oeffnen. Hat jemand
 	 * die Kategorie zugeklappt, steht die Zeile nicht im Baum — erst
-	 * aufklappen, sonst liefe der Knopf ins Leere.
+	 * aufklappen, sonst liefe der Knopf ins Leere. Der neue Artikel steht am
+	 * Ende seiner Kategorie, oft weit unter dem Quick-Add: erst in die Mitte
+	 * holen, sonst oeffnete das Menue ausserhalb des Bildschirms (die
+	 * Mitte, weil unten die Leiste „Einkauf fertig" und mobil das
+	 * angedockte Quick-Add ueber der Zeile laegen).
 	 */
 	async function menueAmArtikel(id: string) {
 		const artikel = tasks.find((t) => t.id === id);
@@ -77,8 +81,11 @@
 			zu.set(artikel.parent_id, false);
 			await tick();
 		}
-		const rect = document.querySelector(`[data-tf-artikel="${id}"]`)?.getBoundingClientRect();
-		if (rect) onArtikelMenue({ clientX: rect.right, clientY: rect.bottom, preventDefault() {} }, artikel);
+		const zeile = document.querySelector(`[data-tf-artikel="${id}"]`);
+		if (!zeile) return;
+		zeile.scrollIntoView({ block: 'center', behavior: 'instant' });
+		const rect = zeile.getBoundingClientRect();
+		onArtikelMenue({ clientX: rect.right, clientY: rect.bottom, preventDefault() {} }, artikel);
 	}
 
 	function menue(e: MouseEvent, t: Task, art: 'kategorie' | 'artikel') {
