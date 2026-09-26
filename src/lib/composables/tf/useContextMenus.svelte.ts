@@ -1,7 +1,8 @@
 import type { Database } from '$lib/types/database';
 import type { MenuEintrag } from '$lib/components/tf/ContextMenu.svelte';
 import type { Einkauf } from '$lib/stores/einkauf';
-import { showInputDialog } from '$lib/stores/toast';
+import { bestaetigen, showInputDialog, toasts } from '$lib/stores/toast';
+import { einkaufsAnsicht } from '$lib/utils/einkauf';
 
 type List = Database['public']['Tables']['lists']['Row'];
 type Task = Database['public']['Tables']['tasks']['Row'];
@@ -36,8 +37,8 @@ export type Zeigerpunkt = {
  * **Aufgabenmenue: genau vier Eintraege.** In Liste verschieben (Untermenue) ·
  * Auswaehlen · Anpinnen · ⸺ · Loeschen (danger).
  * **Listenmenue: genau sieben.** Umbenennen · Icon aendern · Teilen (Zahl) ·
- * Auswaehlen · Sortierung (Wert ›) · ⸺ · Erledigte loeschen (Zahl) ·
- * Liste loeschen (danger).
+ * Auswaehlen · Ansicht (Sortierung ›, darin „Als Einkaufsliste") · ⸺ ·
+ * Erledigte loeschen (Zahl) · Liste loeschen (danger).
  *
  * Alles Uebrige lebt seit T7 im Aufgabendetail: Terminieren, Prioritaet,
  * Zeitrahmen, Umbenennen, Unteraufgabe anlegen, Unteraufgaben loeschen,
@@ -45,12 +46,17 @@ export type Zeigerpunkt = {
  * (components/tf/Icon.svelte) — keine Emoji fuer Funktionen.
  *
  * **Einkaufsliste** (docs/superpowers/specs/2026-09-26-einkaufsmodus-design.md):
- * Kategoriemenue Umbenennen · Loeschen; Artikelmenue Umbenennen ·
- * Kategorie aendern (Untermenue) · ⸺ · Loeschen. Artikel haben kein Detail.
+ * Listenmenue Umbenennen · Icon aendern · Teilen · Kategorie hinzufuegen ·
+ * Ansicht („Als Aufgabenliste" ›) · ⸺ · Einkauf fertig (Zahl im Wagen) ·
+ * Liste loeschen. Kategoriemenue Umbenennen · Loeschen; Artikelmenue
+ * Umbenennen · Kategorie aendern (Untermenue) · ⸺ · Loeschen. Artikel haben
+ * kein Detail.
  */
 export interface ContextMenuDeps {
 	store: {
 		lists: List[];
+		/** Alle Zeilen — fuer die Zahl im Wagen bei „Einkauf fertig". */
+		tasks: Task[];
 		renameList: (listId: string, name: string) => void;
 		deleteDoneInList: (listId: string) => void;
 		/**
@@ -83,8 +89,10 @@ export interface ContextMenuDeps {
 	};
 	/** Breite des Listenmenues: 220 am Zeiger, 232 am Finger. */
 	mobil: boolean;
-	/** Aktionen der Einkaufsliste (Kategorie- und Artikelmenue). */
+	/** Aktionen der Einkaufsliste (Kategorie-, Artikel- und Listenmenue). */
 	einkauf: Einkauf;
+	/** „Kategorie hinzufuegen": Namen abfragen und in DIESER Liste anlegen. */
+	kategorieNeu: (listId: string) => void;
 }
 
 export function createContextMenus(deps: ContextMenuDeps) {
@@ -104,48 +112,122 @@ export function createContextMenus(deps: ContextMenuDeps) {
 		offeneTaskId = taskId;
 	}
 
+	/**
+	 * Listenmenue — sieben Eintraege, je nach Listentyp. Die ersten drei und
+	 * der letzte sind gleich; „Ansicht" traegt bei beiden den Wechsel des
+	 * Listentyps als letzten Punkt im Untermenue (Ruling R3: kein achter
+	 * Eintrag).
+	 */
 	function handleListContext(e: Zeigerpunkt, list: List) {
 		e.preventDefault();
 		const { store, sortierung } = deps;
-		const erledigte = store.erledigteAnzahl(list.id);
 		const geteilt = deps.beteiligteAnzahl(list.id);
 		const x = e.clientX;
 		const y = e.clientY;
 
+		const vorne: MenuEintrag[] = [
+			{
+				label: 'Umbenennen',
+				icon: 'umbenennen',
+				action: async () => {
+					const neu = await showInputDialog('Liste umbenennen', '', list.title, 'Neuer Listenname');
+					if (neu?.trim()) store.renameList(list.id, neu.trim());
+				}
+			},
+			{
+				label: 'Icon ändern',
+				icon: 'emoji',
+				action: () => deps.openListIconPicker(list.id, x, y)
+			},
+			{
+				label: 'Teilen',
+				icon: 'teilen',
+				// Der Zusatz zaehlt alle Beteiligten inklusive der eigenen
+				// Person — so wie die Geteilt-Pille im Listen-Header.
+				extra: geteilt > 1 ? String(geteilt) : undefined,
+				action: () => deps.openShareDialog(list, x, y)
+			}
+		];
+		const listeLoeschen: MenuEintrag = {
+			label: 'Liste löschen',
+			icon: 'loeschen',
+			danger: true,
+			action: () => deps.listeLoeschen(list)
+		};
+
+		if (list.kind === 'einkauf') {
+			const imWagen = einkaufsAnsicht(store.tasks.filter((t) => t.list_id === list.id)).wagenAnzahl;
+			oeffnen(
+				e,
+				[
+					...vorne,
+					{
+						label: 'Kategorie hinzufügen',
+						icon: 'plus',
+						action: () => deps.kategorieNeu(list.id)
+					},
+					{
+						label: 'Ansicht',
+						icon: 'sortierung-menue',
+						submenu: [
+							{
+								label: 'Als Aufgabenliste',
+								// Ohne Rueckfrage: der Rueckweg ist verlustfrei, Kategorien
+								// werden wieder Aufgaben, Abgelegtes bleibt erledigt.
+								action: async () => {
+									if (await deps.einkauf.listeUmstellen(list.id, 'aufgaben')) {
+										toasts.show('Wieder eine Aufgabenliste');
+									}
+								}
+							}
+						]
+					},
+					{ divider: true, label: '' },
+					{
+						label: 'Einkauf fertig',
+						icon: 'haken',
+						extra: imWagen > 0 ? String(imWagen) : undefined,
+						inaktiv: imWagen === 0,
+						// Kein Dialog: `einkaufFertig` legt einen Undo-Toast nach.
+						action: () => void deps.einkauf.einkaufFertig(list.id)
+					},
+					listeLoeschen
+				],
+				deps.mobil ? 232 : 220
+			);
+			return;
+		}
+
+		const erledigte = store.erledigteAnzahl(list.id);
 		oeffnen(
 			e,
 			[
-				{
-					label: 'Umbenennen',
-					icon: 'umbenennen',
-					action: async () => {
-						const neu = await showInputDialog('Liste umbenennen', '', list.title, 'Neuer Listenname');
-						if (neu?.trim()) store.renameList(list.id, neu.trim());
-					}
-				},
-				{
-					label: 'Icon ändern',
-					icon: 'emoji',
-					action: () => deps.openListIconPicker(list.id, x, y)
-				},
-				{
-					label: 'Teilen',
-					icon: 'teilen',
-					// Der Zusatz zaehlt alle Beteiligten inklusive der eigenen
-					// Person — so wie die Geteilt-Pille im Listen-Header.
-					extra: geteilt > 1 ? String(geteilt) : undefined,
-					action: () => deps.openShareDialog(list, x, y)
-				},
+				...vorne,
 				{ label: 'Auswählen', icon: 'auswahl', action: () => deps.startBulkSelect() },
 				{
-					label: 'Sortierung',
+					label: 'Ansicht',
 					icon: 'sortierung-menue',
 					extra: sortierung.optionen.find((o) => o.wert === sortierung.aktuell)?.label ?? '',
-					submenu: sortierung.optionen.map((o) => ({
-						label: o.label,
-						action: () => sortierung.waehlen(o.wert),
-						active: o.wert === sortierung.aktuell
-					}))
+					submenu: [
+						...sortierung.optionen.map((o) => ({
+							label: o.label,
+							action: () => sortierung.waehlen(o.wert),
+							active: o.wert === sortierung.aktuell
+						})),
+						{ divider: true, label: '' },
+						{
+							label: 'Als Einkaufsliste',
+							action: async () => {
+								const ok = await bestaetigen({
+									titel: `„${list.title}“ als Einkaufsliste nutzen?`,
+									text: 'Aufgaben mit Unteraufgaben werden Kategorien, alle anderen Artikel. Zurückstellen geht jederzeit über „Ansicht“.',
+									knopf: 'Umstellen',
+									destruktiv: false
+								});
+								if (ok) await deps.einkauf.listeUmstellen(list.id, 'einkauf');
+							}
+						}
+					]
 				},
 				{ divider: true, label: '' },
 				{
@@ -156,12 +238,7 @@ export function createContextMenus(deps: ContextMenuDeps) {
 					// Kein Dialog: `deleteDoneInList` legt einen Undo-Toast nach.
 					action: () => store.deleteDoneInList(list.id)
 				},
-				{
-					label: 'Liste löschen',
-					icon: 'loeschen',
-					danger: true,
-					action: () => deps.listeLoeschen(list)
-				}
+				listeLoeschen
 			],
 			deps.mobil ? 232 : 220
 		);

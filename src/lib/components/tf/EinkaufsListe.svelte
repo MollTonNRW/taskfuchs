@@ -36,7 +36,8 @@
 		einkauf: Einkauf;
 		onKategorieMenue: (e: Zeigerpunkt, kategorie: Task) => void;
 		onArtikelMenue: (e: Zeigerpunkt, artikel: Task) => void;
-		onKategorieNeu: () => void;
+		/** „+ Kategorie" — mit der ID dieser Liste (Ruling R1). */
+		onKategorieNeu: (listId: string) => void;
 		/** Quick-Add aktiv mit diesem Text — nur die Vorschau-Route. */
 		quickAddVorgabe?: string;
 		/** Kategorie oder Artikel, deren Menue gerade offen steht — ihr ⋮ bleibt sichtbar. */
@@ -165,7 +166,7 @@
 		</section>
 	{/each}
 
-	<button class="tf-ek-neu" onclick={() => onKategorieNeu()}>
+	<button class="tf-ek-neu" onclick={() => onKategorieNeu(list.id)}>
 		<Icon name="plus" size={16} /> Kategorie
 	</button>
 </div>

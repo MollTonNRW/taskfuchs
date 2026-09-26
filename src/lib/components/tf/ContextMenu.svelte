@@ -18,7 +18,8 @@
 		divider?: boolean;
 		/** Nicht anwaehlbar (z. B. „Keine weitere Liste"). */
 		inaktiv?: boolean;
-		submenu?: { label: string; emoji?: string; action: () => void; active?: boolean }[];
+		/** Untermenue; ein Eintrag mit `divider` ist ein Trennstrich („Ansicht"). */
+		submenu?: { label: string; emoji?: string; action?: () => void; active?: boolean; divider?: boolean }[];
 	};
 </script>
 
@@ -171,18 +172,22 @@
 				{#if offenesUnter === item.label}
 					<div bind:this={submenuEl} class="tf-menu tf-unter" style="width:{breite}px" role="menu">
 						{#each item.submenu as sub, j (j)}
-							<button
-								class="tf-mi"
-								role="menuitem"
-								onclick={() => {
-									sub.action();
-									onclose();
-								}}
-							>
-								{#if sub.emoji}<span class="em">{sub.emoji}</span>{/if}
-								<span class="lbl">{sub.label}</span>
-								{#if sub.active}<span class="r"><Icon name="haken" size={16} /></span>{/if}
-							</button>
+							{#if sub.divider}
+								<hr />
+							{:else}
+								<button
+									class="tf-mi"
+									role="menuitem"
+									onclick={() => {
+										sub.action?.();
+										onclose();
+									}}
+								>
+									{#if sub.emoji}<span class="em">{sub.emoji}</span>{/if}
+									<span class="lbl">{sub.label}</span>
+									{#if sub.active}<span class="r"><Icon name="haken" size={16} /></span>{/if}
+								</button>
+							{/if}
 						{/each}
 					</div>
 				{/if}

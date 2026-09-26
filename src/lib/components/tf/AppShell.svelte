@@ -177,6 +177,10 @@
 	// EINKAUFSLISTE
 	// ==========================================
 	let istEinkauf = $derived(activeList?.kind === 'einkauf');
+	/** IDs aller Einkaufslisten — fuer Zaehler und Smart-Ansichten. */
+	let einkaufsListen = $derived(
+		new Set(lists.filter((l: List) => l.kind === 'einkauf').map((l: List) => l.id))
+	);
 	/** Alle Zeilen der offenen Einkaufsliste — die Komponente ordnet selbst. */
 	let einkaufsZeilen = $derived(
 		activeList && istEinkauf ? tasks.filter((t: Task) => t.list_id === activeList.id) : []
@@ -206,10 +210,12 @@
 		untrack(() => void einkauf.ohneKategorieEinsortieren(listId));
 	});
 
-	/** „+ Kategorie" am Ende der Einkaufsliste. */
-	async function kategorieNeu() {
-		if (!activeList) return;
-		const listId = activeList.id;
+	/**
+	 * „+ Kategorie" am Ende der Einkaufsliste und „Kategorie hinzufügen" im
+	 * Listenmenue. Die Liste kommt als Parameter (Ruling R1): das Menue
+	 * gehoert zu der Liste, an der es geoeffnet wurde.
+	 */
+	async function kategorieNeu(listId: string) {
 		const name = await showInputDialog('Neue Kategorie', '', '', 'z. B. Backwaren');
 		if (name?.trim()) await einkauf.kategorieAnlegen(listId, name.trim());
 	}
@@ -285,10 +291,17 @@
 	// ==========================================
 	// Offene Aufgaben der obersten Ebene je Liste. Kommt aus `store.tasks`,
 	// nicht mehr aus dem alten Ereignisbus (`v2Events.navCounts`).
+	// Einkaufslisten zaehlen offene Artikel auf jeder Ebene — Kategorien und
+	// Abgelegtes (immer `done`) zaehlen nicht.
 	let offeneJeListe = $derived.by(() => {
 		const m = new Map<string, number>();
 		for (const t of tasks) {
-			if (t.done || t.parent_id || t.type === 'divider') continue;
+			if (t.done || t.type === 'divider') continue;
+			if (einkaufsListen.has(t.list_id)) {
+				m.set(t.list_id, (m.get(t.list_id) ?? 0) + 1); // offene Artikel, jede Ebene
+				continue;
+			}
+			if (t.parent_id) continue;
 			m.set(t.list_id, (m.get(t.list_id) ?? 0) + 1);
 		}
 		return m;
@@ -320,9 +333,16 @@
 	 * `taskfuchs-read`) holen dieselbe Menge direkt aus der Datenbank —
 	 * geschrieben werden `pinned` und `pinned_by` unveraendert in
 	 * `tasks.svelte.ts` (`togglePin`, `clearPinboard`, `restorePins`).
+	 *
+	 * Beide Smart-Ansichten ignorieren Einkaufslisten: ein Artikel hat kein
+	 * Detail, und eine umgestellte Liste braechte sonst alte Pins und
+	 * Prioritaeten ihrer frueheren Aufgaben mit.
 	 */
 	let pinnedTasks = $derived(
-		tasks.filter((t: Task) => t.pinned && !t.done && !t.parent_id && t.type !== 'divider')
+		tasks.filter(
+			(t: Task) =>
+				t.pinned && !t.done && !t.parent_id && t.type !== 'divider' && !einkaufsListen.has(t.list_id)
+		)
 	);
 
 	/** Dringend: ASAP/High oder heute faellig bzw. ueberfaellig, jeweils offen. */
@@ -331,6 +351,7 @@
 		const heuteEndeMs = new Date().setHours(23, 59, 59, 999);
 		return tasks.filter((t: Task) => {
 			if (t.done || t.parent_id || t.type === 'divider') return false;
+			if (einkaufsListen.has(t.list_id)) return false;
 			if (t.priority === 'asap' || t.priority === 'high') return true;
 			if (!t.due_date) return false;
 			const faellig = Date.parse(t.due_date);
@@ -538,6 +559,7 @@
 	const ctxDeps: ContextMenuDeps = {
 		store: {
 			get lists() { return lists; },
+			get tasks() { return tasks; },
 			renameList: (listId: string, name: string) => store.renameList(listId, name),
 			deleteDoneInList: (listId: string) => void store.deleteDoneInList(listId),
 			// Dieselbe Regel wie Erledigt-Balken und Undo-Toast: oberste Ebene,
@@ -564,7 +586,8 @@
 			waehlen: (wert: string) => { sortFilter.sortMode = wert as SortMode; }
 		},
 		get mobil() { return isMobile; },
-		einkauf
+		einkauf,
+		kategorieNeu: (listId: string) => void kategorieNeu(listId)
 	};
 	const ctx = createContextMenus(ctxDeps);
 
@@ -855,9 +878,16 @@
 	/**
 	 * Die Liste hinter der Palette mitfuehren (Spezifikation Frame 3).
 	 * Erst die Liste — sie raeumt die alte Auswahl ab —, dann die Aufgabe.
+	 * Ein Artikel einer Einkaufsliste hat kein Detail: dort nur die Liste,
+	 * und eine noch stehende Auswahl (etwa aus der Pinnwand, die die aktive
+	 * Liste nicht wechselt) faellt.
 	 */
 	function sucheVorschau(listId: string, taskId: string) {
 		nav.selectList(listId);
+		if (einkaufsListen.has(listId)) {
+			nav.selectTask(null);
+			return;
+		}
 		nav.selectTask(taskId);
 	}
 

@@ -42,6 +42,11 @@ export type Treffer = {
 	pfad: Stueck;
 	/** Stabiler Schluessel: eine Aufgabe kann mehrfach treffen. */
 	id: string;
+	/**
+	 * Artikel einer Einkaufsliste. `task` ist dann der Artikel selbst — er hat
+	 * kein Detail, der Treffer oeffnet nur die Liste.
+	 */
+	istArtikel?: boolean;
 };
 
 export type Suchergebnis = { offen: Treffer[]; erledigt: Treffer[] };
@@ -143,12 +148,18 @@ function sortiereNachPosition(a: Task, b: Task): number {
  * Reihenfolge ist die Reihenfolge des Bestands (Liste, dann Position). Eine
  * Aufgabe liefert hoechstens einen Titel- ODER Notiztreffer (der Titel
  * gewinnt) und zusaetzlich je einen Treffer pro passender Unteraufgabe.
+ *
+ * Einkaufslisten (docs/superpowers/specs/2026-09-26-einkaufsmodus-design.md)
+ * liefern statt dessen je passendem Artikel einen Treffer mit `istArtikel`;
+ * Pfad „Kategorie · Liste". Kategorien sind Ueberschriften und treffen nicht.
  */
 export function suchen(tasks: Task[], lists: List[], q: string): Suchergebnis {
 	const begriff = q.trim().toLowerCase();
 	if (begriff.length < MIN_ZEICHEN) return LEER;
 
 	const listen = new Map(lists.map((l) => [l.id, l]));
+	const einkaufsListen = new Set(lists.filter((l) => l.kind === 'einkauf').map((l) => l.id));
+	const zeilen = new Map(tasks.map((t) => [t.id, t]));
 
 	const kinder = new Map<string, Task[]>();
 	for (const t of tasks) {
@@ -163,6 +174,32 @@ export function suchen(tasks: Task[], lists: List[], q: string): Suchergebnis {
 	const erledigt: Treffer[] = [];
 
 	for (const task of tasks) {
+		// Einkaufsliste: Treffer sind die Artikel (oberste Ebene oder unter einer
+		// Kategorie), nie die Kategorie selbst. Im Wagen und abgelegt zaehlen
+		// als erledigt.
+		if (einkaufsListen.has(task.list_id)) {
+			if (task.type === 'divider') continue;
+			const kategorie = task.parent_id ? zeilen.get(task.parent_id) : undefined;
+			if (task.parent_id && kategorie?.type !== 'divider') continue;
+			const liste = listen.get(task.list_id)!;
+			const ziel = task.done || task.abgelegt ? erledigt : offen;
+			if (ziel.length >= MAX_TREFFER) continue;
+			const imArtikel = markiere(task.text, begriff);
+			if (!imArtikel) continue;
+			ziel.push({
+				task,
+				listId: liste.id,
+				listName: liste.title,
+				emoji: liste.icon,
+				quelle: 'titel',
+				titel: imArtikel,
+				pfad: roh(kategorie ? `${kategorie.text} · ${liste.title}` : liste.title),
+				id: `${task.id}:artikel`,
+				istArtikel: true
+			});
+			continue;
+		}
+
 		if (task.parent_id || task.type === 'divider') continue;
 		const liste = listen.get(task.list_id);
 		if (!liste) continue;
