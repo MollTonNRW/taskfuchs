@@ -1,5 +1,6 @@
 import type { Database } from '$lib/types/database';
 import type { MenuEintrag } from '$lib/components/tf/ContextMenu.svelte';
+import type { Einkauf } from '$lib/stores/einkauf';
 import { showInputDialog } from '$lib/stores/toast';
 
 type List = Database['public']['Tables']['lists']['Row'];
@@ -42,6 +43,10 @@ export type Zeigerpunkt = {
  * Zeitrahmen, Umbenennen, Unteraufgabe anlegen, Unteraufgaben loeschen,
  * Symbol, Neue Aufgabe darunter. Icons kommen aus dem Stroke-Set
  * (components/tf/Icon.svelte) — keine Emoji fuer Funktionen.
+ *
+ * **Einkaufsliste** (docs/superpowers/specs/2026-09-26-einkaufsmodus-design.md):
+ * Kategoriemenue Umbenennen · Loeschen; Artikelmenue Umbenennen ·
+ * Kategorie aendern (Untermenue) · ⸺ · Loeschen. Artikel haben kein Detail.
  */
 export interface ContextMenuDeps {
 	store: {
@@ -78,6 +83,8 @@ export interface ContextMenuDeps {
 	};
 	/** Breite des Listenmenues: 220 am Zeiger, 232 am Finger. */
 	mobil: boolean;
+	/** Aktionen der Einkaufsliste (Kategorie- und Artikelmenue). */
+	einkauf: Einkauf;
 }
 
 export function createContextMenus(deps: ContextMenuDeps) {
@@ -266,6 +273,74 @@ export function createContextMenus(deps: ContextMenuDeps) {
 		);
 	}
 
+	/**
+	 * Menue an der Ueberschrift einer Kategorie (Einkaufsliste).
+	 *
+	 * Loeschen ohne Rueckfrage: `kategorieLoeschen` haengt die Artikel nach
+	 * „Sonstiges" um, und das Rueckgaengig im Toast nimmt beides zurueck. Ein
+	 * Bestaetigungsdialog steht nur, wo es kein Rueckgaengig gibt.
+	 */
+	function handleKategorieContext(e: Zeigerpunkt, kategorie: Task) {
+		e.preventDefault();
+		oeffnen(e, [
+			{
+				label: 'Umbenennen',
+				icon: 'umbenennen',
+				action: async () => {
+					const neu = await showInputDialog('Kategorie umbenennen', '', kategorie.text, 'Neuer Name');
+					if (neu?.trim()) deps.store.updateTask(kategorie.id, neu.trim());
+				}
+			},
+			{
+				label: 'Löschen',
+				icon: 'loeschen',
+				danger: true,
+				action: () => void deps.einkauf.kategorieLoeschen(kategorie.id)
+			}
+		]);
+	}
+
+	/** Menue an einem Artikel (⋮ am Zeiger, langes Tippen am Finger) — drei Eintraege. */
+	function handleArtikelContext(e: Zeigerpunkt, artikel: Task) {
+		e.preventDefault();
+		const kategorien = deps.einkauf.kategorienVon(artikel.list_id);
+		oeffnen(
+			e,
+			[
+				{
+					label: 'Umbenennen',
+					icon: 'umbenennen',
+					action: async () => {
+						const neu = await showInputDialog('Artikel umbenennen', '', artikel.text, 'Neuer Name');
+						if (neu?.trim()) deps.store.updateTask(artikel.id, neu.trim());
+					}
+				},
+				{
+					label: 'Kategorie ändern',
+					icon: 'verschieben',
+					submenu:
+						kategorien.length > 0
+							? kategorien.map((k) => ({
+									label: k.text,
+									active: k.id === artikel.parent_id,
+									action: () => void deps.einkauf.kategorieWechseln(artikel.id, k.id)
+								}))
+							: [{ label: 'Noch keine Kategorie', action: () => {} }]
+				},
+				{ divider: true, label: '' },
+				{
+					label: 'Löschen',
+					icon: 'loeschen',
+					danger: true,
+					// Kein Dialog: `deleteTaskDirect` legt einen Undo-Toast nach.
+					action: () => deps.store.deleteTaskDirect(artikel.id)
+				}
+			],
+			deps.mobil ? 232 : 220,
+			artikel.id
+		);
+	}
+
 	function close() {
 		contextMenu = { show: false, x: 0, y: 0, breite: 220, items: [] };
 		offeneTaskId = null;
@@ -284,6 +359,8 @@ export function createContextMenus(deps: ContextMenuDeps) {
 		handleListContext,
 		handleTaskContext,
 		handlePinboardContext,
+		handleKategorieContext,
+		handleArtikelContext,
 		close
 	};
 }

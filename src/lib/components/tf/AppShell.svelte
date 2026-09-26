@@ -37,6 +37,7 @@
 <script lang="ts">
 	import { createTaskStore } from '$lib/stores/tasks.svelte';
 	import { createHistoryStore } from '$lib/stores/history.svelte';
+	import { createEinkauf } from '$lib/stores/einkauf';
 	import { onMount, tick, untrack } from 'svelte';
 	import type { SupabaseClient } from '@supabase/supabase-js';
 	import type { Database } from '$lib/types/database';
@@ -54,6 +55,7 @@
 	import SmartList from '$lib/components/tf/SmartList.svelte';
 	import AvatarStack from '$lib/components/tf/AvatarStack.svelte';
 	import TaskList from '$lib/components/tf/TaskList.svelte';
+	import EinkaufsListe from '$lib/components/tf/EinkaufsListe.svelte';
 	import TaskDetail from '$lib/components/tf/TaskDetail.svelte';
 	import DetailSheet from '$lib/components/tf/DetailSheet.svelte';
 	import SearchPalette from '$lib/components/tf/SearchPalette.svelte';
@@ -81,7 +83,8 @@
 		confirmStore,
 		inputDialogStore,
 		resolveConfirm,
-		resolveInput
+		resolveInput,
+		showInputDialog
 	} from '$lib/stores/toast';
 	import { pushState } from '$app/navigation';
 	import { page } from '$app/state';
@@ -127,6 +130,22 @@
 		aufgabenZurueck: (ids, wiedereingefuegt) => void historie.aufgabenZurueck(ids, wiedereingefuegt)
 	});
 
+	/** Einkaufs-Modus — Aktionen auf Einkaufslisten ueber die Primitive des Stores. */
+	const einkauf = createEinkauf({
+		get tasks() { return store.tasks; },
+		get lists() { return store.lists; },
+		aendereAufgaben: store.aendereAufgaben,
+		fuegeEin: store.fuegeEin,
+		setzeListenart: store.setzeListenart,
+		loescheMitUndo: store.loescheMitUndo,
+		entferne: store.entferne,
+		toast: {
+			undo: (m, f) => toasts.undo(m, f),
+			aktion: (m, l, f) => toasts.aktion(m, l, f),
+			show: (m) => toasts.show(m)
+		}
+	});
+
 	// Initialize store in $effect (runs during hydration before onMount)
 	let storeReady = $state(false);
 	$effect(() => {
@@ -153,6 +172,47 @@
 	let selectedTask = $derived(
 		nav.selectedTaskId ? (tasks.find((t: Task) => t.id === nav.selectedTaskId) ?? null) : null
 	);
+
+	// ==========================================
+	// EINKAUFSLISTE
+	// ==========================================
+	let istEinkauf = $derived(activeList?.kind === 'einkauf');
+	/** Alle Zeilen der offenen Einkaufsliste — die Komponente ordnet selbst. */
+	let einkaufsZeilen = $derived(
+		activeList && istEinkauf ? tasks.filter((t: Task) => t.list_id === activeList.id) : []
+	);
+
+	/**
+	 * Artikel von aussen (n8n, G2, ein zweites Geraet) kommen als Aufgabe der
+	 * obersten Ebene an. Beim Oeffnen und bei jedem Neuzugang einsortieren —
+	 * mit denselben Regeln wie das Quick-Add, aber ohne je eine Kategorie
+	 * anzulegen (sonst entstuende „Sonstiges" auf zwei Geraeten doppelt).
+	 * Jede Zeile wird nur EINMAL versucht: schlaegt das Schreiben fehl
+	 * (Betrachter) oder passt keine Kategorie, bleibt sie „Ohne Kategorie",
+	 * statt den Effekt in eine Schleife zu schicken. Bewusst ein einfaches
+	 * Set wie `angefragteIds`: ein reaktives liesse den Effekt bei jedem
+	 * Eintrag erneut laufen.
+	 */
+	const einsortiertVersucht = new Set<string>();
+	$effect(() => {
+		if (!activeList || activeList.kind !== 'einkauf') return;
+		const listId = activeList.id;
+		const lose = tasks.filter(
+			(t: Task) =>
+				t.list_id === listId && !t.parent_id && t.type === 'task' && !einsortiertVersucht.has(t.id)
+		);
+		if (lose.length === 0) return;
+		for (const t of lose) einsortiertVersucht.add(t.id);
+		untrack(() => void einkauf.ohneKategorieEinsortieren(listId));
+	});
+
+	/** „+ Kategorie" am Ende der Einkaufsliste. */
+	async function kategorieNeu() {
+		if (!activeList) return;
+		const listId = activeList.id;
+		const name = await showInputDialog('Neue Kategorie', '', '', 'z. B. Backwaren');
+		if (name?.trim()) await einkauf.kategorieAnlegen(listId, name.trim());
+	}
 
 	// Bestand nachfuehren: faellt die aktive Liste weg (Loeschen, Realtime), rueckt
 	// nav auf die naechste vorhandene; ist die ausgewaehlte Aufgabe verschwunden,
@@ -503,7 +563,8 @@
 			optionen: validSortModes.map((m) => ({ wert: m, label: sortLabels[m] })),
 			waehlen: (wert: string) => { sortFilter.sortMode = wert as SortMode; }
 		},
-		get mobil() { return isMobile; }
+		get mobil() { return isMobile; },
+		einkauf
 	};
 	const ctx = createContextMenus(ctxDeps);
 
@@ -1133,7 +1194,18 @@
 <svelte:window bind:innerWidth={fensterBreite} />
 
 {#snippet listenInhalt()}
-	{#if activeList}
+	{#if activeList && istEinkauf}
+		<EinkaufsListe
+			list={activeList}
+			tasks={einkaufsZeilen}
+			mobil={isMobile}
+			{einkauf}
+			onKategorieMenue={ctx.handleKategorieContext}
+			onArtikelMenue={ctx.handleArtikelContext}
+			onKategorieNeu={kategorieNeu}
+			quickAddVorgabe={vorschauQuickAdd}
+		/>
+	{:else if activeList}
 		<TaskList
 			list={activeList}
 			tasks={sortedActiveListTasks}
@@ -1356,11 +1428,14 @@
 						Geteilt &middot; {aktiveBeteiligte.length}
 					</button>
 				{/if}
-				<button class="tf-sortbtn" onclick={sortMenuUmschalten}>
-					<Icon name="sortierung" size={16} />
-					{sortLabels[sortFilter.sortMode]}
-					<Icon name="chevron-ab" size={16} />
-				</button>
+				<!-- Eine Einkaufsliste ordnet nach Kategorien, nicht nach Sortierung. -->
+				{#if !istEinkauf}
+					<button class="tf-sortbtn" onclick={sortMenuUmschalten}>
+						<Icon name="sortierung" size={16} />
+						{sortLabels[sortFilter.sortMode]}
+						<Icon name="chevron-ab" size={16} />
+					</button>
+				{/if}
 				<button
 					class="tf-ib"
 					data-tf-listenmenu

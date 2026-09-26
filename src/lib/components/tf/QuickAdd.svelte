@@ -17,6 +17,7 @@
 		listId,
 		mobil = false,
 		vorgabe = '',
+		platzhalter = 'Aufgabe hinzufügen …',
 		onAdd
 	}: {
 		listId: string;
@@ -27,6 +28,8 @@
 		 * Tastatur herstellen koennen (Frame `mobile-quickadd`).
 		 */
 		vorgabe?: string;
+		/** Text im leeren Feld — die Einkaufsliste sagt „Artikel hinzufuegen …". */
+		platzhalter?: string;
 		onAdd: (listId: string, text: string) => void;
 	} = $props();
 
@@ -125,13 +128,13 @@
 			type="text"
 			autocomplete="off"
 			enterkeyhint="done"
-			placeholder="Aufgabe hinzufügen …"
+			placeholder={platzhalter}
 			onkeydown={taste}
 			onblur={verlassen}
 			maxlength="500"
 		/>
 	{:else}
-		<span class="in">Aufgabe hinzufügen …</span>
+		<span class="in">{platzhalter}</span>
 	{/if}
 </div>
 
@@ -148,7 +151,7 @@
 				type="text"
 				autocomplete="off"
 				enterkeyhint="done"
-				placeholder="Aufgabe hinzufügen …"
+				placeholder={platzhalter}
 				onkeydown={taste}
 				onblur={verlassen}
 				maxlength="500"
