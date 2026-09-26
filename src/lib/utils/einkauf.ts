@@ -77,7 +77,7 @@ export const KATEGORIEN: KategorieRegel[] = [
 	{
 		schluessel: 'gewuerze',
 		namen: ['gewuerze', 'gewuerz', 'gewuerze und sossen'],
-		woerter: ['salz', 'pfeffer', 'paprikapulver', 'curry', 'zimt', 'oregano', 'gewuerz', 'muskat', 'chili', 'kraeuter', 'ketchup', 'senf', 'mayonnaise', 'mayo']
+		woerter: ['salz', 'pfeffer', 'paprikapulver', 'curry', 'zimt', 'oregano', 'gewuerz', 'muskat', 'chili', 'kraeuter', 'ketchup', 'senf', 'mayonnaise', 'mayo', 'sauce', 'sosse', 'dip', 'dressing']
 	},
 	{
 		schluessel: 'snacks',

@@ -51,6 +51,9 @@ describe('findeKategorie', () => {
 		expect(fall('Aperol')).toBe('ge');
 		expect(fall('Bananen')).toBe('o');
 		expect(fall('Eier')).toBe('k');
+		expect(fall('2x Spicy Sauce')).toBe('gw');
+		expect(fall('BBQ-Soße')).toBe('gw');
+		expect(fall('Energy')).toBe('ge');
 		expect(fall('Katzenfutter nass')).toBe(null);
 		expect(fall('Blumenstrauß')).toBe(null);
 	});

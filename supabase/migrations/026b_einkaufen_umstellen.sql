@@ -4,18 +4,19 @@
 -- ERST NACH DEM DEPLOY des Codes anwenden, der Einkaufslisten darstellen
 -- kann — die alte Fassung zeigt Trenner mit Unteraufgaben nicht an.
 -- „Einkaufen" ist heute mit Aufgaben als Kategorien gebaut (Gemuese,
--- Kuehlabteilung … mit den Artikeln als Unteraufgaben). ALLE Eintraege der
--- obersten Ebene werden Kategorien (auch die derzeit leeren: Obst, Gewuerze,
--- Snacks), bereits abgehakte Artikel gelten als „zuletzt gekauft".
+-- Kuehlabteilung … mit den Artikeln als Unteraufgaben). Die zwoelf
+-- Kategorie-Eintraege werden Kategorien (auch die derzeit leeren: Obst,
+-- Gewuerze, Snacks), bereits abgehakte Artikel gelten als „zuletzt gekauft".
 -- Laeuft ohne auth.uid() — die Trigger aus 024 greifen nicht.
 -- Wiederholbar: bereits umgestellte Listen (kind = 'einkauf') bleiben unberuehrt.
 --
--- Absicherung gegen lose Artikel: n8n/Telegram legen Artikel als Aufgabe
--- der OBERSTEN Ebene an. Stuende zwischen Pruefung und Anwendung so einer
--- in der Liste, wuerde er hier zur Kategorie. Darum bricht die Migration
--- ab, wenn die oberste Ebene nicht aus genau den erwarteten 12 Kategorien
--- besteht — dann den Eindringling von Hand unter seine Kategorie haengen
--- (oder die Zahl nach Pruefung anpassen) und erneut anwenden.
+-- Lose Artikel: n8n/Telegram legen Artikel als Aufgabe der OBERSTEN Ebene
+-- an (am 26.09. standen so „2x Spicy Sauce" und „Energy" in der Liste).
+-- Darum werden nur die zwoelf bekannten Kategorienamen zu Trennern; alle
+-- anderen Zeilen der obersten Ebene bleiben Artikel und werden von der App
+-- beim Oeffnen per Stichwort einsortiert (sonst Abschnitt „Ohne Kategorie").
+-- Fehlt eine der zwoelf Kategorien, bricht die Migration ab, ohne etwas zu
+-- aendern.
 --
 -- Pins: eine Kategorie ist kein Eintrag der Pinnwand. Die App zeigt Trenner
 -- dort ohnehin nicht, „Alle loesen" zaehlte sie aber mit (Toast meldete
@@ -25,27 +26,28 @@ do $$
 declare
   l record;
   n integer;
-  erwartet constant integer := 12;
+  kategorien constant text[] := array[
+    'Gemüse', 'Kühlabteilung', 'Obst', 'Dosen', 'Grundnahrung', 'Gewürze',
+    'Tiefkühl', 'Snacks', 'Drogerie', 'Getränke', 'Kind', 'Sonstiges'
+  ];
 begin
   for l in select id from public.lists where title = 'Einkaufen' and kind = 'aufgaben' loop
-    select count(*) into n
+    select count(distinct text) into n
       from public.tasks
-     where list_id = l.id and parent_id is null and type = 'task';
-    if n <> erwartet then
-      raise exception '026b: „Einkaufen" (%) hat % Eintraege der obersten Ebene, erwartet %: %',
-        l.id, n, erwartet,
-        (select string_agg(text, ', ' order by position)
-           from public.tasks
-          where list_id = l.id and parent_id is null and type = 'task');
+     where list_id = l.id and parent_id is null and type = 'task' and text = any (kategorien);
+    if n <> array_length(kategorien, 1) then
+      raise exception '026b: „Einkaufen" (%) hat nur % von % Kategorien', l.id, n, array_length(kategorien, 1);
     end if;
 
     update public.tasks
        set type = 'divider', done = false, pinned = false, pinned_by = null
-     where list_id = l.id and parent_id is null and type = 'task';
+     where list_id = l.id and parent_id is null and type = 'task' and text = any (kategorien);
 
-    update public.tasks
+    -- Abgehakte Artikel unter den Kategorien gelten als „zuletzt gekauft".
+    update public.tasks c
        set abgelegt = true
-     where list_id = l.id and parent_id is not null and done;
+      from public.tasks k
+     where c.list_id = l.id and c.parent_id = k.id and k.type = 'divider' and c.done;
 
     update public.lists set kind = 'einkauf' where id = l.id;
   end loop;
