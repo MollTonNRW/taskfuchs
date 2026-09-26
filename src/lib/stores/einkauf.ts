@@ -35,6 +35,14 @@ export type HinzufuegenErgebnis = {
 export function createEinkauf(deps: EinkaufDeps) {
 	/** Laufende Anlage von „Sonstiges" je Liste — verhindert Doppelte bei schnellen Aufrufen. */
 	const sonstigesUnterwegs = new Map<string, Promise<Task | null>>();
+	/**
+	 * Kategorien, die `kategorieLoeschen` gerade abbaut. Zwischen dem
+	 * Umhaengen ihrer Artikel und dem Loeschen wartet es auf den Server; in
+	 * dieser Luecke laeuft der Einsortier-Effekt ueber die frisch losen
+	 * Artikel. Haengte er sie zurueck, naehme der Server sie beim Loeschen
+	 * mit (on delete cascade) — und das Rueckgaengig kennt sie nicht.
+	 */
+	const wirdGeloescht = new Set<string>();
 
 	function zeilenVon(listId: string): Task[] {
 		return deps.tasks.filter((t) => t.list_id === listId);
@@ -153,6 +161,16 @@ export function createEinkauf(deps: EinkaufDeps) {
 	 * (ein Bestaetigungsdialog steht nur, wo es kein Rueckgaengig gibt).
 	 */
 	async function kategorieLoeschen(kategorieId: string): Promise<boolean> {
+		wirdGeloescht.add(kategorieId);
+		try {
+			return await kategorieAbbauen(kategorieId);
+		} finally {
+			wirdGeloescht.delete(kategorieId);
+		}
+	}
+
+	/** Der Ablauf von `kategorieLoeschen` — nur von dort, damit `wirdGeloescht` stimmt. */
+	async function kategorieAbbauen(kategorieId: string): Promise<boolean> {
 		const k = deps.tasks.find((t) => t.id === kategorieId);
 		if (!k) return false;
 		const kinder = deps.tasks.filter((t) => t.parent_id === kategorieId);
@@ -202,9 +220,12 @@ export function createEinkauf(deps: EinkaufDeps) {
 		return true;
 	}
 
-	/** Zeilen ohne Kategorie (von n8n, G2, anderem Geraet) einsortieren — legt NIE Kategorien an. */
+	/**
+	 * Zeilen ohne Kategorie (von n8n, G2, anderem Geraet) einsortieren — legt
+	 * NIE Kategorien an und zielt nie auf eine, die gerade geloescht wird.
+	 */
 	async function ohneKategorieEinsortieren(listId: string) {
-		const kategorien = kategorienVon(listId);
+		const kategorien = kategorienVon(listId).filter((k) => !wirdGeloescht.has(k.id));
 		if (kategorien.length === 0) return;
 		const sonst = kategorien.find((k) => istSonstiges(k.text)) ?? null;
 		const lose = zeilenVon(listId).filter((t) => !t.parent_id && t.type === 'task');

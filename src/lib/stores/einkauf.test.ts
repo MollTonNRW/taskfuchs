@@ -204,6 +204,52 @@ describe('kategorieLoeschen', () => {
 		await f.undo();
 		expect(f.tasks.find((t) => t.id === 'x')).toMatchObject({ parent_id: 's', position: 3 });
 	});
+	it('Sonstiges loeschen: der Einsortier-Effekt haengt nichts an die Kategorie, die gerade faellt', async () => {
+		// Wie in der App: der Store setzt optimistisch, und noch waehrend der
+		// Server antwortet, laeuft der Einsortier-Effekt aus AppShell ueber die
+		// frisch losen Artikel. Der Server nimmt beim Loeschen einer Kategorie
+		// ihre Kinder mit (parent_id ... on delete cascade).
+		const g = zeile({ id: 'g', type: 'divider', text: 'Gemüse' });
+		const s = zeile({ id: 's', type: 'divider', text: 'Sonstiges', position: 1 });
+		const x = zeile({ id: 'x', parent_id: 's', text: 'Tomaten', position: 0 });
+		const y = zeile({ id: 'y', parent_id: 's', text: 'Batterien', position: 1 });
+		const f = fake([g, s, x, y]);
+		const e = createEinkauf(f.deps);
+		const aendern = f.deps.aendereAufgaben;
+		let imEffekt = false;
+		f.deps.aendereAufgaben = async (patches, opt) => {
+			const ok = await aendern(patches, opt);
+			if (!imEffekt) {
+				imEffekt = true;
+				try {
+					await e.ohneKategorieEinsortieren('L');
+				} finally {
+					imEffekt = false;
+				}
+			}
+			return ok;
+		};
+		const loeschen = f.deps.loescheMitUndo;
+		f.deps.loescheMitUndo = async (geloescht, m, nachUndo) => {
+			const ids = new Set(geloescht.map((t) => t.id));
+			await f.deps.entferne(f.tasks.filter((t) => t.parent_id && ids.has(t.parent_id)));
+			return loeschen(geloescht, m, nachUndo);
+		};
+
+		expect(await e.kategorieLoeschen('s')).toBe(true);
+		expect(f.tasks.some((t) => t.parent_id === 's')).toBe(false);
+		expect(f.tasks.map((t) => t.id)).toEqual(expect.arrayContaining(['x', 'y']));
+		// Tomaten fand per Stichwort ein Ziel, Batterien bleibt ohne Kategorie.
+		expect(f.tasks.find((t) => t.id === 'x')?.parent_id).toBe('g');
+		expect(f.tasks.find((t) => t.id === 'y')?.parent_id).toBe(null);
+
+		await f.undo();
+		expect(f.tasks.find((t) => t.id === 'y')).toMatchObject({ parent_id: 's', position: 1 });
+		// Nach dem Loeschen ist „Sonstiges" wieder ein gewoehnliches Ziel.
+		await f.deps.fuegeEin({ list_id: 'L', text: 'Grillkohle' });
+		await e.ohneKategorieEinsortieren('L');
+		expect(f.tasks.find((t) => t.text === 'Grillkohle')?.parent_id).toBe('s');
+	});
 	it('Rueckgaengig laesst Aenderungen aus der Zwischenzeit stehen', async () => {
 		const k = zeile({ id: 'k', type: 'divider', text: 'Snacks' });
 		const g = zeile({ id: 'g', type: 'divider', text: 'Gemüse', position: 1 });
