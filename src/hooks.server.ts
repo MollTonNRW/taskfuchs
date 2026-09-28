@@ -50,9 +50,24 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return { session, user };
 	};
 
-	return resolve(event, {
+	const response = await resolve(event, {
 		filterSerializedResponseHeaders(name) {
 			return name === 'content-range' || name === 'x-supabase-api-version';
 		}
 	});
+
+	/**
+	 * HTML nie aus dem Browser-Cache.
+	 *
+	 * Ohne Cache-Control stellte Chrome in der APK beim Kaltstart die alte
+	 * Seite samt altem Build wieder her (Tab-Wiederherstellung ueberspringt
+	 * die Revalidierung; nur `no-store` verhindert das). Die Seiten tragen
+	 * ausserdem die Aufgaben des angemeldeten Nutzers — `private` gehoert
+	 * ohnehin dazu. Die Assets unter `_app/immutable` bleiben unberuehrt.
+	 */
+	if (response.headers.get('content-type')?.startsWith('text/html')) {
+		response.headers.set('cache-control', 'private, no-store');
+	}
+
+	return response;
 };

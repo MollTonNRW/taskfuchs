@@ -2,7 +2,9 @@
 	import '../app.css';
 	import '../tf.css';
 	import { invalidate } from '$app/navigation';
+	import { updated } from '$app/state';
 	import { onMount } from 'svelte';
+	import { aufNeueVersionAchten, neuLadenMitSperre } from '$lib/utils/aktualisierung';
 
 	let { data, children } = $props();
 
@@ -13,7 +15,19 @@
 			invalidate('supabase:auth');
 		});
 
-		return () => subscription.unsubscribe();
+		// Alter Build im wiederhergestellten APK-Tab → neu laden.
+		const versionAbmelden = aufNeueVersionAchten({
+			pruefe: () => updated.check(),
+			neuLaden: () =>
+				neuLadenMitSperre({ speicher: sessionStorage, reload: () => location.reload(), jetzt: Date.now() }),
+			dokument: document,
+			fenster: window
+		});
+
+		return () => {
+			subscription.unsubscribe();
+			versionAbmelden();
+		};
 	});
 </script>
 
