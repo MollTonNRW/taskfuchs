@@ -67,6 +67,51 @@ describe('leseNachricht', () => {
 	});
 });
 
+/**
+ * Vertrag mit der Edge Function: Die Beispiele sind Nutzlasten, wie `nachrichtBauen` in
+ * supabase/functions/push-versand/texte.ts sie als JSON verschickt (Felder titel, text, tag, url; Obergrenzen
+ * 60 Zeichen Titel, 180 Zeichen Text, Tag `tf-<list_id>-<actor_id>`, URL `/app?liste=<list_id>`). Das erste
+ * Beispiel ist dieselbe Meldung, die supabase/functions/push-versand/lauf_test.ts ("Vertrag mit
+ * push_buendel_abholen") aus einem Bündel der Datenbank erzeugt und dort festschreibt. Der Service Worker muss
+ * sie ohne Rückfall lesen: ein umbenanntes Feld auf einer der beiden Seiten ergäbe sonst „Taskfuchs“ /
+ * „Neue Änderungen“ statt der Meldung.
+ */
+describe('Nutzlast der Edge Function (texte.ts) wird ohne Rueckfall gelesen', () => {
+	const LISTE = '10000000-0000-0000-0000-000000000001';
+	const ACTOR = '00000000-0000-0000-0000-0000000000b2';
+	const ORIGIN = 'https://a.de';
+
+	const BEISPIELE: [string, string][] = [
+		[
+			'Einkaufsliste, mehrere Ereignisse',
+			`{"titel":"Wocheneinkauf","text":"Bernd: 1 neu (Hafermilch), 1 in den Wagen","tag":"tf-${LISTE}-${ACTOR}","url":"/app?liste=${LISTE}"}`
+		],
+		[
+			'Agent, Anfuehrungszeichen und Umlaute',
+			`{"titel":"Familie","text":"Anna (Agent) hat „Müll rausbringen“ gelöscht","tag":"tf-${LISTE}-${ACTOR}","url":"/app?liste=${LISTE}"}`
+		],
+		[
+			'Obergrenzen der Function (Titel 60, Text 180 Zeichen)',
+			JSON.stringify({
+				titel: 'T'.repeat(59) + '…',
+				text: 'x'.repeat(179) + '…',
+				tag: `tf-${LISTE}-${ACTOR}`,
+				url: `/app?liste=${LISTE}`
+			})
+		]
+	];
+
+	it.each(BEISPIELE)('%s', (_name, roh) => {
+		const gesendet = JSON.parse(roh) as { titel: string; text: string; tag: string; url: string };
+		expect(Object.keys(gesendet).sort()).toEqual(['tag', 'text', 'titel', 'url']);
+
+		const anzeige = leseNachricht(roh);
+		expect(anzeige).toEqual(gesendet);
+		// Der Tipp auf die Meldung fuehrt zur Liste, nicht zum Rueckfallziel /app
+		expect(zielUrl(anzeige.url, ORIGIN)).toBe(`/app?liste=${LISTE}`);
+	});
+});
+
 describe('zielUrl', () => {
 	const ORIGIN = 'https://a.de';
 
