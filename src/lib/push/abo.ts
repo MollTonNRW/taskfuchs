@@ -100,13 +100,40 @@ async function aktuellesAbo(u: PushUmgebung): Promise<PushSubscription | null> {
 	return reg.pushManager.getSubscription();
 }
 
+/**
+ * Wurde das Abo mit dem Schlüssel dieser Version angelegt? Ein Abo mit anderem
+ * Schlüssel (Test vor einem Schlüsselwechsel) bleibt beim Browser „lebendig",
+ * aber der Push-Dienst lehnt jeden Versand der Edge Function ab — und weil das
+ * weder 404 noch 410 ist, räumt der Server es nie weg. Nennt der Browser den
+ * Schlüssel nicht, lässt sich nichts prüfen: dann gilt das Abo als passend.
+ */
+function schluesselPasst(abo: PushSubscription): boolean {
+	const angelegtMit = abo.options?.applicationServerKey;
+	if (!angelegtMit) return true;
+	const ist = new Uint8Array(angelegtMit);
+	const soll = base64UrlZuUint8(VAPID_PUBLIC_KEY);
+	return ist.length === soll.length && ist.every((b, i) => b === soll[i]);
+}
+
+/** Löscht die Server-Zeile zu `endpoint`. `true` nur, wenn der Server es bestätigt hat — wirft nie. */
+async function serverAboLoeschen(sb: SupabaseClient, endpoint: string): Promise<boolean> {
+	try {
+		const { error } = await sb.rpc('push_abo_loeschen', { p_endpoint: endpoint });
+		return !error;
+	} catch {
+		return false;
+	}
+}
+
 export async function pushStatus(u: PushUmgebung = browserUmgebung()): Promise<PushStatus> {
 	if (!u.hatPush) return 'nicht-unterstuetzt';
 	const b = u.berechtigung();
 	if (b === 'denied') return 'verweigert';
 	if (b !== 'granted') return 'aus';
 	try {
-		return (await aktuellesAbo(u)) ? 'an' : 'aus';
+		const abo = await aktuellesAbo(u);
+		// Ein Abo mit fremdem Schlüssel empfängt nichts: wie „aus" zeigen, Einschalten ersetzt es.
+		return abo && schluesselPasst(abo) ? 'an' : 'aus';
 	} catch {
 		// Service Worker nicht bereit: wie „aus" behandeln — Einschalten zeigt dann den Fehler.
 		return 'aus';
@@ -133,12 +160,18 @@ export async function einschalten(sb: SupabaseClient, u: PushUmgebung = browserU
 	if (b === 'denied') return 'verweigert';
 	if (b !== 'granted') return 'aus';
 	const reg = await u.registrierung();
-	const abo =
-		(await reg.pushManager.getSubscription()) ??
-		(await reg.pushManager.subscribe({
-			userVisibleOnly: true,
-			applicationServerKey: base64UrlZuUint8(VAPID_PUBLIC_KEY)
-		}));
+	let abo = await reg.pushManager.getSubscription();
+	if (abo && !schluesselPasst(abo)) {
+		// Ersetzen statt übernehmen. Das alte Abo muss auch beim Browser weg: `subscribe` mit
+		// anderem Schlüssel wirft sonst einen InvalidStateError.
+		await serverAboLoeschen(sb, abo.endpoint);
+		await abo.unsubscribe().catch(() => undefined);
+		abo = null;
+	}
+	abo ??= await reg.pushManager.subscribe({
+		userVisibleOnly: true,
+		applicationServerKey: base64UrlZuUint8(VAPID_PUBLIC_KEY)
+	});
 	try {
 		await speichern(sb, abo, u);
 	} catch (e) {
@@ -171,7 +204,8 @@ export async function abgleichen(sb: SupabaseClient, u: PushUmgebung = browserUm
 	try {
 		if (!u.hatPush || u.berechtigung() !== 'granted') return;
 		const abo = await aktuellesAbo(u);
-		if (abo) await speichern(sb, abo, u);
+		// Ein Abo mit fremdem Schlüssel nicht auffrischen: es wäre auf dem Server „lebendig" und tot.
+		if (abo && schluesselPasst(abo)) await speichern(sb, abo, u);
 	} catch {
 		// still: nächster Start versucht es wieder
 	}

@@ -15,11 +15,28 @@ import {
 } from './abo';
 import { VAPID_PUBLIC_KEY } from './vapid';
 
-/** Ein Push-Abo als Attrappe: Schluessel kommen als ArrayBuffer, wie im Browser. */
-function baueAbo(endpoint = 'https://push.example.test/abo-1') {
+/** Der Schluessel, mit dem ein Abo dieser Version angelegt wird (Deploy-Schluessel). */
+const DEPLOY_SCHLUESSEL = base64UrlZuUint8(VAPID_PUBLIC_KEY);
+
+/** Ein anderes, gueltig geformtes Schluesselpaar (65 Byte, 0x04 vorn): Abo aus einem frueheren Test. */
+const FREMDER_SCHLUESSEL = Uint8Array.from(DEPLOY_SCHLUESSEL, (b, i) => (i === 0 ? b : (b + 1) % 256));
+
+/**
+ * Ein Push-Abo als Attrappe: Schluessel kommen als ArrayBuffer, wie im Browser.
+ * `options.applicationServerKey` ist der Schluessel, mit dem das Abo angelegt wurde
+ * (Standard: der Deploy-Schluessel); `null` = der Browser nennt ihn nicht.
+ */
+function baueAbo(
+	endpoint = 'https://push.example.test/abo-1',
+	angelegtMit: Uint8Array | null | 'ohne-options' = DEPLOY_SCHLUESSEL
+) {
 	const schluessel: Record<string, number[]> = { p256dh: [1, 2, 3, 251, 255], auth: [250, 0, 7] };
 	return {
 		endpoint,
+		options:
+			angelegtMit === 'ohne-options'
+				? undefined
+				: { applicationServerKey: angelegtMit ? angelegtMit.slice().buffer : null },
 		getKey: vi.fn((name: string) => Uint8Array.from(schluessel[name] ?? []).buffer),
 		unsubscribe: vi.fn(async () => true)
 	};
@@ -92,6 +109,26 @@ describe('pushStatus', () => {
 	it('meldet an bei erteilter Berechtigung mit Abo', async () => {
 		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo: baueAbo() });
 		expect(await pushStatus(umgebung)).toBe('an');
+	});
+});
+
+describe('pushStatus bei einem Abo mit anderem Schluessel', () => {
+	it('meldet aus: ein Abo mit fremdem Schluessel kann keine Meldung der Edge Function empfangen', async () => {
+		const { umgebung } = baueUmgebung({
+			berechtigung: 'granted',
+			abo: baueAbo('https://push.example.test/alt', FREMDER_SCHLUESSEL)
+		});
+		expect(await pushStatus(umgebung)).toBe('aus');
+	});
+
+	it('meldet an, wenn der Browser den Schluessel des Abos nicht nennt (nicht pruefbar)', async () => {
+		for (const angelegtMit of [null, 'ohne-options'] as const) {
+			const { umgebung } = baueUmgebung({
+				berechtigung: 'granted',
+				abo: baueAbo('https://push.example.test/x', angelegtMit)
+			});
+			expect(await pushStatus(umgebung)).toBe('an');
+		}
 	});
 });
 
@@ -179,6 +216,55 @@ describe('einschalten', () => {
 		expect(rpc).toHaveBeenCalledWith(
 			'push_abo_speichern',
 			expect.objectContaining({ p_endpoint: 'https://push.example.test/alt' })
+		);
+	});
+
+	it('ersetzt ein Abo, das mit einem anderen Schluessel angelegt wurde, statt es zu speichern', async () => {
+		const alt = baueAbo('https://push.example.test/alt', FREMDER_SCHLUESSEL);
+		const { umgebung, subscribe, neuesAbo } = baueUmgebung({ anfrage: 'granted', abo: alt });
+		const { sb, rpc } = baueSb();
+
+		expect(await einschalten(sb, umgebung)).toBe('an');
+
+		// altes Abo beim Browser weg, neues mit dem Deploy-Schluessel angelegt
+		expect(alt.unsubscribe).toHaveBeenCalledTimes(1);
+		expect(subscribe).toHaveBeenCalledTimes(1);
+		const [optionen] = subscribe.mock.calls[0] as unknown as [{ applicationServerKey: Uint8Array }];
+		expect(Array.from(optionen.applicationServerKey)).toEqual(Array.from(DEPLOY_SCHLUESSEL));
+
+		// auf dem Server: neues Abo gespeichert, das tote alte Abo entfernt, nie das alte gespeichert
+		expect(rpc).toHaveBeenCalledWith('push_abo_loeschen', { p_endpoint: 'https://push.example.test/alt' });
+		expect(rpc).toHaveBeenCalledWith(
+			'push_abo_speichern',
+			expect.objectContaining({ p_endpoint: neuesAbo.endpoint })
+		);
+		expect(rpc).not.toHaveBeenCalledWith(
+			'push_abo_speichern',
+			expect.objectContaining({ p_endpoint: 'https://push.example.test/alt' })
+		);
+	});
+
+	it('legt auch dann ein neues Abo an, wenn das Abmelden des alten scheitert', async () => {
+		const alt = baueAbo('https://push.example.test/alt', FREMDER_SCHLUESSEL);
+		alt.unsubscribe.mockRejectedValue(new Error('weg'));
+		const { umgebung, subscribe } = baueUmgebung({ anfrage: 'granted', abo: alt });
+		const { sb } = baueSb();
+
+		expect(await einschalten(sb, umgebung)).toBe('an');
+		expect(subscribe).toHaveBeenCalledTimes(1);
+	});
+
+	it('nimmt ein vorhandenes Abo auf, dessen Schluessel der Browser nicht nennt', async () => {
+		const vorhanden = baueAbo('https://push.example.test/ohne', 'ohne-options');
+		const { umgebung, subscribe } = baueUmgebung({ anfrage: 'granted', abo: vorhanden });
+		const { sb, rpc } = baueSb();
+
+		expect(await einschalten(sb, umgebung)).toBe('an');
+		expect(subscribe).not.toHaveBeenCalled();
+		expect(vorhanden.unsubscribe).not.toHaveBeenCalled();
+		expect(rpc).toHaveBeenCalledWith(
+			'push_abo_speichern',
+			expect.objectContaining({ p_endpoint: 'https://push.example.test/ohne' })
 		);
 	});
 
@@ -360,6 +446,19 @@ describe('abgleichen', () => {
 			await abgleichen(sb, umgebung);
 			expect(rpc).not.toHaveBeenCalled();
 		}
+	});
+
+	it('speichert kein Abo, das mit einem anderen Schluessel angelegt wurde', async () => {
+		const { umgebung, subscribe } = baueUmgebung({
+			berechtigung: 'granted',
+			abo: baueAbo('https://push.example.test/alt', FREMDER_SCHLUESSEL)
+		});
+		const { sb, rpc } = baueSb();
+
+		await abgleichen(sb, umgebung);
+
+		expect(rpc).not.toHaveBeenCalled();
+		expect(subscribe).not.toHaveBeenCalled();
 	});
 
 	it('tut nichts ohne Abo und fragt nie nach einer Berechtigung', async () => {
