@@ -49,9 +49,18 @@
 	let status = $state<PushStatus | null>(null);
 	let beschaeftigt = $state(false);
 	let stumm = $state<string[]>(untrack(() => [...stummIds]));
+	/**
+	 * Erst nach der Hydrierung `true`. Auf dem Server baut `+layout.ts` einen anonymen
+	 * Supabase-Client; RLS liefert dort leere Listen. Das SSR-HTML darf deshalb nichts
+	 * über „Geteilte Listen" behaupten — die echten Daten kommen erst im Browser.
+	 */
+	let bereit = $state(false);
 
-	onMount(async () => {
-		status = await pushStatus(umgebung);
+	onMount(() => {
+		bereit = true;
+		(async () => {
+			status = await pushStatus(umgebung);
+		})();
 	});
 
 	async function geraetUmschalten() {
@@ -134,32 +143,34 @@
 		{/if}
 	</section>
 
-	<section class="tf-bn-karte" aria-labelledby="bn-listen">
-		<h2 id="bn-listen" class="tf-bn-h">Geteilte Listen</h2>
-		{#if listen.length === 0}
-			<p class="tf-bn-leer">
-				Du hast noch keine geteilte Liste. Sobald du eine teilst oder jemand eine mit dir teilt, kannst du hier
-				einstellen, ob du Meldungen dazu bekommst.
-			</p>
-		{:else}
-			<p class="tf-bn-hinweis">Angehakt heißt: Meldungen an. Das gilt für alle deine Geräte.</p>
-			<ul class="tf-bn-liste">
-				{#each listen as liste (liste.id)}
-					<li>
-						<label class="tf-bn-zeile">
-							<input
-								type="checkbox"
-								checked={istAn(liste.id)}
-								onchange={(e) => listeUmschalten(liste, e.currentTarget.checked)}
-							/>
-							<span class="em" aria-hidden="true">{liste.icon}</span>
-							<span class="name">{liste.title}</span>
-						</label>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	</section>
+	{#if bereit}
+		<section class="tf-bn-karte" aria-labelledby="bn-listen">
+			<h2 id="bn-listen" class="tf-bn-h">Geteilte Listen</h2>
+			{#if listen.length === 0}
+				<p class="tf-bn-leer">
+					Du hast noch keine geteilte Liste. Sobald du eine teilst oder jemand eine mit dir teilt, kannst du hier
+					einstellen, ob du Meldungen dazu bekommst.
+				</p>
+			{:else}
+				<p class="tf-bn-hinweis">Angehakt heißt: Meldungen an. Das gilt für alle deine Geräte.</p>
+				<ul class="tf-bn-liste">
+					{#each listen as liste (liste.id)}
+						<li>
+							<label class="tf-bn-zeile">
+								<input
+									type="checkbox"
+									checked={istAn(liste.id)}
+									onchange={(e) => listeUmschalten(liste, e.currentTarget.checked)}
+								/>
+								<span class="em" aria-hidden="true">{liste.icon}</span>
+								<span class="name">{liste.title}</span>
+							</label>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+	{/if}
 </main>
 
 <ToastContainer />
