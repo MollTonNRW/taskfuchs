@@ -230,7 +230,9 @@ export async function senderErstellen(cfg: SenderConfig): Promise<Sender> {
 						'Content-Encoding': 'aes128gcm',
 						'Content-Type': 'application/octet-stream',
 						TTL: String(TTL_SEKUNDEN),
-						Urgency: 'normal',
+						// Menschlich ausgelöste Meldungen, die immer eine sichtbare Notification erzeugen: mit „normal“
+						// verzögert Android im Doze-Modus die Zustellung (RFC 8030 §5.3).
+						Urgency: 'high',
 						Authorization: `vapid t=${await vapidJwt(vapid.privateKey, url.origin, cfg.subject)}, k=${cfg.publicKey}`,
 					},
 					body,

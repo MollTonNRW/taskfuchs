@@ -206,7 +206,7 @@ Deno.test('senden: Payload wird nachweislich aes128gcm-verschlüsselt und ist un
 		assertEquals(new URL(req.url).pathname, '/push/abc123');
 		assertEquals(req.headers.get('content-encoding'), 'aes128gcm');
 		assertEquals(req.headers.get('ttl'), '21600');
-		assertEquals(req.headers.get('urgency'), 'normal');
+		assertEquals(req.headers.get('urgency'), 'high');
 		assertEquals(req.headers.get('content-type'), 'application/octet-stream');
 
 		// Körper ist verschlüsselt: kein Klartext, kein JSON
