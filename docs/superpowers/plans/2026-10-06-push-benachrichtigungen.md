@@ -579,7 +579,7 @@ export interface Verdichtet { anzahl: Record<Art, number>; beispiele: Record<Art
 export function verdichten(events: Ereignis[]): Verdichtet
 ```
 
-- [ ] **Step 1: Tests schreiben (rot).** `deno test supabase/functions/push-versand/buendeln_test.ts`:
+- [ ] **Step 1: Tests schreiben (rot).** `cd supabase/functions/push-versand && deno task test buendeln_test.ts` (vom Repo-Root scheitert `deno test`: Deno findet dort die `package.json` statt der `deno.json` der Function; alternativ `deno test --config supabase/functions/push-versand/deno.json --allow-net=127.0.0.1 --allow-env=ECE_KEYLOG supabase/functions/push-versand/`):
 
 ```ts
 import { assertEquals } from 'jsr:@std/assert@1';
@@ -673,7 +673,7 @@ export function verdichten(events: Ereignis[]): Verdichtet {
 }
 ```
 
-- [ ] **Step 4: Grün prüfen.** `deno test supabase/functions/push-versand/buendeln_test.ts` → PASS.
+- [ ] **Step 4: Grün prüfen.** `deno task test buendeln_test.ts` (im Function-Ordner) → PASS.
 - [ ] **Step 5: Commit.** `git commit -m "push-versand: Ereignisse je Aufgabe verdichten"`
 
 ### Task 4: `texte.ts` (Strang B)
@@ -753,7 +753,7 @@ export function nachrichtBauen(b: Buendel, v: Verdichtet): Nachricht | null {
 }
 ```
 
-- [ ] **Step 4: Grün prüfen.** `deno test supabase/functions/push-versand/texte_test.ts`.
+- [ ] **Step 4: Grün prüfen.** `deno task test texte_test.ts` (im Function-Ordner).
 - [ ] **Step 5: Commit.** `git commit -m "push-versand: deutsche Meldungstexte"`
 
 ### Task 5: `webpush.ts` + `secret.ts` (Strang B)
@@ -777,7 +777,7 @@ export async function senderErstellen(cfg: { publicKey: string; privateKey: stri
 - [ ] **Step 1: Bibliothek wählen und nachweisen.** Kandidaten `jsr:@negrel/webpush` (WebCrypto, Deno-nativ) und `npm:web-push@3.6.7`. Nachweis-Test `webpush_test.ts`: mit einem lokal erzeugten Empfänger-Schlüsselpaar (ECDH P-256 + 16-Byte-auth) eine Payload verschlüsseln und **mit einer unabhängigen Implementierung entschlüsseln** (RFC 8291 aes128gcm, z. B. `npm:http_ece`), Klartext gleich. Gegen einen lokalen `Deno.serve`-Mock-Push-Endpoint senden und prüfen: Methode POST, Header `TTL: 21600`, `Content-Encoding: aes128gcm`, `Authorization: vapid t=…, k=<publicKey>` (JWT ES256, `aud` = Origin des Endpoints, `exp` ≤ 24 h, `sub` = Subject). Die erste Bibliothek, die alle Prüfungen besteht, wird genommen; Wahl und Grund als Kommentar in `webpush.ts`.
 - [ ] **Step 2: `klassifizieren` und `secretGleich` testen** (201 → ok, 410 → weg, 404 → weg, 413 → fehler, 429 → fehler, 500 → fehler; `secretGleich('a','a')` true, `('a','b')` false, `(null,'a')` false, `('a', undefined)` false, `('', '')` false).
 - [ ] **Step 3: Implementieren** (VAPID-Schlüssel im Format von `web-push generate-vapid-keys`: base64url, public 65 Byte unkomprimierter Punkt, private 32 Byte; bei Bedarf in JWK umrechnen). Timeout je Versand 10 s (`AbortSignal.timeout`).
-- [ ] **Step 4: `deno test` grün, `deno check`, `deno lint`.**
+- [ ] **Step 4: `deno task test` grün, `deno check`, `deno lint`** (jeweils im Function-Ordner).
 - [ ] **Step 5: Commit.** `git commit -m "push-versand: Web-Push-Versand mit VAPID, nachgewiesene Verschlüsselung"`
 
 ### Task 6: `lauf.ts` + `index.ts` (Strang B)
@@ -847,7 +847,7 @@ Deno.serve(async (req) => {
 ```
 
 - [ ] **Step 4: Lokaler Rundlauf.** `npx -y supabase@2.120.0 functions serve push-versand --env-file <tmp-env>` mit lokalem Test-VAPID-Paar und Test-Secret; `curl -X POST` ohne Header → 401, mit Header → 200 `{"buendel":0,...}`. Mit lokaler DB aus Strang A, falls im selben Worktree verfügbar; sonst `abholen` gemockt (bereits durch Tests abgedeckt) und im Bericht vermerken.
-- [ ] **Step 5: `deno test`, `deno check index.ts`, `deno lint` grün. Commit.** `git commit -m "push-versand: Lauf und HTTP-Handler (Secret-Header, Zähler-Logs)"`
+- [ ] **Step 5: `deno task test`, `deno check index.ts`, `deno lint` grün (im Function-Ordner). Commit.** `git commit -m "push-versand: Lauf und HTTP-Handler (Secret-Header, Zähler-Logs)"`
 
 ### Task 7: `vapid.ts` + `abo.ts` (Strang C)
 
@@ -1141,7 +1141,7 @@ Icon-Pfade an die vorhandenen Dateien in `static/icons/` anpassen (prüfen, welc
 
 ### Task 12: Integration, Review, Deploy, Ende-zu-Ende (Orchestrator)
 
-- [ ] **Step 1:** Stränge A–D in `feature/push-benachrichtigungen` mergen; volle Testläufe: `supabase test db`, `deno test`, `npm test`, `npm run check`, `npm run lint`, `npm run build`.
+- [ ] **Step 1:** Stränge A–D in `feature/push-benachrichtigungen` mergen; volle Testläufe: `supabase test db`, `(cd supabase/functions/push-versand && deno task test)`, `npm test`, `npm run check`, `npm run lint`, `npm run build`.
 - [ ] **Step 2:** Reviews: Datenbank/Security (RLS, `SECURITY DEFINER`, Grants, Trigger-Fehlertoleranz), Edge Function (Secret, Logs, Krypto), Frontend (`frontend-quality-reviewer`: CSP, Token, a11y), Gesamt (`devteam-reviewer`). P0/P1 beheben.
 - [ ] **Step 3: Deploy Produktion**, in dieser Reihenfolge:
   1. `apply_migration` 027.
@@ -1150,4 +1150,4 @@ Icon-Pfade an die vorhandenen Dateien in `static/icons/` anpassen (prüfen, welc
   4. App: Merge nach `main` → GitHub Actions → Cloudflare Pages; Smoke: `/app/benachrichtigungen` lädt, CSP-Konsole sauber.
   5. APK 1.3 an Frank.
 - [ ] **Step 4:** Ende-zu-Ende mit Frank (Spec, Abschnitt Tests).
-- [ ] **Step 5:** `CLAUDE.md` des Repos aktualisieren (Push unter „implementiert“, Migrationen 027/027b, neue Route, neue Tabellen), Register/Tagesdatei.
+- [ ] **Step 5:** `CLAUDE.md` des Repos aktualisieren (Push unter „implementiert“, Migrationen 027/027b, neue Route, neue Tabellen; unter „Build-Befehle“ den Edge-Function-Test: `(cd supabase/functions/push-versand && deno task test)`), Register/Tagesdatei.
