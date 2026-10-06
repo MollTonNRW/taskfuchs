@@ -63,8 +63,10 @@
 				// Als Erstes im Klick: die Berechtigungsabfrage braucht die Nutzergeste.
 				status = await einschalten(supabase, umgebung);
 			} else {
-				await ausschalten(supabase, umgebung);
+				const vollstaendig = await ausschalten(supabase, umgebung);
 				status = await pushStatus(umgebung);
+				// Die Anzeige folgt dem Browser („aus"); die Server-Zeile kann trotzdem noch stehen.
+				if (!vollstaendig) toasts.error('Ausschalten hat nicht vollständig geklappt.');
 			}
 		} catch {
 			toasts.error(willAn ? 'Einschalten hat nicht geklappt.' : 'Ausschalten hat nicht geklappt.');

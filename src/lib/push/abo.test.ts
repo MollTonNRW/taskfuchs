@@ -291,7 +291,8 @@ describe('ausschalten', () => {
 		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo });
 		const { sb, rpc } = baueSb();
 
-		await ausschalten(sb, umgebung);
+		// vollstaendig: Server-Zeile geloescht UND beim Browser abgemeldet
+		expect(await ausschalten(sb, umgebung)).toBe(true);
 
 		expect(rpc).toHaveBeenCalledWith('push_abo_loeschen', { p_endpoint: 'https://push.example.test/weg' });
 		expect(abo.unsubscribe).toHaveBeenCalledTimes(1);
@@ -304,7 +305,8 @@ describe('ausschalten', () => {
 		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo });
 		const { sb } = baueSb({ error: { message: 'offline' } });
 
-		await expect(ausschalten(sb, umgebung)).resolves.toBeUndefined();
+		// Server nicht bestaetigt: nicht vollstaendig, aber ohne Wurf
+		await expect(ausschalten(sb, umgebung)).resolves.toBe(false);
 		expect(abo.unsubscribe).toHaveBeenCalledTimes(1);
 	});
 
@@ -313,30 +315,60 @@ describe('ausschalten', () => {
 		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo });
 		const { sb } = baueSb(new Error('Netz weg'));
 
-		await expect(ausschalten(sb, umgebung)).resolves.toBeUndefined();
+		await expect(ausschalten(sb, umgebung)).resolves.toBe(false);
 		expect(abo.unsubscribe).toHaveBeenCalledTimes(1);
 	});
 
-	it('wirft nicht, wenn auch das Abmelden beim Browser scheitert', async () => {
+	it('versucht das Abmelden beim Browser ein zweites Mal, wenn es false liefert', async () => {
+		const abo = baueAbo();
+		abo.unsubscribe.mockResolvedValueOnce(false);
+		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo });
+		const { sb } = baueSb();
+
+		await expect(ausschalten(sb, umgebung)).resolves.toBe(true);
+		expect(abo.unsubscribe).toHaveBeenCalledTimes(2);
+	});
+
+	it('versucht das Abmelden beim Browser ein zweites Mal, wenn es wirft', async () => {
 		const abo = baueAbo();
 		abo.unsubscribe.mockRejectedValueOnce(new Error('weg'));
 		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo });
 		const { sb } = baueSb();
 
-		await expect(ausschalten(sb, umgebung)).resolves.toBeUndefined();
+		await expect(ausschalten(sb, umgebung)).resolves.toBe(true);
+		expect(abo.unsubscribe).toHaveBeenCalledTimes(2);
 	});
 
-	it('tut nichts ohne Abo', async () => {
+	it('meldet false und wirft nicht, wenn das Abo beim Browser auch nach dem zweiten Versuch bleibt', async () => {
+		const abo = baueAbo();
+		abo.unsubscribe.mockResolvedValue(false);
+		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo });
+		const { sb } = baueSb();
+
+		await expect(ausschalten(sb, umgebung)).resolves.toBe(false);
+		expect(abo.unsubscribe).toHaveBeenCalledTimes(2);
+	});
+
+	it('meldet false, wenn Server und Browser beide scheitern (Abo des alten Kontos bliebe stehen)', async () => {
+		const abo = baueAbo();
+		abo.unsubscribe.mockRejectedValue(new Error('weg'));
+		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo });
+		const { sb } = baueSb({ error: { message: 'offline' } });
+
+		await expect(ausschalten(sb, umgebung)).resolves.toBe(false);
+	});
+
+	it('tut nichts ohne Abo und gilt als erledigt', async () => {
 		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo: null });
 		const { sb, rpc } = baueSb();
-		await ausschalten(sb, umgebung);
+		await expect(ausschalten(sb, umgebung)).resolves.toBe(true);
 		expect(rpc).not.toHaveBeenCalled();
 	});
 
-	it('tut nichts, wenn der Browser kein Push kann', async () => {
+	it('tut nichts, wenn der Browser kein Push kann, und gilt als erledigt', async () => {
 		const { umgebung } = baueUmgebung({ hatPush: false });
 		const { sb, rpc } = baueSb();
-		await ausschalten(sb, umgebung);
+		await expect(ausschalten(sb, umgebung)).resolves.toBe(true);
 		expect(rpc).not.toHaveBeenCalled();
 	});
 });
@@ -388,6 +420,15 @@ describe('abmelden', () => {
 	it('meldet auch dann ab, wenn die RPC wirft', async () => {
 		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo: baueAbo() });
 		const { sb, signOut } = baueKonto('wirft');
+		await abmelden(sb, umgebung);
+		expect(signOut).toHaveBeenCalledTimes(1);
+	});
+
+	it('meldet auch dann ab, wenn Server und Browser beide scheitern', async () => {
+		const abo = baueAbo();
+		abo.unsubscribe.mockResolvedValue(false);
+		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo });
+		const { sb, signOut } = baueKonto('fehler');
 		await abmelden(sb, umgebung);
 		expect(signOut).toHaveBeenCalledTimes(1);
 	});

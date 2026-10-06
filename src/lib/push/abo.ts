@@ -181,22 +181,34 @@ export async function einschalten(sb: SupabaseClient, u: PushUmgebung = browserU
 	return 'an';
 }
 
-/**
- * Löscht das Abo dieses Geräts auf dem Server und meldet es beim Browser ab.
- * Wirft nie wegen eines Netz- oder Serverfehlers: Abmelden darf daran nicht
- * scheitern. Ein beim Browser abgemeldetes Abo ist tot — der Server räumt es
- * beim nächsten Versuch (404/410) selbst weg.
- */
-export async function ausschalten(sb: SupabaseClient, u: PushUmgebung = browserUmgebung()): Promise<void> {
-	if (!u.hatPush) return;
-	const abo = await aktuellesAbo(u);
-	if (!abo) return;
+/** Meldet das Abo beim Browser ab. `false` bei Fehlschlag oder Ausnahme — wirft nie. */
+async function browserAbmelden(abo: PushSubscription): Promise<boolean> {
 	try {
-		await sb.rpc('push_abo_loeschen', { p_endpoint: abo.endpoint });
+		return await abo.unsubscribe();
 	} catch {
-		// Abmelden darf daran nicht scheitern
+		return false;
 	}
-	await abo.unsubscribe().catch(() => undefined);
+}
+
+/**
+ * Löscht das Abo dieses Geräts auf dem Server und meldet es beim Browser ab
+ * (misslingt das, einmal wiederholt).
+ *
+ * Wirft nie wegen eines Netz- oder Serverfehlers: Abmelden darf daran nicht
+ * scheitern. Supabase wirft bei solchen Fehlern nicht, sondern liefert
+ * `{ error }` — das wird gelesen. Liefert `true`, wenn beides gelungen ist
+ * (oder es nichts zu tun gab), sonst `false`: dann kann die Seite einen Hinweis
+ * zeigen. Ein beim Browser abgemeldetes Abo ist tot, der Server räumt seine
+ * Zeile beim nächsten Versuch (404/410) selbst weg. Gefährlich ist nur, wenn
+ * beides scheitert: dann bliebe ein lebendes Abo des alten Kontos stehen.
+ */
+export async function ausschalten(sb: SupabaseClient, u: PushUmgebung = browserUmgebung()): Promise<boolean> {
+	if (!u.hatPush) return true;
+	const abo = await aktuellesAbo(u);
+	if (!abo) return true;
+	const serverOk = await serverAboLoeschen(sb, abo.endpoint);
+	const browserOk = (await browserAbmelden(abo)) || (await browserAbmelden(abo));
+	return serverOk && browserOk;
 }
 
 /** Beim App-Start: erteilte Berechtigung + vorhandenes Abo → Schlüssel und `last_seen_at` auffrischen. */
