@@ -2,6 +2,7 @@ import { afterEach, describe, it, expect, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
 	abgleichen,
+	abmelden,
 	ausschalten,
 	base64UrlZuUint8,
 	browserUmgebung,
@@ -251,6 +252,92 @@ describe('ausschalten', () => {
 		const { sb, rpc } = baueSb();
 		await ausschalten(sb, umgebung);
 		expect(rpc).not.toHaveBeenCalled();
+	});
+});
+
+describe('abmelden', () => {
+	/** Supabase-Attrappe mit `rpc` und `auth.signOut`; `reihenfolge` hält die Aufrufe fest. */
+	function baueKonto(rpcAntwort: 'ok' | 'fehler' | 'wirft' | 'haengt' = 'ok') {
+		const reihenfolge: string[] = [];
+		const sb = {
+			rpc: vi.fn(async (name: string) => {
+				reihenfolge.push(name);
+				if (rpcAntwort === 'wirft') throw new Error('Netz weg');
+				if (rpcAntwort === 'haengt') return new Promise(() => undefined);
+				return { error: rpcAntwort === 'fehler' ? { message: 'offline' } : null };
+			}),
+			auth: {
+				signOut: vi.fn(async () => {
+					reihenfolge.push('signOut');
+					return { error: null };
+				})
+			}
+		};
+		return { sb: sb as unknown as SupabaseClient, rpc: sb.rpc, signOut: sb.auth.signOut, reihenfolge };
+	}
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('loescht das Abo dieses Geraets, BEVOR die Sitzung endet', async () => {
+		const abo = baueAbo('https://push.example.test/dieses-handy');
+		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo });
+		const { sb, rpc, reihenfolge } = baueKonto();
+
+		await abmelden(sb, umgebung);
+
+		expect(rpc).toHaveBeenCalledWith('push_abo_loeschen', { p_endpoint: 'https://push.example.test/dieses-handy' });
+		expect(abo.unsubscribe).toHaveBeenCalledTimes(1);
+		expect(reihenfolge).toEqual(['push_abo_loeschen', 'signOut']);
+	});
+
+	it('meldet auch dann ab, wenn die RPC einen Fehler liefert', async () => {
+		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo: baueAbo() });
+		const { sb, signOut } = baueKonto('fehler');
+		await abmelden(sb, umgebung);
+		expect(signOut).toHaveBeenCalledTimes(1);
+	});
+
+	it('meldet auch dann ab, wenn die RPC wirft', async () => {
+		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo: baueAbo() });
+		const { sb, signOut } = baueKonto('wirft');
+		await abmelden(sb, umgebung);
+		expect(signOut).toHaveBeenCalledTimes(1);
+	});
+
+	it('meldet auch dann ab, wenn der Service Worker nicht bereit ist', async () => {
+		const { umgebung } = baueUmgebung({ berechtigung: 'granted' });
+		umgebung.registrierung = async () => {
+			throw new Error('Service Worker nicht bereit');
+		};
+		const { sb, signOut, rpc } = baueKonto();
+		await abmelden(sb, umgebung);
+		expect(rpc).not.toHaveBeenCalled();
+		expect(signOut).toHaveBeenCalledTimes(1);
+	});
+
+	it('wartet nicht ewig auf eine haengende RPC', async () => {
+		vi.useFakeTimers();
+		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo: baueAbo() });
+		const { sb, signOut } = baueKonto('haengt');
+
+		const fertig = abmelden(sb, umgebung, 5000);
+		await vi.advanceTimersByTimeAsync(4999);
+		expect(signOut).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
+		await fertig;
+		expect(signOut).toHaveBeenCalledTimes(1);
+	});
+
+	it('meldet ohne Abo und auf Geraeten ohne Push einfach ab', async () => {
+		for (const opt of [{ berechtigung: 'granted' as const, abo: null }, { hatPush: false }]) {
+			const { umgebung } = baueUmgebung(opt);
+			const { sb, rpc, signOut } = baueKonto();
+			await abmelden(sb, umgebung);
+			expect(rpc).not.toHaveBeenCalled();
+			expect(signOut).toHaveBeenCalledTimes(1);
+		}
 	});
 });
 

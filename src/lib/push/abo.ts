@@ -176,3 +176,16 @@ export async function abgleichen(sb: SupabaseClient, u: PushUmgebung = browserUm
 		// still: nächster Start versucht es wieder
 	}
 }
+
+/**
+ * Meldet das Konto ab und löscht vorher das Abo dieses Geräts.
+ *
+ * Das Abo gehört zum Konto: bliebe es, bekäme dieses Handy weiter Meldungen,
+ * auch wenn dort danach jemand anderes angemeldet ist. Es muss VOR `signOut`
+ * weg, weil die RPC die Sitzung braucht. Fehler und Wartezeit (hängende Netz-
+ * oder Service-Worker-Anfrage, höchstens `fristMs`) blockieren das Abmelden nie.
+ */
+export async function abmelden(sb: SupabaseClient, u: PushUmgebung = browserUmgebung(), fristMs = 5000): Promise<void> {
+	await mitFrist(ausschalten(sb, u), fristMs).catch(() => undefined);
+	await sb.auth.signOut();
+}

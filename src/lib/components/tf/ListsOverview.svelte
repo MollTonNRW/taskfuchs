@@ -116,6 +116,9 @@
 	>
 		<Icon name="mond" />
 	</button>
+	<a class="tf-ib gross" href="/app/benachrichtigungen" aria-label="Benachrichtigungen">
+		<Icon name="glocke" />
+	</a>
 	<a class="tf-ib gross" href="/app/g2-koppeln" aria-label="G2 Brille koppeln">
 		<Icon name="zahnrad" />
 	</a>

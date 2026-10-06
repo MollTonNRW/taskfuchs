@@ -45,6 +45,7 @@
 	import { nav, type MobileTab } from '$lib/stores/tf/navigation.svelte';
 	import { theme } from '$lib/stores/tf/theme.svelte';
 	import { getProfilesByIds } from '$lib/services/supabase-crud';
+	import { abgleichen } from '$lib/push/abo';
 	import { baueAusProfil, initialeAus, type Mitnutzer } from '$lib/utils/mitnutzer';
 	import type { VerlaufAnbindung } from '$lib/components/tf/TaskHistory.svelte';
 
@@ -737,6 +738,11 @@
 
 	// Realtime + Keyboard shortcuts
 	onMount(() => {
+		// Push-Abo dieses Geraets auffrischen. Wirkt nur, wenn die Berechtigung schon
+		// erteilt ist und ein Abo besteht; fragt nie nach und wirft nie. Nicht in der
+		// Vorschau (Attrappe statt Datenbank).
+		if (!vorschau) void abgleichen(supabase);
+
 		// Realtime subscriptions (guard against missing supabase)
 		const sb = supabase;
 		let listsChannel: any = null;
