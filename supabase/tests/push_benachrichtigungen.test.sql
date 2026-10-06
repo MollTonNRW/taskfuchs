@@ -8,7 +8,7 @@
 -- (Rolle authenticated mit sub-Claim), den Dienst (service_role) oder anon.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(150);
+select plan(183);
 
 -- ---------------------------------------------------------------------------
 -- Testpersonen (Kennungen aus Hex, damit sie als UUID gelten)
@@ -68,6 +68,13 @@ begin
   perform set_config('request.jwt.claims', '', true);
 end $$;
 
+-- Gueltige Beispiel-Schluessel (base64url ohne Padding): p256dh = 65 Byte = 87 Zeichen,
+-- auth = 16 Byte = 22 Zeichen. Das Argument erzeugt abweichende Schluessel.
+create or replace function pg_temp.kp(c text default 'p') returns text language sql immutable as $$
+  select 'B' || repeat(c, 86) $$;
+create or replace function pg_temp.ka(c text default 'a') returns text language sql immutable as $$
+  select repeat(c, 22) $$;
+
 -- Anzahl Events (nur als postgres aufrufen), optional je Liste/Art
 create or replace function pg_temp.n_ev(p_list uuid default null, p_art text default null)
 returns int language sql as $$
@@ -123,6 +130,31 @@ select is(
 select is(
   (select tgenabled from pg_trigger where tgname = 'tasks_push_event' and tgrelid = 'public.tasks'::regclass),
   'O'::"char", 'Trigger tasks_push_event ist aktiv');
+
+-- Rechte auf Tabellen und Sequenz: nur das, was die App braucht
+select is(
+  (select array_agg(a.privilege_type order by a.privilege_type) from pg_class c, aclexplode(c.relacl) a
+   where c.oid = 'public.push_subscriptions'::regclass and a.grantee = 'authenticated'::regrole),
+  array['DELETE', 'SELECT'], 'push_subscriptions: authenticated hat nur SELECT und DELETE');
+select is(
+  (select array_agg(a.privilege_type order by a.privilege_type) from pg_class c, aclexplode(c.relacl) a
+   where c.oid = 'public.list_notification_mutes'::regclass and a.grantee = 'authenticated'::regrole),
+  array['DELETE', 'INSERT', 'SELECT'], 'list_notification_mutes: authenticated hat nur SELECT, INSERT, DELETE');
+select is(
+  (select count(*)::int from pg_class c, aclexplode(c.relacl) a
+   where c.oid in ('public.push_subscriptions'::regclass, 'public.list_notification_mutes'::regclass,
+                   'public.notification_events'::regclass, 'public.push_config'::regclass)
+     and a.grantee = 'anon'::regrole),
+  0, 'anon hat keinerlei Rechte auf den vier Tabellen');
+select is(
+  (select count(*)::int from pg_class c, aclexplode(c.relacl) a
+   where c.oid in ('public.notification_events'::regclass, 'public.push_config'::regclass)
+     and a.grantee = 'authenticated'::regrole),
+  0, 'authenticated hat keinerlei Rechte auf notification_events und push_config');
+select is(
+  (select bool_or(has_sequence_privilege(r, 'public.notification_events_id_seq', p))
+   from unnest(array['anon', 'authenticated']) r, unnest(array['USAGE', 'SELECT', 'UPDATE']) p),
+  false, 'anon und authenticated haben keine Rechte an der Sequenz notification_events_id_seq');
 
 -- Trigger-Funktionen nicht als RPC aufrufbar
 select pg_temp.als('00000000-0000-0000-0000-0000000000b2');
@@ -434,86 +466,142 @@ select pg_temp.als_postgres();
 -- Abos: push_abo_speichern
 delete from public.push_subscriptions;
 select pg_temp.als('00000000-0000-0000-0000-0000000000b2');
-select public.push_abo_speichern('https://push.example.test/ep-1', 'schluessel-1', 'auth-1', repeat('g', 150));
+select public.push_abo_speichern('https://fcm.googleapis.com/fcm/send/ep-1', pg_temp.kp(), pg_temp.ka(), repeat('g', 150));
 select pg_temp.als_postgres();
-select is((select user_id from public.push_subscriptions where endpoint = 'https://push.example.test/ep-1'),
+select is((select user_id from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-1'),
   '00000000-0000-0000-0000-0000000000b2'::uuid, 'push_abo_speichern: Abo gehoert b2');
-select is((select length(geraet) from public.push_subscriptions where endpoint = 'https://push.example.test/ep-1'),
+select is((select length(geraet) from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-1'),
   100, 'push_abo_speichern: Geraetename auf 100 Zeichen gekuerzt');
 
--- Endpoint-Uebernahme (Abmelden/Anmelden auf demselben Geraet)
+-- Endpoint-Uebernahme (Abmelden/Anmelden auf demselben Geraet): dasselbe Geraet liefert
+-- denselben Endpoint mit denselben Schluesseln
 select pg_temp.als('00000000-0000-0000-0000-0000000000c3');
-select public.push_abo_speichern('https://push.example.test/ep-1', 'schluessel-2', 'auth-2', 'Android');
+select public.push_abo_speichern('https://fcm.googleapis.com/fcm/send/ep-1', pg_temp.kp(), pg_temp.ka(), 'Android');
 select pg_temp.als_postgres();
-select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://push.example.test/ep-1'), 1,
+select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-1'), 1,
   'Uebernahme: der Endpoint existiert genau einmal');
-select is((select user_id from public.push_subscriptions where endpoint = 'https://push.example.test/ep-1'),
+select is((select user_id from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-1'),
   '00000000-0000-0000-0000-0000000000c3'::uuid, 'Uebernahme: Abo gehoert jetzt c3');
-select is((select p256dh || '/' || auth from public.push_subscriptions where endpoint = 'https://push.example.test/ep-1'),
-  'schluessel-2/auth-2', 'Uebernahme: Schluessel sind die neuen');
+select is((select geraet from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-1'),
+  'Android', 'Uebernahme: Geraetename ist der neue');
 select pg_temp.als('00000000-0000-0000-0000-0000000000b2');
 select is((select count(*)::int from public.push_subscriptions), 0, 'Uebernahme: b2 sieht das Abo nicht mehr');
 select pg_temp.als('00000000-0000-0000-0000-0000000000c3');
 select is((select count(*)::int from public.push_subscriptions), 1, 'Uebernahme: c3 sieht sein Abo');
+-- Wer nur den Endpoint kennt (andere Schluessel), kann ein fremdes Abo nicht uebernehmen
+select pg_temp.als('00000000-0000-0000-0000-0000000000b2');
+select throws_ok($q$select public.push_abo_speichern('https://fcm.googleapis.com/fcm/send/ep-1', pg_temp.kp('q'), pg_temp.ka('b'), 'Fremd')$q$,
+  '42501', null, 'Uebernahme mit fremden Schluesseln wird abgelehnt');
 select pg_temp.als_postgres();
+select is((select user_id = '00000000-0000-0000-0000-0000000000c3' and p256dh = pg_temp.kp() and auth = pg_temp.ka()
+           from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-1'),
+  true, 'abgelehnte Uebernahme: Abo gehoert weiter c3, Schluessel unveraendert');
+-- Der Besitzer darf die Schluessel seines eigenen Abos auffrischen
+select pg_temp.als('00000000-0000-0000-0000-0000000000c3');
+select lives_ok($q$select public.push_abo_speichern('https://fcm.googleapis.com/fcm/send/ep-1', pg_temp.kp('q'), pg_temp.ka('b'), 'Android')$q$,
+  'Besitzer frischt die Schluessel des eigenen Abos auf');
+select pg_temp.als_postgres();
+select is((select p256dh = pg_temp.kp('q') and auth = pg_temp.ka('b') from public.push_subscriptions
+           where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-1'), true, 'aufgefrischte Schluessel sind gespeichert');
 
 -- Eingabepruefung
 select pg_temp.als('00000000-0000-0000-0000-0000000000b2');
-select throws_ok($q$select public.push_abo_speichern('http://push.example.test/x', 'k', 'a', 'g')$q$, '23514', null, 'Endpoint muss mit https:// beginnen');
-select throws_ok($q$select public.push_abo_speichern('https://push.example.test/' || repeat('x', 1000), 'k', 'a', 'g')$q$, '23514', null, 'Endpoint hoechstens 1000 Zeichen');
-select throws_ok($q$select public.push_abo_speichern('https://push.example.test/y', repeat('k', 201), 'a', 'g')$q$, '23514', null, 'p256dh hoechstens 200 Zeichen');
-select throws_ok($q$select public.push_abo_speichern('https://push.example.test/y', 'k', repeat('a', 101), 'g')$q$, '23514', null, 'auth hoechstens 100 Zeichen');
+select throws_ok($q$select public.push_abo_speichern('http://fcm.googleapis.com/fcm/send/x', pg_temp.kp(), pg_temp.ka(), 'g')$q$, '23514', null, 'Endpoint muss mit https:// beginnen');
+select throws_ok($q$select public.push_abo_speichern('https://fcm.googleapis.com/fcm/send/' || repeat('x', 1000), pg_temp.kp(), pg_temp.ka(), 'g')$q$, '23514', null, 'Endpoint hoechstens 1000 Zeichen');
+select throws_ok($q$select public.push_abo_speichern('https://fcm.googleapis.com/fcm/send/y', repeat('k', 201), pg_temp.ka(), 'g')$q$, '23514', null, 'p256dh hoechstens 200 Zeichen');
+select throws_ok($q$select public.push_abo_speichern('https://fcm.googleapis.com/fcm/send/y', pg_temp.kp(), repeat('a', 101), 'g')$q$, '23514', null, 'auth hoechstens 100 Zeichen');
+-- Nur bekannte Push-Dienste (Allowlist); alles andere ist ein Ziel fuer SSRF oder haengende Hosts
+select throws_ok(format($q$select public.push_abo_speichern(%L, pg_temp.kp(), pg_temp.ka(), 'g')$q$, e.url),
+  '23514', null, 'Endpoint abgelehnt: ' || e.name)
+from (values
+  ('localhost', 'https://localhost/x'),
+  ('Metadaten-IP', 'https://169.254.169.254/latest/meta-data'),
+  ('private IP mit Port', 'https://10.0.0.5:8443/internal'),
+  ('interner Hostname', 'https://kong:8000/functions/v1/x'),
+  ('IPv6-Literal', 'https://[::1]/'),
+  ('Userinfo-Trick', 'https://fcm.googleapis.com@evil.example/'),
+  ('Zeilenumbruch', E'https://fcm.googleapis.com/x\nrest'),
+  ('Leerzeichen', 'https://fcm.googleapis.com/x y'),
+  ('Subdomain-Trick', 'https://fcm.googleapis.com.evil.example/x'),
+  ('Dienstname im Pfad', 'https://evil.example/fcm.googleapis.com/x'),
+  ('Port', 'https://fcm.googleapis.com:8443/x'),
+  ('Grossbuchstaben im Schema', 'HTTPS://fcm.googleapis.com/x')
+) as e(name, url);
+select lives_ok(format($q$select public.push_abo_speichern(%L, pg_temp.kp(), pg_temp.ka(), 'g')$q$, e.url),
+  'Endpoint erlaubt: ' || e.name)
+from (values
+  ('FCM (Chrome, Android)', 'https://fcm.googleapis.com/fcm/send/abc:APA91b-_x'),
+  ('Mozilla', 'https://updates.push.services.mozilla.com/wpush/v2/gAAAAAB'),
+  ('Apple', 'https://web.push.apple.com/QXYZ'),
+  ('Windows (Edge)', 'https://db5p.notify.windows.com/w/?token=BQYAAAB%2f')
+) as e(name, url);
+-- Schluessel: base64url ohne Padding, exakte Laenge (p256dh 87, auth 22 Zeichen)
+select throws_ok(format($q$select public.push_abo_speichern('https://fcm.googleapis.com/fcm/send/k', %s, %s, 'g')$q$, e.p, e.a),
+  '23514', null, 'Schluessel abgelehnt: ' || e.name)
+from (values
+  ('p256dh ein Zeichen', $v$'x'$v$, 'pg_temp.ka()'),
+  ('auth ein Zeichen', 'pg_temp.kp()', $v$'y'$v$),
+  ('p256dh mit Standard-Base64-Zeichen', $v$'B' || repeat('+', 86)$v$, 'pg_temp.ka()'),
+  ('p256dh 86 Zeichen', $v$'B' || repeat('p', 85)$v$, 'pg_temp.ka()'),
+  ('p256dh 88 Zeichen', $v$'B' || repeat('p', 87)$v$, 'pg_temp.ka()'),
+  ('p256dh mit Padding', $v$'B' || repeat('p', 84) || '=='$v$, 'pg_temp.ka()'),
+  ('auth 21 Zeichen', 'pg_temp.kp()', $v$repeat('a', 21)$v$),
+  ('auth 23 Zeichen', 'pg_temp.kp()', $v$repeat('a', 23)$v$)
+) as e(name, p, a);
+select pg_temp.als_postgres();
+delete from public.push_subscriptions where endpoint <> 'https://fcm.googleapis.com/fcm/send/ep-1';
 select pg_temp.als_anon();
-select throws_ok($q$select public.push_abo_speichern('https://push.example.test/z', 'k', 'a', 'g')$q$, '42501', null, 'anon darf push_abo_speichern nicht aufrufen');
+select pg_temp.als_anon();
+select throws_ok($q$select public.push_abo_speichern('https://fcm.googleapis.com/fcm/send/z', pg_temp.kp(), pg_temp.ka(), 'g')$q$, '42501', null, 'anon darf push_abo_speichern nicht aufrufen');
 select pg_temp.als_ohne_sub();
-select throws_ok($q$select public.push_abo_speichern('https://push.example.test/z', 'k', 'a', 'g')$q$, '42501', 'nicht angemeldet', 'ohne auth.uid() wird push_abo_speichern abgelehnt');
-select throws_ok($q$select public.push_abo_loeschen('https://push.example.test/z')$q$, '42501', 'nicht angemeldet', 'ohne auth.uid() wird push_abo_loeschen abgelehnt');
+select throws_ok($q$select public.push_abo_speichern('https://fcm.googleapis.com/fcm/send/z', pg_temp.kp(), pg_temp.ka(), 'g')$q$, '42501', 'nicht angemeldet', 'ohne auth.uid() wird push_abo_speichern abgelehnt');
+select throws_ok($q$select public.push_abo_loeschen('https://fcm.googleapis.com/fcm/send/z')$q$, '42501', 'nicht angemeldet', 'ohne auth.uid() wird push_abo_loeschen abgelehnt');
 select pg_temp.als_postgres();
 
 -- Direkter Zugriff auf die Tabelle
 insert into public.push_subscriptions (user_id, endpoint, p256dh, auth)
-  values ('00000000-0000-0000-0000-0000000000b2', 'https://push.example.test/ep-2', 'k', 'a');
+  values ('00000000-0000-0000-0000-0000000000b2', 'https://fcm.googleapis.com/fcm/send/ep-2', pg_temp.kp(), pg_temp.ka());
 select pg_temp.als('00000000-0000-0000-0000-0000000000b2');
 select throws_ok($q$insert into public.push_subscriptions (user_id, endpoint, p256dh, auth)
-  values ('00000000-0000-0000-0000-0000000000b2', 'https://push.example.test/ep-3', 'k', 'a')$q$,
+  values ('00000000-0000-0000-0000-0000000000b2', 'https://fcm.googleapis.com/fcm/send/ep-3', pg_temp.kp(), pg_temp.ka())$q$,
   '42501', null, 'direktes Insert in push_subscriptions ist verboten');
-select throws_ok($q$update public.push_subscriptions set geraet = 'x' where endpoint = 'https://push.example.test/ep-2'$q$,
+select throws_ok($q$update public.push_subscriptions set geraet = 'x' where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-2'$q$,
   '42501', null, 'direktes Update an push_subscriptions ist verboten');
 select pg_temp.als('00000000-0000-0000-0000-0000000000c3');
-delete from public.push_subscriptions where endpoint = 'https://push.example.test/ep-2';
-select public.push_abo_loeschen('https://push.example.test/ep-2');
+delete from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-2';
+select public.push_abo_loeschen('https://fcm.googleapis.com/fcm/send/ep-2');
 select pg_temp.als_postgres();
-select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://push.example.test/ep-2'), 1,
+select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-2'), 1,
   'fremdes Abo laesst sich weder per delete noch per push_abo_loeschen entfernen');
 select pg_temp.als('00000000-0000-0000-0000-0000000000b2');
-select public.push_abo_loeschen('https://push.example.test/ep-2');
+select public.push_abo_loeschen('https://fcm.googleapis.com/fcm/send/ep-2');
 select pg_temp.als_postgres();
-select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://push.example.test/ep-2'), 0,
+select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-2'), 0,
   'eigenes Abo loescht push_abo_loeschen');
 insert into public.push_subscriptions (user_id, endpoint, p256dh, auth)
-  values ('00000000-0000-0000-0000-0000000000b2', 'https://push.example.test/ep-4', 'k', 'a');
+  values ('00000000-0000-0000-0000-0000000000b2', 'https://fcm.googleapis.com/fcm/send/ep-4', pg_temp.kp(), pg_temp.ka());
 select pg_temp.als('00000000-0000-0000-0000-0000000000b2');
-delete from public.push_subscriptions where endpoint = 'https://push.example.test/ep-4';
+delete from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-4';
 select pg_temp.als_postgres();
-select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://push.example.test/ep-4'), 0,
+select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/ep-4'), 0,
   'eigenes Abo laesst sich per delete (RLS) entfernen');
 
 -- Hoechstens 10 Abos je Person: die am laengsten nicht gesehenen fallen weg
 delete from public.push_subscriptions;
 insert into public.push_subscriptions (user_id, endpoint, p256dh, auth, last_seen_at)
-  select '00000000-0000-0000-0000-0000000000b2', 'https://push.example.test/alt-' || g, 'k', 'a',
+  select '00000000-0000-0000-0000-0000000000b2', 'https://fcm.googleapis.com/fcm/send/alt-' || g, pg_temp.kp(), pg_temp.ka(),
          now() - make_interval(days => g)
   from generate_series(1, 10) g;
 select pg_temp.als('00000000-0000-0000-0000-0000000000b2');
-select public.push_abo_speichern('https://push.example.test/neu-11', 'k', 'a', 'Elftes Geraet');
+select public.push_abo_speichern('https://fcm.googleapis.com/fcm/send/neu-11', pg_temp.kp(), pg_temp.ka(), 'Elftes Geraet');
 select pg_temp.als_postgres();
 select is((select count(*)::int from public.push_subscriptions where user_id = '00000000-0000-0000-0000-0000000000b2'), 10,
   'nach dem 11. Abo bleiben 10');
-select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://push.example.test/alt-10'), 0,
+select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/alt-10'), 0,
   'das am laengsten nicht gesehene Abo faellt weg');
-select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://push.example.test/neu-11'), 1,
+select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/neu-11'), 1,
   'das neue Abo bleibt');
-select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://push.example.test/alt-1'), 1,
+select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/alt-1'), 1,
   'die neueren Abos bleiben');
 delete from public.push_subscriptions;
 
@@ -563,10 +651,10 @@ select pg_temp.als_postgres();
 delete from public.notification_events;
 delete from public.push_subscriptions;
 insert into public.push_subscriptions (user_id, endpoint, p256dh, auth) values
-  ('00000000-0000-0000-0000-0000000000a1', 'https://push.example.test/a1', 'ka1', 'aa1'),
-  ('00000000-0000-0000-0000-0000000000b2', 'https://push.example.test/b2', 'kb2', 'ab2'),
-  ('00000000-0000-0000-0000-0000000000c3', 'https://push.example.test/c3', 'kc3', 'ac3'),
-  ('00000000-0000-0000-0000-0000000000d4', 'https://push.example.test/d4', 'kd4', 'ad4');
+  ('00000000-0000-0000-0000-0000000000a1', 'https://fcm.googleapis.com/fcm/send/a1', pg_temp.kp(), pg_temp.ka()),
+  ('00000000-0000-0000-0000-0000000000b2', 'https://fcm.googleapis.com/fcm/send/b2', pg_temp.kp(), pg_temp.ka()),
+  ('00000000-0000-0000-0000-0000000000c3', 'https://fcm.googleapis.com/fcm/send/c3', pg_temp.kp(), pg_temp.ka()),
+  ('00000000-0000-0000-0000-0000000000d4', 'https://fcm.googleapis.com/fcm/send/d4', pg_temp.kp(), pg_temp.ka());
 
 -- D1: Ruhezeit 2 min
 insert into public.notification_events (list_id, actor_id, art, task_id, task_text, created_at)
@@ -659,9 +747,9 @@ select is(pg_temp.n_ev(), 0, 'Empfaenger ohne Abo: Events trotzdem abgeholt');
 
 -- D5: Buendelinhalt (a1 mit zwei Geraeten, d4 mit einem; Events bewusst in falscher Reihenfolge)
 insert into public.push_subscriptions (user_id, endpoint, p256dh, auth) values
-  ('00000000-0000-0000-0000-0000000000a1', 'https://push.example.test/a1', 'ka1', 'aa1'),
-  ('00000000-0000-0000-0000-0000000000a1', 'https://push.example.test/a1-tablet', 'ka1t', 'aa1t'),
-  ('00000000-0000-0000-0000-0000000000d4', 'https://push.example.test/d4', 'kd4', 'ad4');
+  ('00000000-0000-0000-0000-0000000000a1', 'https://fcm.googleapis.com/fcm/send/a1', pg_temp.kp(), pg_temp.ka()),
+  ('00000000-0000-0000-0000-0000000000a1', 'https://fcm.googleapis.com/fcm/send/a1-tablet', pg_temp.kp('t'), pg_temp.ka('t')),
+  ('00000000-0000-0000-0000-0000000000d4', 'https://fcm.googleapis.com/fcm/send/d4', pg_temp.kp(), pg_temp.ka());
 insert into public.notification_events (list_id, actor_id, via_agent, art, task_id, task_text, created_at) values
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b2', false, 'erledigt', '30000000-0000-0000-0000-000000000002', 'Brot', now() - interval '5 minutes'),
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b2', false, 'neu', '30000000-0000-0000-0000-000000000001', 'Milch', now() - interval '6 minutes');
@@ -681,7 +769,7 @@ select is((select count(*)::int from erg, jsonb_array_elements(j -> 0 -> 'empfae
             where e ->> 'user_id' = '00000000-0000-0000-0000-0000000000a1'), 2,
   'Buendelinhalt: beide Geraete von a1 sind aufgefuehrt');
 select is((select (a ?& array['endpoint', 'p256dh', 'auth']) from erg, jsonb_array_elements(j -> 0 -> 'empfaenger') e, jsonb_array_elements(e -> 'abos') a
-            where a ->> 'endpoint' = 'https://push.example.test/d4'), true,
+            where a ->> 'endpoint' = 'https://fcm.googleapis.com/fcm/send/d4'), true,
   'Buendelinhalt: Abo hat endpoint, p256dh, auth');
 
 -- via_agent, wenn irgendein Event der Gruppe es ist
@@ -732,17 +820,17 @@ select is(pg_temp.n_ev(), 0, 'auch die abgeschnittenen aelteren Events sind gelo
 -- ===========================================================================
 delete from public.push_subscriptions;
 insert into public.push_subscriptions (user_id, endpoint, p256dh, auth) values
-  ('00000000-0000-0000-0000-0000000000a1', 'https://push.example.test/ok', 'k', 'a'),
-  ('00000000-0000-0000-0000-0000000000a1', 'https://push.example.test/weg', 'k', 'a'),
-  ('00000000-0000-0000-0000-0000000000a1', 'https://push.example.test/unberuehrt', 'k', 'a');
+  ('00000000-0000-0000-0000-0000000000a1', 'https://fcm.googleapis.com/fcm/send/ok', pg_temp.kp(), pg_temp.ka()),
+  ('00000000-0000-0000-0000-0000000000a1', 'https://fcm.googleapis.com/fcm/send/weg', pg_temp.kp(), pg_temp.ka()),
+  ('00000000-0000-0000-0000-0000000000a1', 'https://fcm.googleapis.com/fcm/send/unberuehrt', pg_temp.kp(), pg_temp.ka());
 select pg_temp.als_service();
-select public.push_abo_ergebnis(array['https://push.example.test/ok'], array['https://push.example.test/weg']);
+select public.push_abo_ergebnis(array['https://fcm.googleapis.com/fcm/send/ok'], array['https://fcm.googleapis.com/fcm/send/weg']);
 select pg_temp.als_postgres();
-select isnt((select last_ok_at from public.push_subscriptions where endpoint = 'https://push.example.test/ok'), null,
+select isnt((select last_ok_at from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/ok'), null,
   'push_abo_ergebnis: last_ok_at fuer "ok" gesetzt');
-select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://push.example.test/weg'), 0,
+select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/weg'), 0,
   'push_abo_ergebnis: Abo in "weg" geloescht');
-select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://push.example.test/unberuehrt' and last_ok_at is null), 1,
+select is((select count(*)::int from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/unberuehrt' and last_ok_at is null), 1,
   'push_abo_ergebnis: andere Abos bleiben unberuehrt');
 select pg_temp.als_service();
 select lives_ok($q$select public.push_abo_ergebnis(null, null)$q$, 'push_abo_ergebnis: NULL-Arrays sind erlaubt');

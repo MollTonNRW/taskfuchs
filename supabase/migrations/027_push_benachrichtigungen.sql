@@ -9,13 +9,21 @@
 create table public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
+  -- Nur bekannte Push-Dienste (Allowlist): schliesst IP-Literale, localhost, interne Hostnamen,
+  -- Userinfo-Tricks (host@evil), Ports, Leer- und Steuerzeichen aus. Sonst koennte jedes Konto
+  -- den Versandlauf auf beliebige oder haengende Ziele lenken (SSRF, Zeitueberschreitung).
+  -- Abweichung von der Spec ("beginnt mit https://"), dort nachgetragen.
   endpoint text not null unique
     constraint push_subscriptions_endpoint_check
-    check (endpoint like 'https://%' and length(endpoint) <= 1000),
+    check (
+      length(endpoint) <= 1000
+      and endpoint ~ '^https://(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|[a-z0-9.-]+\.push\.apple\.com|[a-z0-9.-]+\.notify\.windows\.com)/[!-~]+$'
+    ),
+  -- base64url ohne Padding: p256dh = 65 Byte (87 Zeichen), auth = 16 Byte (22 Zeichen)
   p256dh text not null
-    constraint push_subscriptions_p256dh_check check (length(p256dh) between 1 and 200),
+    constraint push_subscriptions_p256dh_check check (p256dh ~ '^[A-Za-z0-9_-]{87}$'),
   auth text not null
-    constraint push_subscriptions_auth_check check (length(auth) between 1 and 100),
+    constraint push_subscriptions_auth_check check (auth ~ '^[A-Za-z0-9_-]{22}$'),
   geraet text
     constraint push_subscriptions_geraet_check check (geraet is null or length(geraet) <= 100),
   created_at timestamptz not null default now(),
@@ -75,12 +83,15 @@ create policy "list_notification_mutes: sichtbare Liste stummschalten" on public
     and (public.is_list_owner(list_id) or public.has_list_share(list_id))
   );
 
-revoke all on public.push_subscriptions from anon;
-revoke insert, update, truncate, references, trigger on public.push_subscriptions from authenticated;
-revoke all on public.list_notification_mutes from anon;
-revoke update, truncate, references, trigger on public.list_notification_mutes from authenticated;
+-- Erst alles entziehen (Supabase vergibt Default-Privilegien, in PG 17 auch MAINTAIN),
+-- dann nur das vergeben, was die App braucht. Schreiben der Abos laeuft ueber push_abo_speichern.
+revoke all on public.push_subscriptions from anon, authenticated;
+grant select, delete on public.push_subscriptions to authenticated;
+revoke all on public.list_notification_mutes from anon, authenticated;
+grant select, insert, delete on public.list_notification_mutes to authenticated;
 revoke all on public.notification_events from anon, authenticated;
 revoke all on public.push_config from anon, authenticated;
+revoke all on sequence public.notification_events_id_seq from anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Erfassung
@@ -209,11 +220,15 @@ set search_path = public, pg_temp
 as $$
 declare
   v_uid uuid := auth.uid();
+  v_n integer;
 begin
   if v_uid is null then
     raise exception 'nicht angemeldet' using errcode = '42501';
   end if;
 
+  -- Formate prueft der Insert ueber die Check-Constraints (23514).
+  -- Ein Endpoint, der einem anderen Konto gehoert, wird nur uebernommen, wenn auch die
+  -- Schluessel stimmen (dasselbe Geraet nach Abmelden/Anmelden): der Endpoint allein genuegt nicht.
   insert into public.push_subscriptions (user_id, endpoint, p256dh, auth, geraet)
   values (v_uid, p_endpoint, p_p256dh, p_auth, left(p_geraet, 100))
   on conflict (endpoint) do update
@@ -221,7 +236,13 @@ begin
         p256dh = excluded.p256dh,
         auth = excluded.auth,
         geraet = excluded.geraet,
-        last_seen_at = now();
+        last_seen_at = now()
+    where push_subscriptions.user_id = excluded.user_id
+       or (push_subscriptions.p256dh = excluded.p256dh and push_subscriptions.auth = excluded.auth);
+  get diagnostics v_n = row_count;
+  if v_n = 0 then
+    raise exception 'Endpoint gehoert einem anderen Konto' using errcode = '42501';
+  end if;
 
   -- Höchstens 10 Geräte je Person; die am längsten nicht gesehenen fallen weg.
   delete from public.push_subscriptions
