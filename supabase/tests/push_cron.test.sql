@@ -4,14 +4,17 @@
 --
 -- Voraussetzung: 027b ist angewendet. Die Supabase-CLI ueberspringt Dateien mit
 -- Buchstabensuffix im Namen (wie 022b, 026b) -- lokal also nach "supabase db reset"
--- von Hand einspielen (psql -f supabase/migrations/027b_push_cron.sql).
+-- von Hand einspielen. 027b bricht ab, wenn die Vault-Secrets push_versand_url und
+-- push_cron_secret fehlen; lokal also vorher (Platzhalter genuegen) anlegen und danach
+-- wieder entfernen. Ablauf siehe docs/superpowers/plans/2026-10-06-push-benachrichtigungen.md,
+-- Task 12, Schritt 0.
 --
 -- Alles Fiktive; der Test laeuft in einer Transaktion und wird zurueckgerollt.
 -- Es wird nichts versendet: die HTTP-Anfrage von pg_net landet nur in der
 -- (zurueckgerollten) Warteschlange.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(31);
 
 -- ---------------------------------------------------------------------------
 -- Erweiterungen und Job
@@ -58,7 +61,10 @@ select is((select count(*)::int from cron.job where jobname = 'push-versand'), 1
 -- ---------------------------------------------------------------------------
 select is((select count(*)::int from net.http_request_queue), 0, 'Ausgangslage: keine HTTP-Anfrage in der Warteschlange');
 
--- Vault-Secrets (fiktiv) anlegen -- ohne sie liefe die URL ins Leere
+-- Vault-Secrets (fiktiv) anlegen -- ohne sie liefe die URL ins Leere. Der Name ist eindeutig:
+-- vorhandene Secrets (lokal z. B. fuer einen Ende-zu-Ende-Lauf angelegt) werden zuerst entfernt.
+-- Wegen des Rollbacks am Ende bleibt der lokale Stand unberuehrt.
+delete from vault.secrets where name in ('push_versand_url', 'push_cron_secret');
 select vault.create_secret('https://example.invalid/functions/v1/push-versand', 'push_versand_url');
 select vault.create_secret('test-secret-fiktiv', 'push_cron_secret');
 
@@ -86,6 +92,41 @@ select is((select headers ->> 'x-push-secret' from net.http_request_queue), 'tes
   'Header x-push-secret traegt das Secret aus dem Vault');
 select is((select headers ->> 'content-type' from net.http_request_queue), 'application/json', 'Header content-type');
 select is((select timeout_milliseconds from net.http_request_queue), 10000, 'Timeout 10000 ms');
+
+-- ---------------------------------------------------------------------------
+-- Aufraeum-Jobs: laufen unabhaengig vom Versandlauf (Function nicht erreichbar, Secret falsch)
+-- ---------------------------------------------------------------------------
+select is((select count(*)::int from cron.job where jobname = 'push-aufraeumen'), 1, 'genau ein Job push-aufraeumen');
+select is((select schedule from cron.job where jobname = 'push-aufraeumen'), '7 * * * *', 'push-aufraeumen: stuendlich');
+select is((select active from cron.job where jobname = 'push-aufraeumen'), true, 'push-aufraeumen ist aktiv');
+insert into public.notification_events (list_id, actor_id, art, task_id, task_text, created_at) values
+  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b2', 'neu',
+   '30000000-0000-0000-0000-000000000002', 'Alt vor 2 Tagen', now() - interval '2 days'),
+  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b2', 'neu',
+   '30000000-0000-0000-0000-000000000003', 'Alt vor 25 Stunden', now() - interval '25 hours'),
+  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b2', 'neu',
+   '30000000-0000-0000-0000-000000000004', 'Alt vor 23 Stunden', now() - interval '23 hours');
+do $$ begin execute (select command from cron.job where jobname = 'push-aufraeumen'); end $$;
+select is((select array_agg(task_text order by task_text) from public.notification_events),
+  array['Alt vor 23 Stunden', 'Milch'],
+  'push-aufraeumen: Events aelter als 1 Tag sind weg, juengere bleiben');
+
+select is((select count(*)::int from cron.job where jobname = 'push-protokoll-aufraeumen'), 1,
+  'genau ein Job push-protokoll-aufraeumen');
+select is((select schedule from cron.job where jobname = 'push-protokoll-aufraeumen'), '17 3 * * *',
+  'push-protokoll-aufraeumen: taeglich');
+select is((select active from cron.job where jobname = 'push-protokoll-aufraeumen'), true,
+  'push-protokoll-aufraeumen ist aktiv');
+-- cron.job_run_details wuerde sonst jede Minute eine Zeile (ca. 540 Byte) ansammeln
+-- (runid explizit und negativ: die Rolle postgres darf die Sequenz cron.runid_seq nicht benutzen)
+insert into cron.job_run_details (jobid, runid, database, username, command, status, return_message, start_time, end_time) values
+  (0, -1, 'postgres', 'postgres', 'test-alt', 'succeeded', '0 rows', now() - interval '4 days', now() - interval '4 days'),
+  (0, -2, 'postgres', 'postgres', 'test-neu', 'succeeded', '0 rows', now() - interval '2 days', now() - interval '2 days');
+do $$ begin execute (select command from cron.job where jobname = 'push-protokoll-aufraeumen'); end $$;
+select is((select count(*)::int from cron.job_run_details where command = 'test-alt'), 0,
+  'push-protokoll-aufraeumen: Laufprotokoll aelter als 3 Tage ist weg');
+select is((select count(*)::int from cron.job_run_details where command = 'test-neu'), 1,
+  'push-protokoll-aufraeumen: juengeres Laufprotokoll bleibt');
 
 select * from finish();
 rollback;
