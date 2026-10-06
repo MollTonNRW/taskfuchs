@@ -1,6 +1,7 @@
 import { assert, assertEquals, assertRejects } from '@std/assert';
 import { type Abhaengigkeiten, lauf } from './lauf.ts';
 import type { Abo, Buendel, Ereignis } from './typen.ts';
+import { oeffentlicherHttpsEndpoint } from './webpush.ts';
 
 const LISTE_1 = '11111111-1111-4111-8111-111111111111';
 const LISTE_2 = '22222222-2222-4222-8222-222222222222';
@@ -358,6 +359,70 @@ Deno.test('abgelehnter Endpoint wird im Log getrennt von Netzfehlern gezählt (A
 	const bericht = await lauf(f.deps);
 	assertEquals(bericht, { buendel: 1, gesendet: 1, fehler: 2, entfernt: 0 });
 	assertEquals(f.logs[1], 'push-versand: Fehler nach Status: endpoint ×1, netz ×1');
+});
+
+// --- Vertrag mit der Datenbank: Form der Bündel ---------------------------------------------------
+
+/**
+ * Ausgabe von public.push_buendel_abholen() (Migration 027), aufgenommen gegen die lokale Datenbank mit fiktiven
+ * Daten (zwei Konten, eine Einkaufsliste, zwei Ereignisse von Bernd, zwei Abos von Anna mit echt geformten Schlüsseln)
+ * und unverändert übernommen: jsonb sortiert die Schlüssel, `at` ist ein timestamptz im jsonb-Format,
+ * `list_kind` kommt aus lists.kind, `abos` enthält endpoint/p256dh/auth. Ändert sich die RPC, muss diese Fixture
+ * (und mit ihr typen.ts) neu aufgenommen werden.
+ */
+const BUENDEL_AUS_DER_DB = `[
+  {
+    "events": [
+      {"at": "2026-10-06T18:48:33.914303+00:00", "art": "neu", "text": "Hafermilch", "task_id": "30000000-0000-0000-0000-000000000001"},
+      {"at": "2026-10-06T18:48:33.914303+00:00", "art": "erledigt", "text": "Brot", "task_id": "30000000-0000-0000-0000-000000000002"}
+    ],
+    "list_id": "10000000-0000-0000-0000-000000000001",
+    "actor_id": "00000000-0000-0000-0000-0000000000b2",
+    "list_kind": "einkauf",
+    "via_agent": false,
+    "actor_name": "Bernd",
+    "empfaenger": [
+      {
+        "abos": [
+          {
+            "auth": "N8c5gB_7rvEXJOsCeyHCYg",
+            "p256dh": "BCSgBRpjjEUsj3VhKEtBRKy9m-W_keEuDrxIKEFCx_hJ5Zf3t0ueRRQL6vY2w55Lpwe-Dm-7Kl-uUHLWrJm5R-k",
+            "endpoint": "https://fcm.googleapis.com/fcm/send/dQw4w9WgXcQ:APA91bFiktiv-endpoint_0001"
+          },
+          {
+            "auth": "N8c5gB_7rvEXJOsCeyHCYg",
+            "p256dh": "BCSgBRpjjEUsj3VhKEtBRKy9m-W_keEuDrxIKEFCx_hJ5Zf3t0ueRRQL6vY2w55Lpwe-Dm-7Kl-uUHLWrJm5R-k",
+            "endpoint": "https://updates.push.services.mozilla.com/wpush/v2/gAAAAABfiktiv"
+          }
+        ],
+        "user_id": "00000000-0000-0000-0000-0000000000a1"
+      }
+    ],
+    "list_title": "Wocheneinkauf"
+  }
+]`;
+
+Deno.test('Vertrag mit push_buendel_abholen: ein Bündel in der jsonb-Form der Datenbank ergibt die erwartete Meldung', async () => {
+	const ausDerDb = JSON.parse(BUENDEL_AUS_DER_DB) as Buendel[];
+	// Die Endpoints der Datenbank müssen die Endpoint-Prüfung der Function bestehen (dieselbe Allowlist)
+	for (const a of ausDerDb[0].empfaenger[0].abos) {
+		assert(oeffentlicherHttpsEndpoint(new URL(a.endpoint)), 'Endpoint aus der Datenbank wird abgelehnt');
+	}
+
+	const f = fake([]);
+	const bericht = await lauf({ ...f.deps, abholen: () => Promise.resolve(ausDerDb) });
+
+	assertEquals(bericht, { buendel: 1, gesendet: 2, fehler: 0, entfernt: 0 });
+	assertEquals(f.gesendet.map((g) => g.endpoint), ausDerDb[0].empfaenger[0].abos.map((a) => a.endpoint));
+	// Spec "Texte": Einkaufsliste, mehrere Ereignisse, `neu` mit Beispielen, erledigt = „in den Wagen“
+	assertEquals(JSON.parse(f.gesendet[0].payload), {
+		titel: 'Wocheneinkauf',
+		text: 'Bernd: 1 neu (Hafermilch), 1 in den Wagen',
+		tag: 'tf-10000000-0000-0000-0000-000000000001-00000000-0000-0000-0000-0000000000b2',
+		url: '/app?liste=10000000-0000-0000-0000-000000000001',
+	});
+	assertEquals(f.gesendet[1].payload, f.gesendet[0].payload);
+	assertEquals(f.ergebnisse, [{ ok: ausDerDb[0].empfaenger[0].abos.map((a) => a.endpoint), weg: [] }]);
 });
 
 // --- Gesamtbudget und Obergrenze je Empfänger -----------------------------------------------
