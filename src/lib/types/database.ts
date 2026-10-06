@@ -229,6 +229,56 @@ export interface Database {
 					}
 				];
 			};
+			/**
+			 * Push-Abos je Gerät (Migration 027). Clients lesen und löschen nur eigene Zeilen;
+			 * Schreiben geht ausschließlich über die RPC `push_abo_speichern`.
+			 */
+			push_subscriptions: {
+				Row: {
+					id: string;
+					user_id: string;
+					endpoint: string;
+					p256dh: string;
+					auth: string;
+					geraet: string | null;
+					created_at: string;
+					last_seen_at: string;
+					last_ok_at: string | null;
+				};
+				Insert: never;
+				Update: never;
+				Relationships: [];
+			};
+			/** Stummgeschaltete Listen je Person (Migration 027) — eine Zeile heißt „stumm", Standard ist „an". */
+			list_notification_mutes: {
+				Row: {
+					user_id: string;
+					list_id: string;
+					created_at: string;
+				};
+				Insert: {
+					user_id: string;
+					list_id: string;
+					created_at?: string;
+				};
+				Update: never;
+				Relationships: [
+					{
+						foreignKeyName: 'list_notification_mutes_list_id_fkey';
+						columns: ['list_id'];
+						isOneToOne: false;
+						referencedRelation: 'lists';
+						referencedColumns: ['id'];
+					},
+					{
+						foreignKeyName: 'list_notification_mutes_user_id_fkey';
+						columns: ['user_id'];
+						isOneToOne: false;
+						referencedRelation: 'users';
+						referencedColumns: ['id'];
+					}
+				];
+			};
 			profiles: {
 				Row: {
 					id: string;
@@ -264,6 +314,16 @@ export interface Database {
 			restore_task_history: {
 				Args: { p_task_ids: string[] };
 				Returns: Database['public']['Tables']['task_history']['Row'][];
+			};
+			/** Push-Abo dieses Geräts anlegen oder übernehmen (Migration 027). */
+			push_abo_speichern: {
+				Args: { p_endpoint: string; p_p256dh: string; p_auth: string; p_geraet: string | null };
+				Returns: undefined;
+			};
+			/** Eigenes Push-Abo mit diesem Endpoint löschen (Migration 027). */
+			push_abo_loeschen: {
+				Args: { p_endpoint: string };
+				Returns: undefined;
 			};
 			batch_reorder_lists: {
 				Args: { items: string };

@@ -182,6 +182,10 @@
 
 		{#if menueAuf}
 			<div class="tf-popmenu" role="menu">
+				<a class="tf-mi" href="/app/benachrichtigungen" role="menuitem" onclick={() => (menueAuf = false)}>
+					<Icon name="glocke" size={16} />
+					Benachrichtigungen
+				</a>
 				<a class="tf-mi" href="/app/g2-koppeln" role="menuitem" onclick={() => (menueAuf = false)}>
 					<Icon name="person" size={16} />
 					G2 Brille koppeln

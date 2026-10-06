@@ -1,0 +1,498 @@
+import { assert, assertEquals, assertRejects } from '@std/assert';
+import { type Abhaengigkeiten, lauf } from './lauf.ts';
+import type { Abo, Buendel, Ereignis } from './typen.ts';
+import { oeffentlicherHttpsEndpoint } from './webpush.ts';
+
+const LISTE_1 = '11111111-1111-4111-8111-111111111111';
+const LISTE_2 = '22222222-2222-4222-8222-222222222222';
+const ANNA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const BERND = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
+const abo = (n: number): Abo => ({
+	endpoint: `https://push.example.test/geheimer-endpoint-${n}`,
+	p256dh: `p256dh-geheim-${n}`,
+	auth: `auth-geheim-${n}`,
+});
+
+const ereignis = (task_id: string, art: Ereignis['art'], text: string): Ereignis => ({
+	task_id,
+	art,
+	text,
+	at: '2026-10-06T10:00:00Z',
+});
+
+function buendel(teil: Partial<Buendel> = {}): Buendel {
+	return {
+		list_id: LISTE_1,
+		list_title: 'Wocheneinkauf-Titel',
+		list_kind: 'einkauf',
+		actor_id: ANNA,
+		actor_name: 'Annabelle',
+		via_agent: false,
+		events: [ereignis('t1', 'neu', 'Hafermilch-Geheimtext')],
+		empfaenger: [{ user_id: BERND, abos: [abo(1)] }],
+		...teil,
+	};
+}
+
+interface Fake {
+	deps: Abhaengigkeiten;
+	gesendet: Array<{ endpoint: string; payload: string }>;
+	ergebnisse: Array<{ ok: string[]; weg: string[] }>;
+	logs: string[];
+	maxGleichzeitig: () => number;
+}
+
+function fake(
+	buendelListe: Buendel[],
+	verhalten: (endpoint: string) => number | Error = () => 201,
+	verzoegerungMs = 0,
+): Fake {
+	const f: Fake = {
+		gesendet: [],
+		ergebnisse: [],
+		logs: [],
+		maxGleichzeitig: () => max,
+		deps: undefined as unknown as Abhaengigkeiten,
+	};
+	let laufend = 0;
+	let max = 0;
+	f.deps = {
+		abholen: () => Promise.resolve(buendelListe),
+		ergebnis: (ok, weg) => {
+			f.ergebnisse.push({ ok, weg });
+			return Promise.resolve();
+		},
+		sender: {
+			async senden(a, payload) {
+				laufend++;
+				max = Math.max(max, laufend);
+				try {
+					if (verzoegerungMs) await new Promise((r) => setTimeout(r, verzoegerungMs));
+					f.gesendet.push({ endpoint: a.endpoint, payload });
+					const v = verhalten(a.endpoint);
+					if (v instanceof Error) throw v;
+					return v;
+				} finally {
+					laufend--;
+				}
+			},
+		},
+		log: (m) => f.logs.push(m),
+	};
+	return f;
+}
+
+Deno.test('zwei Bündel, drei Abos: 3 Sendungen mit vollständiger Payload, Ergebnis gemeldet', async () => {
+	const f = fake([
+		buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2)] }] }),
+		buendel({
+			list_id: LISTE_2,
+			list_kind: 'aufgaben',
+			list_title: 'Haushalt',
+			events: [ereignis('t9', 'erledigt', 'Steuer')],
+			empfaenger: [{ user_id: BERND, abos: [abo(3)] }],
+		}),
+	]);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 2, gesendet: 3, fehler: 0, entfernt: 0 });
+	assertEquals(f.gesendet.length, 3);
+
+	const p1 = JSON.parse(f.gesendet[0].payload);
+	assertEquals(Object.keys(p1).sort(), ['tag', 'text', 'titel', 'url']);
+	assertEquals(p1.titel, 'Wocheneinkauf-Titel');
+	assertEquals(p1.text, 'Annabelle hat „Hafermilch-Geheimtext“ hinzugefügt');
+	assertEquals(p1.tag, `tf-${LISTE_1}-${ANNA}`);
+	assertEquals(p1.url, `/app?liste=${LISTE_1}`);
+	// beide Abos desselben Bündels bekommen dieselbe Payload
+	assertEquals(f.gesendet[1].payload, f.gesendet[0].payload);
+	// zweites Bündel: eigene Texte
+	const p2 = JSON.parse(f.gesendet[2].payload);
+	assertEquals(p2.titel, 'Haushalt');
+	assertEquals(p2.text, 'Annabelle hat „Steuer“ erledigt');
+	assertEquals(p2.url, `/app?liste=${LISTE_2}`);
+
+	assertEquals(f.ergebnisse.length, 1);
+	assertEquals(f.ergebnisse[0].ok.sort(), [abo(1).endpoint, abo(2).endpoint, abo(3).endpoint]);
+	assertEquals(f.ergebnisse[0].weg, []);
+});
+
+Deno.test('410 und 404 landen in weg und zählen als entfernt; ok bleibt ok', async () => {
+	const f = fake(
+		[buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2), abo(3)] }] })],
+		(ep) => ep === abo(2).endpoint ? 410 : ep === abo(3).endpoint ? 404 : 201,
+	);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 1, gesendet: 1, fehler: 0, entfernt: 2 });
+	assertEquals(f.ergebnisse, [{ ok: [abo(1).endpoint], weg: [abo(2).endpoint, abo(3).endpoint] }]);
+});
+
+Deno.test('Netzfehler (Wurf) zählt als Fehler; Endpoint weder in ok noch in weg; andere werden trotzdem gesendet', async () => {
+	const f = fake(
+		[buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2)] }] })],
+		(ep) => ep === abo(1).endpoint ? new Error('Versand fehlgeschlagen') : 201,
+	);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 1, gesendet: 1, fehler: 1, entfernt: 0 });
+	assertEquals(f.ergebnisse, [{ ok: [abo(2).endpoint], weg: [] }]);
+});
+
+Deno.test('Dienstfehler 429/500/413 zählen als Fehler und lassen das Abo unberührt', async () => {
+	const f = fake(
+		[buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2), abo(3)] }] })],
+		(ep) => ep === abo(1).endpoint ? 429 : ep === abo(2).endpoint ? 500 : 413,
+	);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 1, gesendet: 0, fehler: 3, entfernt: 0 });
+	assertEquals(f.ergebnisse.length, 0, 'nichts zu melden');
+});
+
+Deno.test('Bündel, das nach der Verdichtung leer ist (neu + gelöscht), wird nicht gesendet', async () => {
+	const f = fake([
+		buendel({ events: [ereignis('t1', 'neu', 'Vertipper'), ereignis('t1', 'geloescht', 'Vertipper')] }),
+	]);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 1, gesendet: 0, fehler: 0, entfernt: 0 });
+	assertEquals(f.gesendet.length, 0);
+	assertEquals(f.ergebnisse.length, 0);
+});
+
+Deno.test('leere Abholung: kein Versand, ergebnis nicht aufgerufen, Bericht 0, kein Log', async () => {
+	const f = fake([]);
+	assertEquals(await lauf(f.deps), { buendel: 0, gesendet: 0, fehler: 0, entfernt: 0 });
+	assertEquals(f.gesendet.length, 0);
+	assertEquals(f.ergebnisse.length, 0);
+	assertEquals(f.logs.length, 0);
+});
+
+Deno.test('Bündel ohne Empfänger oder mit fehlenden Feldern wirft nicht und sendet nichts', async () => {
+	const f = fake([
+		buendel({ empfaenger: [] }),
+		buendel({ empfaenger: null as unknown as Buendel['empfaenger'] }),
+		buendel({ events: null as unknown as Buendel['events'] }),
+		buendel({ empfaenger: [{ user_id: BERND, abos: null as unknown as Abo[] }] }),
+	]);
+	assertEquals(await lauf(f.deps), { buendel: 4, gesendet: 0, fehler: 0, entfernt: 0 });
+	assertEquals(f.gesendet.length, 0);
+});
+
+Deno.test('derselbe Endpoint in zwei Bündeln: zwei Meldungen, aber nur einmal im Ergebnis', async () => {
+	const f = fake([
+		buendel(),
+		buendel({ list_id: LISTE_2, events: [ereignis('t2', 'neu', 'Brot')] }),
+	]);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht.gesendet, 2);
+	assertEquals(f.ergebnisse, [{ ok: [abo(1).endpoint], weg: [] }]);
+});
+
+Deno.test('weg gewinnt, wenn derselbe Endpoint einmal ok und einmal gone meldet', async () => {
+	let n = 0;
+	const f = fake(
+		[buendel(), buendel({ list_id: LISTE_2, events: [ereignis('t2', 'neu', 'Brot')] })],
+		() => (n++ === 0 ? 201 : 410),
+	);
+	await lauf(f.deps);
+	assertEquals(f.ergebnisse, [{ ok: [], weg: [abo(1).endpoint] }]);
+});
+
+Deno.test('Logs enthalten nur Zähler (auch bei Fehlern je Status): weder Texte noch Endpoints, Schlüssel, Titel oder Namen', async () => {
+	const verhalten = (ep: string): number | Error => {
+		if (ep === abo(2).endpoint) return 410;
+		if (ep === abo(3).endpoint) return new Error(`kaputt bei ${ep}`);
+		if (ep === abo(4).endpoint || ep === abo(5).endpoint) return 429;
+		if (ep === abo(6).endpoint) return 500;
+		return 201;
+	};
+	const f = fake(
+		[buendel({ empfaenger: [{ user_id: BERND, abos: [1, 2, 3, 4, 5, 6].map(abo) }] })],
+		verhalten,
+	);
+	await lauf(f.deps);
+	assertEquals(f.logs, [
+		'push-versand: 1 Bündel, 1 gesendet, 4 Fehler, 1 entfernt',
+		'push-versand: Fehler nach Status: 429 ×2, 500 ×1, netz ×1',
+		'push-versand: entfernt nach Status: 410 ×1',
+	]);
+	const verboten = [
+		'Hafermilch-Geheimtext',
+		'Wocheneinkauf-Titel',
+		'Annabelle',
+		'geheimer-endpoint',
+		'push.example.test',
+		'geheim-1',
+		'auth-geheim',
+		ANNA,
+		BERND,
+		LISTE_1,
+	];
+	for (const zeile of f.logs) {
+		for (const v of verboten) assert(!zeile.includes(v), `Log enthält "${v}": ${zeile}`);
+	}
+});
+
+Deno.test('entfernte Abos werden je Status gezählt (Abo einmal, auch bei mehreren Bündeln), ohne Endpoint zu nennen', async () => {
+	const verhalten = (ep: string): number => {
+		if (ep === abo(1).endpoint || ep === abo(4).endpoint) return 410;
+		if (ep === abo(2).endpoint) return 404;
+		return 201;
+	};
+	const f = fake(
+		[
+			buendel({ empfaenger: [{ user_id: BERND, abos: [1, 2, 3, 4].map(abo) }] }),
+			// abo(1) kommt in einem zweiten Bündel nochmals vor und wird nochmals mit 410 beantwortet
+			buendel({ list_id: LISTE_2, events: [ereignis('t2', 'neu', 'Brot')] }),
+		],
+		verhalten,
+	);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht.entfernt, 3, 'drei verschiedene Abos');
+	assertEquals(f.logs, [
+		'push-versand: 2 Bündel, 1 gesendet, 0 Fehler, 3 entfernt',
+		'push-versand: entfernt nach Status: 404 ×1, 410 ×2',
+	]);
+	for (const zeile of f.logs) {
+		for (const v of ['geheimer-endpoint', 'push.example.test', 'geheim-1', 'auth-geheim']) {
+			assert(!zeile.includes(v), `Log enthält "${v}": ${zeile}`);
+		}
+	}
+});
+
+Deno.test('ohne entfernte Abos gibt es keine Zeile "entfernt nach Status"', async () => {
+	const f = fake([buendel()], () => 500);
+	await lauf(f.deps);
+	assertEquals(f.logs, [
+		'push-versand: 1 Bündel, 0 gesendet, 1 Fehler, 0 entfernt',
+		'push-versand: Fehler nach Status: 500 ×1',
+	]);
+});
+
+Deno.test('höchstens `parallel` gleichzeitige Sendungen (Standard 6) und es wird auch parallel gesendet', async () => {
+	// 20 Empfänger mit je einem Abo (mehr als 10 Abos je Empfänger werden nicht bedient)
+	const empfaenger = Array.from({ length: 20 }, (_, i) => ({ user_id: `user-${i}`, abos: [abo(i)] }));
+	const f = fake([buendel({ empfaenger })], () => 201, 5);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht.gesendet, 20);
+	assertEquals(f.maxGleichzeitig(), 6);
+});
+
+Deno.test('parallel ist einstellbar, 1 = streng nacheinander', async () => {
+	const abos = Array.from({ length: 5 }, (_, i) => abo(i));
+	const f = fake([buendel({ empfaenger: [{ user_id: BERND, abos }] })], () => 201, 3);
+	await lauf(f.deps, 1);
+	assertEquals(f.maxGleichzeitig(), 1);
+	const g = fake([buendel({ empfaenger: [{ user_id: BERND, abos }] })], () => 201, 3);
+	await lauf(g.deps, 3);
+	assertEquals(g.maxGleichzeitig(), 3);
+});
+
+Deno.test('Fehler beim Abholen oder Melden werden nicht verschluckt', async () => {
+	const f = fake([buendel()]);
+	await assertRejects(
+		() => lauf({ ...f.deps, abholen: () => Promise.reject(new Error('abholen: 42501')) }),
+		Error,
+		'abholen',
+	);
+	await assertRejects(
+		() => lauf({ ...f.deps, ergebnis: () => Promise.reject(new Error('ergebnis: 42501')) }),
+		Error,
+		'ergebnis',
+	);
+});
+
+Deno.test('ein defektes Bündel reißt den Lauf nicht mit: die übrigen werden gesendet und gemeldet, der Fehler wird gezählt', async () => {
+	const f = fake([
+		buendel(),
+		buendel({
+			list_id: LISTE_2,
+			events: {} as unknown as Buendel['events'], // kaputte Form: nicht iterierbar
+			empfaenger: [{ user_id: BERND, abos: [abo(2)] }],
+		}),
+	]);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 2, gesendet: 1, fehler: 1, entfernt: 0 });
+	assertEquals(f.gesendet.length, 1);
+	assertEquals(f.ergebnisse, [{ ok: [abo(1).endpoint], weg: [] }]);
+	assertEquals(f.logs, [
+		'push-versand: 2 Bündel, 1 gesendet, 1 Fehler, 0 entfernt',
+		'push-versand: Fehler nach Status: bündel ×1',
+	]);
+});
+
+Deno.test('Ereignis mit Text null (kaputte Daten) lässt den Lauf nicht scheitern und wird neutral formuliert', async () => {
+	const f = fake([
+		buendel(),
+		buendel({
+			list_id: LISTE_2,
+			events: [ereignis('t2', 'neu', null as unknown as string)],
+			empfaenger: [{ user_id: BERND, abos: [abo(2)] }],
+		}),
+	]);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 2, gesendet: 2, fehler: 0, entfernt: 0 });
+	assertEquals(JSON.parse(f.gesendet[1].payload).text, 'Annabelle hat eine Aufgabe hinzugefügt');
+});
+
+Deno.test('scheitert ergebnis() nach dem Versand, sind die Zähler trotzdem geloggt (und der Fehler wird weitergereicht)', async () => {
+	const f = fake(
+		[buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2)] }] })],
+		(ep) => ep === abo(2).endpoint ? 500 : 201,
+	);
+	await assertRejects(
+		() => lauf({ ...f.deps, ergebnis: () => Promise.reject(new Error('ergebnis: Netzfehler')) }),
+		Error,
+		'ergebnis: Netzfehler',
+	);
+	assertEquals(f.gesendet.length, 2);
+	assertEquals(f.logs, [
+		'push-versand: 1 Bündel, 1 gesendet, 1 Fehler, 0 entfernt',
+		'push-versand: Fehler nach Status: 500 ×1',
+	]);
+});
+
+Deno.test('abgelehnter Endpoint wird im Log getrennt von Netzfehlern gezählt (Allowlist sichtbar), ohne den Endpoint zu nennen', async () => {
+	const f = fake(
+		[buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2), abo(3)] }] })],
+		(ep) =>
+			ep === abo(1).endpoint ? new Error('Endpoint nicht erlaubt') : ep === abo(2).endpoint ? new Error('x') : 201,
+	);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 1, gesendet: 1, fehler: 2, entfernt: 0 });
+	assertEquals(f.logs[1], 'push-versand: Fehler nach Status: endpoint ×1, netz ×1');
+});
+
+// --- Vertrag mit der Datenbank: Form der Bündel ---------------------------------------------------
+
+/**
+ * Ausgabe von public.push_buendel_abholen() (Migration 027), aufgenommen gegen die lokale Datenbank mit fiktiven
+ * Daten (zwei Konten, eine Einkaufsliste, zwei Ereignisse von Bernd, zwei Abos von Anna mit echt geformten Schlüsseln)
+ * und unverändert übernommen: jsonb sortiert die Schlüssel, `at` ist ein timestamptz im jsonb-Format,
+ * `list_kind` kommt aus lists.kind, `abos` enthält endpoint/p256dh/auth. Ändert sich die RPC, muss diese Fixture
+ * (und mit ihr typen.ts) neu aufgenommen werden.
+ */
+const BUENDEL_AUS_DER_DB = `[
+  {
+    "events": [
+      {"at": "2026-10-06T18:48:33.914303+00:00", "art": "neu", "text": "Hafermilch", "task_id": "30000000-0000-0000-0000-000000000001"},
+      {"at": "2026-10-06T18:48:33.914303+00:00", "art": "erledigt", "text": "Brot", "task_id": "30000000-0000-0000-0000-000000000002"}
+    ],
+    "list_id": "10000000-0000-0000-0000-000000000001",
+    "actor_id": "00000000-0000-0000-0000-0000000000b2",
+    "list_kind": "einkauf",
+    "via_agent": false,
+    "actor_name": "Bernd",
+    "empfaenger": [
+      {
+        "abos": [
+          {
+            "auth": "N8c5gB_7rvEXJOsCeyHCYg",
+            "p256dh": "BCSgBRpjjEUsj3VhKEtBRKy9m-W_keEuDrxIKEFCx_hJ5Zf3t0ueRRQL6vY2w55Lpwe-Dm-7Kl-uUHLWrJm5R-k",
+            "endpoint": "https://fcm.googleapis.com/fcm/send/dQw4w9WgXcQ:APA91bFiktiv-endpoint_0001"
+          },
+          {
+            "auth": "N8c5gB_7rvEXJOsCeyHCYg",
+            "p256dh": "BCSgBRpjjEUsj3VhKEtBRKy9m-W_keEuDrxIKEFCx_hJ5Zf3t0ueRRQL6vY2w55Lpwe-Dm-7Kl-uUHLWrJm5R-k",
+            "endpoint": "https://updates.push.services.mozilla.com/wpush/v2/gAAAAABfiktiv"
+          }
+        ],
+        "user_id": "00000000-0000-0000-0000-0000000000a1"
+      }
+    ],
+    "list_title": "Wocheneinkauf"
+  }
+]`;
+
+Deno.test('Vertrag mit push_buendel_abholen: ein Bündel in der jsonb-Form der Datenbank ergibt die erwartete Meldung', async () => {
+	const ausDerDb = JSON.parse(BUENDEL_AUS_DER_DB) as Buendel[];
+	// Die Endpoints der Datenbank müssen die Endpoint-Prüfung der Function bestehen (dieselbe Allowlist)
+	for (const a of ausDerDb[0].empfaenger[0].abos) {
+		assert(oeffentlicherHttpsEndpoint(new URL(a.endpoint)), 'Endpoint aus der Datenbank wird abgelehnt');
+	}
+
+	const f = fake([]);
+	const bericht = await lauf({ ...f.deps, abholen: () => Promise.resolve(ausDerDb) });
+
+	assertEquals(bericht, { buendel: 1, gesendet: 2, fehler: 0, entfernt: 0 });
+	assertEquals(f.gesendet.map((g) => g.endpoint), ausDerDb[0].empfaenger[0].abos.map((a) => a.endpoint));
+	// Spec "Texte": Einkaufsliste, mehrere Ereignisse, `neu` mit Beispielen, erledigt = „in den Wagen“
+	assertEquals(JSON.parse(f.gesendet[0].payload), {
+		titel: 'Wocheneinkauf',
+		text: 'Bernd: 1 neu (Hafermilch), 1 in den Wagen',
+		tag: 'tf-10000000-0000-0000-0000-000000000001-00000000-0000-0000-0000-0000000000b2',
+		url: '/app?liste=10000000-0000-0000-0000-000000000001',
+	});
+	assertEquals(f.gesendet[1].payload, f.gesendet[0].payload);
+	assertEquals(f.ergebnisse, [{ ok: ausDerDb[0].empfaenger[0].abos.map((a) => a.endpoint), weg: [] }]);
+});
+
+// --- Gesamtbudget und Obergrenze je Empfänger -----------------------------------------------
+
+/** Sender, der für `haengende` Endpoints erst nach `haengtMs` antwortet (und das Abbruch-Signal beachtet). */
+function haengenderSender(haengende: (endpoint: string) => boolean, haengtMs: number) {
+	const zustand = { abgebrochen: 0, gestartet: 0 };
+	const sender: Abhaengigkeiten['sender'] = {
+		senden(a, _payload, signal) {
+			zustand.gestartet++;
+			if (!haengende(a.endpoint)) return Promise.resolve(201);
+			return new Promise<number>((resolve, reject) => {
+				const timer = setTimeout(() => resolve(201), haengtMs);
+				signal?.addEventListener('abort', () => {
+					zustand.abgebrochen++;
+					clearTimeout(timer);
+					reject(new DOMException('abgebrochen', 'AbortError'));
+				}, { once: true });
+			});
+		},
+	};
+	return { sender, zustand };
+}
+
+Deno.test('Gesamtbudget: hängende Abos halten den Lauf nicht fest; Offenes wird abgebrochen, Ergebnis und Log folgen trotzdem', async () => {
+	const abos = Array.from({ length: 9 }, (_, i) => abo(i));
+	const f = fake([buendel({ empfaenger: [{ user_id: BERND, abos }] })]);
+	// abo(0) antwortet sofort, die anderen 8 hängen "ewig" (300 ms gegen ein Budget von 100 ms)
+	const h = haengenderSender((ep) => ep !== abo(0).endpoint, 300);
+	const start = performance.now();
+	const bericht = await lauf({ ...f.deps, sender: h.sender }, 2, 100);
+	const dauer = performance.now() - start;
+	assert(dauer < 250, `Lauf dauerte ${Math.round(dauer)} ms, Budget war 100 ms`);
+	assertEquals(bericht, { buendel: 1, gesendet: 1, fehler: 8, entfernt: 0 });
+	assertEquals(f.ergebnisse, [{ ok: [abo(0).endpoint], weg: [] }]);
+	assertEquals(h.zustand.abgebrochen, 2, 'die zwei laufenden Sendungen werden per Signal abgebrochen');
+	assertEquals(h.zustand.gestartet, 3, 'nach Ablauf wird nichts Neues mehr gestartet (abo0 + 2 hängende)');
+	assertEquals(f.logs, [
+		'push-versand: 1 Bündel, 1 gesendet, 8 Fehler, 0 entfernt',
+		'push-versand: Fehler nach Status: zeit ×8',
+	]);
+});
+
+Deno.test('Gesamtbudget: auch ein Sender, der das Signal ignoriert, hält den Lauf nicht länger als das Budget fest', async () => {
+	const f = fake([buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2), abo(3)] }] })], () => 201, 300);
+	const start = performance.now();
+	const bericht = await lauf(f.deps, 3, 100);
+	const dauer = performance.now() - start;
+	assert(dauer < 250, `Lauf dauerte ${Math.round(dauer)} ms, Budget war 100 ms`);
+	assertEquals(bericht, { buendel: 1, gesendet: 0, fehler: 3, entfernt: 0 });
+	await new Promise((r) => setTimeout(r, 400)); // die abgehängten Fake-Sendungen auslaufen lassen (Test-Sanitizer)
+});
+
+Deno.test('Gesamtbudget: läuft alles rechtzeitig, ändert sich nichts (Timer wird aufgeräumt)', async () => {
+	const f = fake([buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2)] }] })], () => 201, 5);
+	assertEquals(await lauf(f.deps, 6, 5000), { buendel: 1, gesendet: 2, fehler: 0, entfernt: 0 });
+});
+
+Deno.test('höchstens 10 Abos je Empfänger: ein Konto mit vielen Fake-Abos blockiert den Pool nicht', async () => {
+	const viele = Array.from({ length: 25 }, (_, i) => abo(100 + i));
+	const f = fake([
+		buendel({
+			empfaenger: [
+				{ user_id: ANNA, abos: viele },
+				{ user_id: BERND, abos: [abo(1)] },
+			],
+		}),
+	]);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht.gesendet, 11, '10 vom Vielabonnenten + 1 vom anderen Empfänger');
+	assert(f.gesendet.some((g) => g.endpoint === abo(1).endpoint), 'der andere Empfänger bekommt seine Meldung');
+	assertEquals(f.gesendet.filter((g) => viele.some((v) => v.endpoint === g.endpoint)).length, 10);
+});

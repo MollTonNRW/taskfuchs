@@ -137,6 +137,7 @@ Wer alten Code oder alte Dokumentation liest, sucht sonst danach:
 | `routes/app/+page.svelte` | Mountet `AppShell` mit echtem Supabase-Zugang und Abmelden |
 | `routes/app/+layout.svelte` | Nur noch `TfRoot` als Rahmen — kein Header, keine Sidebar |
 | `routes/app/g2-koppeln/+page.svelte` | Kopplungscode für die G2-Brille |
+| `routes/app/benachrichtigungen/+page.svelte` | Push-Benachrichtigungen: Status dieses Geräts, Ein/Aus, Stummschalten je geteilter Liste (Desktop: Zahnrad-Menü, mobil: Glocke in der Fußzeile) |
 | `routes/auth/login/+page.svelte` | Login: Email/Passwort + Google OAuth |
 | `routes/auth/register/+page.svelte` | Registrierung, Passwort min. 8 Zeichen |
 | `routes/auth/callback/+server.ts` | OAuth Callback: Code → Session Exchange |
@@ -247,6 +248,10 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt\|Grillkohle" .s
 | `tasks` | id, list_id, user_id, parent_id, text, type, done, abgelegt, priority, timeframe, position, emoji, note, due_date, highlighted, pinned, pinned_by, assigned_to, version | Unified: Tasks + Unteraufgaben + Trenner (via parent_id + type). `progress` entfällt mit Migration 023. `abgelegt` (Migration 026, Default false): Artikel nach „Einkauf fertig" — nur noch Chip |
 | `task_history` | id, task_id, kind (stand/wartet), body, created_by/at, edited_by/at, resolved_by/at | Aufgabenhistorie, nur an Aufgaben oberster Ebene. Autor, Zeiten und „Ist da" stempelt ein Trigger; Rechte über `can_view_task` / `can_edit_task` |
 | `list_shares` | id, list_id, user_id, role (owner/editor/viewer) | Multi-User Sharing |
+| `push_subscriptions` | id, user_id, endpoint, p256dh, auth, geraet, last_seen_at, last_ok_at | Push-Abo je Gerät; schreiben nur über RPC `push_abo_speichern`/`push_abo_loeschen` (Migration 027) |
+| `list_notification_mutes` | user_id, list_id | Liste für diese Person stumm (Standard: an) |
+| `notification_events` | list_id, actor_id, via_agent, art, task_id, task_text | Warteschlange des Triggers `tasks_push_event`, für Clients unsichtbar, lebt bis zum Versand bzw. 1 Tag |
+| `push_config` | key, value | `agent_actor`: Bearbeiter für Schreibvorgänge mit `service_role` (n8n). Wert wird beim Deploy gesetzt, nicht im Repo |
 
 ### Design-Entscheidungen
 - **Unified Tasks-Tabelle:** Tasks, Unteraufgaben und Trenner in einer Tabelle (via `parent_id` + `type`)
@@ -284,6 +289,8 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt\|Grillkohle" .s
 | 024 | `besitz_und_verschieben_absichern.sql` | Trigger: `tasks.user_id`/`lists.user_id` unveränderlich, Verschieben nur in beschreibbare Listen, Unteraufgaben nur an bearbeitbare Aufgaben — greift auch in den Reorder-RPCs; n8n (service_role) unberührt |
 | 025 | `rpc_rechte_aufraeumen.sql` | `lookup_user_by_email` nur noch angemeldet, Gamification-RPCs gesperrt, Trigger-Funktionen nicht per RPC |
 | 026 | `einkaufsmodus.sql` | Einkaufs-Modus, rein additiv: `lists.kind` (`aufgaben`/`einkauf`, Check-Constraint) und `tasks.abgelegt` — beide mit Default, die alte App-Fassung merkt nichts |
+| 027 | `push_benachrichtigungen.sql` | Push: Tabellen, RLS, fehlertoleranter Trigger auf `tasks`, Abo-RPCs, Bündel-RPC (nur `service_role`) — wiederholbar |
+| 027b | `push_cron.sql` | `pg_net` + `pg_cron`, Jobs `push-versand` (jede Minute), `push-aufraeumen`, `push-protokoll-aufraeumen` — erst nach Function-Deploy und Vault-Secrets `push_versand_url`/`push_cron_secret` |
 | 026b | `einkaufen_umstellen.sql` | Liste „Einkaufen" umstellen: Aufgaben der obersten Ebene → Kategorien (Trenner), abgehakte Artikel → `abgelegt`, `kind = 'einkauf'` — **erst nach dem Deploy des Codes**, die alte Fassung kann Trenner mit Unteraufgaben nicht darstellen |
 
 ### Auth
@@ -342,10 +349,19 @@ Spezifikation: [docs/superpowers/specs/2026-09-26-einkaufsmodus-design.md](docs/
 - [x] Mitnutzer-Avatare in Navigation, mobiler Übersicht und Listen-Kopf
 - [x] Demo-Seed für neue User
 
+### Push-Benachrichtigungen
+Spezifikation: [docs/superpowers/specs/2026-10-06-push-benachrichtigungen-design.md](docs/superpowers/specs/2026-10-06-push-benachrichtigungen-design.md)
+
+- [x] Ändert jemand anderes eine geteilte Liste (neu, geändert, erledigt, wieder offen, gelöscht), bekommen die übrigen Mitglieder eine gebündelte Web-Push-Meldung (2 min Ruhe, höchstens 10 min); n8n-Schreibvorgänge zählen als `agent_actor` mit „(Agent)“
+- [x] Weg: Trigger `tasks_push_event` → `notification_events` → `pg_cron` `push-versand` → Edge Function `supabase/functions/push-versand` (Secret-Header, VAPID, aes128gcm, eigene WebCrypto-Implementierung) → `push_abo_ergebnis`
+- [x] Opt-in je Gerät auf `/app/benachrichtigungen`, Stummschalten je Liste; Tipp auf die Meldung öffnet `/app?liste=<id>`; Abmelden löscht das Abo des Geräts
+- [x] Android-App 1.3 (versionCode 6) mit Notification-Delegation
+- Secrets (nie im Repo): Function-Secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_CRON_SECRET`; Vault `push_versand_url`, `push_cron_secret`. Der öffentliche Schlüssel steht in `src/lib/push/vapid.ts` und muss zum Function-Secret passen
+- Bekanntes Restrisiko: Freigaben brauchen keine Zustimmung — vor breiterer Nutzung „neue Freigabe startet stumm“ und eingeschränkte Registrierung (Spec)
+
 ### Geplant
 - [ ] Offline-Cache (Dexie.js)
 - [ ] Wiederkehrende Aufgaben
-- [ ] Push Notifications
 
 ## Design-System
 
@@ -463,6 +479,7 @@ PUBLIC_SUPABASE_ANON_KEY=<dein-anon-key>
 - **Gradle-Projekt:** `twa/` (Standalone)
 - **Keystore:** Referenz unter `twa/`, Keystore-Datei wird nicht eingecheckt (gitignored)
 - **Digital Asset Links:** `static/.well-known/assetlinks.json`
+- **Build, Signatur, Update:** Rezept in `twa/README.md`. `bubblewrap update` überschreibt handangepasste Dateien (dunkler Splash, Launcher- und Benachrichtigungs-Icons, `ic_launcher_background`, `mavenCentral` im Root-Gradle). Danach die Liste dort per `git checkout HEAD -- …` zurückholen.
 
 ### PWA Manifest
 - `display: standalone`

@@ -4,3 +4,5 @@ node_modules
 .cloudflare
 dist
 package-lock.json
+# Deno-Code wird mit deno fmt formatiert (supabase/functions/*/deno.json)
+supabase/functions

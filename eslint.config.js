@@ -63,7 +63,9 @@ export default [
 			'node_modules/',
 			'.cloudflare/',
 			'dist/',
-			'src/lib/types/database.ts'
+			'src/lib/types/database.ts',
+			// Deno-Code (Edge Functions): geprüft mit deno lint/fmt/check/test, nicht mit der Node-Konfiguration
+			'supabase/functions/'
 		]
 	}
 ];
