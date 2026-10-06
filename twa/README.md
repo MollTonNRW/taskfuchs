@@ -14,7 +14,7 @@ Nicht im Repo (gitignored): `taskfuchs-keystore.jks`, `local.properties`, `*.apk
 
 - Immer `</dev/null` anhängen. Fragt Bubblewrap interaktiv nach etwas, bricht der Lauf ab, statt zu hängen.
 - Hilfe über `bubblewrap help build`. `bubblewrap build --help` zeigt keine Hilfe, sondern hängt ohne Ausgabe (im Test minutenlang).
-- Signiert wird mit `apksigner` statt mit Bubblewrap selbst (unten). Das ist der hier erprobte Weg, Passwörter bleiben in der Umgebung und nie in Argumenten.
+- Ohne `--skipSigning` und ohne Passwort-Variablen fragt `bubblewrap build` interaktiv nach dem Keystore-Passwort (bei leerem stdin Abbruch mit `ERR_USE_AFTER_CLOSE`). Deshalb wird mit `apksigner` signiert (unten): Das Passwort bleibt in der Umgebung und nie in Argumenten.
 
 ## Version ändern oder Projekt neu erzeugen
 
