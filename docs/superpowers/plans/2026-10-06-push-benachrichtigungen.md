@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Öffentliches Repo: keine Secrets, keine User-IDs, keine privaten Schlüssel in Code, Migrationen, Tests, Commits oder Logs.
-- `VAPID_PUBLIC_KEY` = `BIdzk--pOIQhqzAyrIOlF_hybzbqgBq7HNy3z_B_n2hkc7Xgk1fgPRSifGfqNE6EFb2WTYncLOD18VfvWmtL8M8`
+- `VAPID_PUBLIC_KEY` = `BFwHJk17DnyTqGX1oXuzorsp4X-j1DaGYHwUeQq1oTweX4jRY21TnSMSXr6jEkw8HHpQk9FjQgno3RC1hzNVeP0`
 - Bündelung: Ruhe 2 min, Höchstwartezeit 10 min, veraltet nach 1 Tag.
 - Aufgabentext im Event ≤ 120 Zeichen, im Meldungstext ≤ 60, Meldungstext ≤ 180, Payload < 2 KB.
 - Tag `tf-<list_id>-<actor_id>`, URL `/app?liste=<list_id>`.
@@ -891,7 +891,7 @@ export function base64UrlZuUint8(s: string): Uint8Array
 // src/lib/push/vapid.ts
 /** Öffentlicher VAPID-Schlüssel (Spec Push-Benachrichtigungen). Nicht geheim. */
 export const VAPID_PUBLIC_KEY =
-	'BIdzk--pOIQhqzAyrIOlF_hybzbqgBq7HNy3z_B_n2hkc7Xgk1fgPRSifGfqNE6EFb2WTYncLOD18VfvWmtL8M8';
+	'BFwHJk17DnyTqGX1oXuzorsp4X-j1DaGYHwUeQq1oTweX4jRY21TnSMSXr6jEkw8HHpQk9FjQgno3RC1hzNVeP0';
 ```
 
 ```ts

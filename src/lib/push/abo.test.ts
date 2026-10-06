@@ -571,6 +571,20 @@ describe('base64UrlZuUint8', () => {
 		expect(bytes[0]).toBe(0x04);
 	});
 
+	it('der oeffentliche VAPID-Schluessel ist der aktuelle (zum Function-Secret VAPID_PRIVATE_KEY gehoerig)', () => {
+		// Fester Wert: ein Schluesselwechsel muss hier bewusst nachgezogen werden, sonst liefe die App
+		// mit einem Schluessel, zu dem die Function den privaten Teil nicht (mehr) hat.
+		expect(VAPID_PUBLIC_KEY).toBe(
+			'BFwHJk17DnyTqGX1oXuzorsp4X-j1DaGYHwUeQq1oTweX4jRY21TnSMSXr6jEkw8HHpQk9FjQgno3RC1hzNVeP0'
+		);
+	});
+
+	it('der oeffentliche VAPID-Schluessel ist ein gueltiger Punkt auf der Kurve P-256', async () => {
+		await expect(
+			crypto.subtle.importKey('raw', base64UrlZuUint8(VAPID_PUBLIC_KEY), { name: 'ECDH', namedCurve: 'P-256' }, true, [])
+		).resolves.toBeDefined();
+	});
+
 	it('versteht URL-sichere Zeichen und fehlendes Padding', () => {
 		expect(Array.from(base64UrlZuUint8('AQID-_8'))).toEqual([1, 2, 3, 251, 255]);
 	});
