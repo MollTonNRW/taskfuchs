@@ -260,3 +260,36 @@ Deno.test('Fehler beim Abholen oder Melden werden nicht verschluckt', async () =
 		'ergebnis',
 	);
 });
+
+Deno.test('ein defektes Bündel reißt den Lauf nicht mit: die übrigen werden gesendet und gemeldet, der Fehler wird gezählt', async () => {
+	const f = fake([
+		buendel(),
+		buendel({
+			list_id: LISTE_2,
+			events: {} as unknown as Buendel['events'], // kaputte Form: nicht iterierbar
+			empfaenger: [{ user_id: BERND, abos: [abo(2)] }],
+		}),
+	]);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 2, gesendet: 1, fehler: 1, entfernt: 0 });
+	assertEquals(f.gesendet.length, 1);
+	assertEquals(f.ergebnisse, [{ ok: [abo(1).endpoint], weg: [] }]);
+	assertEquals(f.logs, [
+		'push-versand: 2 Bündel, 1 gesendet, 1 Fehler, 0 entfernt',
+		'push-versand: Fehler nach Status: bündel ×1',
+	]);
+});
+
+Deno.test('Ereignis mit Text null (kaputte Daten) lässt den Lauf nicht scheitern und wird neutral formuliert', async () => {
+	const f = fake([
+		buendel(),
+		buendel({
+			list_id: LISTE_2,
+			events: [ereignis('t2', 'neu', null as unknown as string)],
+			empfaenger: [{ user_id: BERND, abos: [abo(2)] }],
+		}),
+	]);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 2, gesendet: 2, fehler: 0, entfernt: 0 });
+	assertEquals(JSON.parse(f.gesendet[1].payload).text, 'Annabelle hat eine Aufgabe hinzugefügt');
+});

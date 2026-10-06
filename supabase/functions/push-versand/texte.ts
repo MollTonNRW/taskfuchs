@@ -51,8 +51,8 @@ const REIHENFOLGE: Art[] = ['neu', 'erledigt', 'wieder_offen', 'geaendert', 'gel
 
 // Kürzt auf höchstens `max` Zeichen (Codepoints, damit Emoji-Paare nicht zerrissen werden);
 // Whitespace wird zusammengezogen, Kürzung endet auf „…“.
-function kuerzen(s: string, max: number): string {
-	const t = s.replace(/\s+/g, ' ').trim();
+function kuerzen(s: string | null | undefined, max: number): string {
+	const t = String(s ?? '').replace(/\s+/g, ' ').trim();
 	const zeichen = Array.from(t);
 	if (zeichen.length <= max) return t;
 	return zeichen.slice(0, max - 1).join('').trimEnd() + '…';

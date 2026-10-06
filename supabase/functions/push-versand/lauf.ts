@@ -38,28 +38,43 @@ async function begrenztParallel<T>(items: T[], n: number, fn: (item: T) => Promi
 	await Promise.all(arbeiter);
 }
 
+/** HTTP-Status aufsteigend, danach die übrigen Schlüssel („bündel“, „netz“) alphabetisch. */
+function schluesselOrdnung(a: string, b: string): number {
+	const na = Number(a);
+	const nb = Number(b);
+	if (Number.isNaN(na) !== Number.isNaN(nb)) return Number.isNaN(na) ? 1 : -1;
+	return Number.isNaN(na) ? a.localeCompare(b) : na - nb;
+}
+
 export async function lauf(d: Abhaengigkeiten, parallel: number = STANDARD_PARALLEL): Promise<Bericht> {
 	const buendel = await d.abholen();
 	const bericht: Bericht = { buendel: buendel.length, gesendet: 0, fehler: 0, entfernt: 0 };
 	if (buendel.length === 0) return bericht;
 
-	const auftraege: Auftrag[] = [];
-	for (const b of buendel) {
-		const nachricht = nachrichtBauen(b, verdichten(b.events ?? []));
-		if (!nachricht) continue;
-		const payload = JSON.stringify(nachricht);
-		for (const empfaenger of b.empfaenger ?? []) {
-			for (const abo of empfaenger.abos ?? []) auftraege.push({ abo, payload });
-		}
-	}
-
 	const ok = new Set<string>();
 	const weg = new Set<string>();
-	const fehlerStatus = new Map<string, number>(); // Schlüssel: HTTP-Status oder "netz"
+	const fehlerStatus = new Map<string, number>(); // Schlüssel: HTTP-Status oder "netz"/"bündel"
 	const fehlerZaehlen = (schluessel: string) => {
 		bericht.fehler += 1;
 		fehlerStatus.set(schluessel, (fehlerStatus.get(schluessel) ?? 0) + 1);
 	};
+
+	// Die Ereignisse sind mit dem Abholen schon gelöscht: ein defektes Bündel darf die übrigen nicht mitreißen.
+	const auftraege: Auftrag[] = [];
+	for (const b of buendel) {
+		try {
+			const nachricht = nachrichtBauen(b, verdichten(b.events ?? []));
+			if (!nachricht) continue;
+			const payload = JSON.stringify(nachricht);
+			const neue: Auftrag[] = [];
+			for (const empfaenger of b.empfaenger ?? []) {
+				for (const abo of empfaenger.abos ?? []) neue.push({ abo, payload });
+			}
+			auftraege.push(...neue);
+		} catch {
+			fehlerZaehlen('bündel'); // neutral: ohne Inhalt der Ausnahme
+		}
+	}
 
 	await begrenztParallel(auftraege, parallel, async ({ abo, payload }) => {
 		try {
@@ -88,7 +103,7 @@ export async function lauf(d: Abhaengigkeiten, parallel: number = STANDARD_PARAL
 		`push-versand: ${bericht.buendel} Bündel, ${bericht.gesendet} gesendet, ${bericht.fehler} Fehler, ${bericht.entfernt} entfernt`,
 	);
 	if (fehlerStatus.size > 0) {
-		const teile = [...fehlerStatus].sort(([a], [b]) => (a === 'netz' ? 1 : b === 'netz' ? -1 : Number(a) - Number(b)))
+		const teile = [...fehlerStatus].sort(([a], [b]) => schluesselOrdnung(a, b))
 			.map(([schluessel, anzahl]) => `${schluessel} ×${anzahl}`);
 		d.log(`push-versand: Fehler nach Status: ${teile.join(', ')}`);
 	}
