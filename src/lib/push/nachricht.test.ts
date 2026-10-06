@@ -86,6 +86,16 @@ describe('zielUrl', () => {
 		['data:', 'data:text/html,<script>alert(1)</script>'],
 		['Rueckwaertsstrich', '/\\boese.de'],
 		['Tabulator im Doppelstrich', '/\t/boese.de'],
+		// Der URL-Parser faltet `.`/`..` weg und laesst `//boese.de` als Pfad stehen;
+		// der Service Worker loest das Ergebnis erneut auf und landet auf der fremden Origin.
+		['Punkt-Segment vor Doppelstrich', '/.//boese.de/x'],
+		['Punkt-Punkt vor Doppelstrich', '/..//boese.de'],
+		['Segment, Punkt-Punkt, Doppelstrich', '/a/..//boese.de'],
+		['Punkt-Segment mit Rueckwaertsstrich', '/./\\boese.de'],
+		['kodierter Punkt vor Doppelstrich', '/%2e//boese.de'],
+		['kodierter Punkt gross', '/%2E//boese.de'],
+		['tief verschachtelt', '/app/../..//boese.de'],
+		['absolute URL der eigenen Origin mit Doppelstrich-Pfad', 'https://a.de/.//boese.de'],
 		['andere Subdomain', 'https://a.de.boese.de/app'],
 		['anderes Schema', 'http://a.de/app'],
 		['leer', ''],
@@ -96,5 +106,33 @@ describe('zielUrl', () => {
 		['Objekt', { url: '/app' }]
 	])('weicht bei %s auf /app aus', (_name, url) => {
 		expect(zielUrl(url, ORIGIN)).toBe('/app');
+	});
+});
+
+describe('zielUrl bleibt beim erneuten Aufloesen auf der Origin', () => {
+	const ORIGIN = 'https://a.de';
+
+	// Der Service Worker macht `new URL(zielUrl(...), origin)` — das Ergebnis muss
+	// also fuer jede Eingabe wieder auf der eigenen Origin landen, nicht nur
+	// die Eingabe selbst.
+	it.each([
+		'/app?liste=x',
+		'/.//boese.de/x',
+		'/..//boese.de',
+		'/%2e//boese.de',
+		'/./\\boese.de',
+		'//boese.de',
+		'https://a.de/.//boese.de',
+		'https://boese.de/app',
+		'/a//b',
+		'/app#//boese.de',
+		'/app?next=//boese.de'
+	])('%s', (url) => {
+		const ergebnis = zielUrl(url, ORIGIN);
+		expect(new URL(ergebnis, ORIGIN).origin).toBe(ORIGIN);
+	});
+
+	it('laesst einen harmlosen Pfad mit Doppelstrich in der Mitte unveraendert', () => {
+		expect(zielUrl('/a//b?x=1#h', ORIGIN)).toBe('/a//b?x=1#h');
 	});
 });

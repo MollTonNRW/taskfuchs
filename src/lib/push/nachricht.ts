@@ -51,7 +51,9 @@ export function leseNachricht(roh: string | null | undefined): PushAnzeige {
  * Ziel eines Tipps auf die Meldung: nur gleiche Origin, als Pfad mit Abfrage.
  * Alles andere (fremde Origin, `//host`, `javascript:`, Müll) → `/app`.
  * Die Prüfung läuft über den URL-Parser, der Tabulatoren und `\` genauso
- * auflöst wie der Browser — keine eigene Zeichenketten-Logik.
+ * auflöst wie der Browser — keine eigene Zeichenketten-Logik. Geprüft wird
+ * auch das Ergebnis selbst, nicht nur die Eingabe: der Service Worker löst
+ * es ein zweites Mal gegen die Origin auf.
  */
 export function zielUrl(url: unknown, origin: string): string {
 	const roh = text(url);
@@ -59,7 +61,12 @@ export function zielUrl(url: unknown, origin: string): string {
 	try {
 		const ziel = new URL(roh, origin);
 		if (ziel.origin !== origin) return STANDARD_ZIEL;
-		return ziel.pathname + ziel.search + ziel.hash;
+		const pfad = ziel.pathname + ziel.search + ziel.hash;
+		// Der Parser faltet `/.//boese.de` zu dem Pfad `//boese.de` — als Ergebnis wäre das
+		// wieder ein protokollrelativer Verweis. Der Service Worker löst es erneut gegen die
+		// Origin auf, also muss auch das Ergebnis dort bleiben.
+		if (new URL(pfad, origin).origin !== origin) return STANDARD_ZIEL;
+		return pfad;
 	} catch {
 		return STANDARD_ZIEL;
 	}
