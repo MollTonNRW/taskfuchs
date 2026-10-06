@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { geteilteListen, setzeStumm, statusText } from './seite';
+import { beiRueckkehr, geteilteListen, setzeStumm, statusText } from './seite';
 
 const ICH = 'ich';
 const ANNA = 'anna';
@@ -126,5 +126,51 @@ describe('setzeStumm', () => {
 	it('behandelt "schon stumm" (doppelte Zeile) als Erfolg', async () => {
 		const { sb } = baueSb({ message: 'duplicate key', code: '23505' });
 		await expect(setzeStumm(sb, ICH, 'einkauf', true)).resolves.toBeUndefined();
+	});
+});
+
+describe('beiRueckkehr', () => {
+	/** Dokument-Attrappe mit einstellbarer Sichtbarkeit; `wechsel` feuert `visibilitychange`. */
+	function baueDokument(anfang: 'visible' | 'hidden' = 'visible') {
+		const ziel = new EventTarget();
+		const dokument = {
+			visibilityState: anfang as 'visible' | 'hidden',
+			addEventListener: ziel.addEventListener.bind(ziel),
+			removeEventListener: ziel.removeEventListener.bind(ziel)
+		};
+		const wechsel = (zustand: 'visible' | 'hidden') => {
+			dokument.visibilityState = zustand;
+			ziel.dispatchEvent(new Event('visibilitychange'));
+		};
+		return { dokument, wechsel };
+	}
+
+	it('ruft die Aktualisierung auf, wenn die Seite wieder sichtbar wird (Rueckkehr aus den Android-Einstellungen)', () => {
+		const { dokument, wechsel } = baueDokument();
+		const aktualisieren = vi.fn();
+		beiRueckkehr(dokument, aktualisieren);
+
+		wechsel('hidden');
+		expect(aktualisieren).not.toHaveBeenCalled();
+		wechsel('visible');
+		expect(aktualisieren).toHaveBeenCalledTimes(1);
+	});
+
+	it('ruft nicht sofort beim Anmelden auf, nur bei einem Wechsel', () => {
+		const { dokument } = baueDokument();
+		const aktualisieren = vi.fn();
+		beiRueckkehr(dokument, aktualisieren);
+		expect(aktualisieren).not.toHaveBeenCalled();
+	});
+
+	it('hoert nach dem Abmelden nicht mehr zu', () => {
+		const { dokument, wechsel } = baueDokument();
+		const aktualisieren = vi.fn();
+		const abmelden = beiRueckkehr(dokument, aktualisieren);
+
+		abmelden();
+		wechsel('hidden');
+		wechsel('visible');
+		expect(aktualisieren).not.toHaveBeenCalled();
 	});
 });

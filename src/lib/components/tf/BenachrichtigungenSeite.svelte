@@ -10,7 +10,7 @@
 		type PushStatus,
 		type PushUmgebung
 	} from '$lib/push/abo';
-	import { setzeStumm, statusText } from '$lib/push/seite';
+	import { beiRueckkehr, setzeStumm, statusText } from '$lib/push/seite';
 	import { toasts } from '$lib/stores/toast';
 	import Icon from '$lib/components/tf/Icon.svelte';
 	import ToastContainer from '$lib/components/tf/ToastContainer.svelte';
@@ -56,11 +56,18 @@
 	 */
 	let bereit = $state(false);
 
+	async function statusLesen() {
+		// Nicht mitten in einem Einschalten/Ausschalten überschreiben: das setzt den Status selbst.
+		if (beschaeftigt) return;
+		const gelesen = await pushStatus(umgebung);
+		if (!beschaeftigt) status = gelesen;
+	}
+
 	onMount(() => {
 		bereit = true;
-		(async () => {
-			status = await pushStatus(umgebung);
-		})();
+		statusLesen();
+		// Rückkehr aus den Android-Einstellungen: die Berechtigung kann sich geändert haben.
+		return beiRueckkehr(document, statusLesen);
 	});
 
 	async function geraetUmschalten() {

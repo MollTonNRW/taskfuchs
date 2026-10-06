@@ -67,3 +67,22 @@ export async function setzeStumm(sb: SupabaseClient, userId: string, listId: str
 	const { error } = await tabelle.delete().eq('user_id', userId).eq('list_id', listId);
 	if (error) throw new Error(error.message);
 }
+
+/**
+ * Ruft `aktualisieren` jedes Mal auf, wenn die Seite wieder sichtbar wird.
+ *
+ * Wer die Benachrichtigungen in den Android-Einstellungen erlaubt oder sperrt,
+ * kehrt danach in dieselbe, noch offene Seite zurück. Ohne diesen Anstoß zeigte
+ * sie weiter den alten Stand („blockiert", kein Knopf), bis man sie verließe
+ * und neu öffnete. Liefert die Abmeldefunktion.
+ */
+export function beiRueckkehr(
+	dokument: Pick<Document, 'visibilityState' | 'addEventListener' | 'removeEventListener'>,
+	aktualisieren: () => void
+): () => void {
+	function beiSichtbarkeit() {
+		if (dokument.visibilityState === 'visible') aktualisieren();
+	}
+	dokument.addEventListener('visibilitychange', beiSichtbarkeit);
+	return () => dokument.removeEventListener('visibilitychange', beiSichtbarkeit);
+}
