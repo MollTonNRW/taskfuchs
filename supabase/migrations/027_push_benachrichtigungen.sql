@@ -2,6 +2,12 @@
 -- Push-Benachrichtigungen für geteilte Listen.
 -- Spec: docs/superpowers/specs/2026-10-06-push-benachrichtigungen-design.md
 -- Rein additiv. Keine Extensions, kein Cron, keine Secrets, keine User-IDs (öffentliches Repo).
+-- Bekanntes Restrisiko (Produktentscheidung offen, siehe Spec "Bekanntes Restrisiko"): Empfaenger sind
+-- Besitzer und ALLE Freigaben; eine Freigabe braucht keine Zustimmung. Ein beliebiges Konto kann so
+-- Fremden Meldungen mit eigenem Titel und Text schicken. Fuer die Testversion mit zwei Personen vertretbar.
+-- Abweichungen von der Spec (dort nachgetragen): Endpoint-Allowlist und Schluesselformat, Uebernahme eines
+-- Endpoints nur mit identischen Schluesseln, Agent nur bei JWT-Claim service_role, Mitgliedschaftspruefung
+-- des Bearbeiters, Aufbewahrung je Event.
 -- Wiederholbar (wie 022, 024, 026): Tabellen und Indizes mit "if not exists" (vorhandene Tabellen
 -- bleiben unverändert), Policies und Trigger werden vorher entfernt, Funktionen "create or replace".
 
