@@ -58,14 +58,14 @@ Rein additiv. Tabellen, RLS, Trigger, RPCs. Keine Extensions, kein Cron, keine S
 |---|---|---|
 | `id` | uuid PK | `gen_random_uuid()` |
 | `user_id` | uuid not null | FK `auth.users` on delete cascade |
-| `endpoint` | text not null **unique** | beginnt mit `https://`, ≤ 1000 Zeichen |
-| `p256dh` | text not null | ≤ 200 |
-| `auth` | text not null | ≤ 100 |
+| `endpoint` | text not null **unique** | nur bekannte Push-Dienste (Host `fcm.googleapis.com`, `updates.push.services.mozilla.com`, `*.push.apple.com`, `*.notify.windows.com`), kein Port, kein Userinfo, Pfad nur aus druckbaren ASCII-Zeichen ohne Leerraum, ≤ 1000 Zeichen (Allowlist statt nur `https://`: sonst könnte jedes Konto den Versandlauf auf beliebige oder hängende Ziele lenken) |
+| `p256dh` | text not null | base64url ohne Padding, genau 87 Zeichen (65 Byte) |
+| `auth` | text not null | base64url ohne Padding, genau 22 Zeichen (16 Byte) |
 | `geraet` | text | ≤ 100, Anzeigename („Android · Taskfuchs-App“) |
 | `created_at`, `last_seen_at` | timestamptz not null default now() | |
 | `last_ok_at` | timestamptz | letzter erfolgreicher Versand |
 
-RLS an. Policies: `select` und `delete` nur eigene Zeilen (`user_id = auth.uid()`). **Kein** direktes `insert`/`update` — Schreiben nur über `push_abo_speichern` (Endpoint-Übernahme bei Gerätewechsel des Kontos).
+RLS an. Policies: `select` und `delete` nur eigene Zeilen (`user_id = auth.uid()`). **Kein** direktes `insert`/`update` — Schreiben nur über `push_abo_speichern` (Endpoint-Übernahme bei Gerätewechsel des Kontos). Rechte: `authenticated` hat nur `select`/`delete`, `anon` nichts (auch kein `MAINTAIN`).
 
 **`public.list_notification_mutes`** — eine Zeile = Liste für diese Person stumm. Standard ist „an“.
 
@@ -76,7 +76,7 @@ RLS an. Policies: `select` und `delete` nur eigene Zeilen (`user_id = auth.uid()
 | `created_at` | timestamptz not null default now() |
 | PK | (`user_id`, `list_id`) |
 
-RLS an. `select`/`delete`: `user_id = auth.uid()`. `insert`: `user_id = auth.uid()` **und** die Person sieht die Liste (`is_list_owner(list_id) or has_list_share(list_id)`).
+RLS an. `select`/`delete`: `user_id = auth.uid()`. `insert`: `user_id = auth.uid()` **und** die Person sieht die Liste (`is_list_owner(list_id) or has_list_share(list_id)`). Rechte: `authenticated` nur `select`/`insert`/`delete`.
 
 **`public.notification_events`** — Warteschlange, für Clients unsichtbar.
 
@@ -91,7 +91,7 @@ RLS an. `select`/`delete`: `user_id = auth.uid()`. `insert`: `user_id = auth.uid
 | `task_text` | text not null default '' (gekürzt auf 120 Zeichen) |
 | `created_at` | timestamptz not null default now() |
 
-Index `(list_id, actor_id, created_at)`. RLS an, **keine** Policies; `revoke all` von `anon`, `authenticated`. Nicht in der Realtime-Publikation.
+Index `(list_id, actor_id, created_at)`. RLS an, **keine** Policies; `revoke all` von `anon`, `authenticated` (auch auf die Sequenz `notification_events_id_seq`). Nicht in der Realtime-Publikation.
 
 **`public.push_config`** — `key text PK`, `value text not null`. RLS an, keine Policies, `revoke all` von `anon`, `authenticated`. Bekannter Schlüssel: `agent_actor` = User-ID, die für Schreibvorgänge ohne `auth.uid()` als Bearbeiter gilt. **Der Wert wird beim Deploy gesetzt, nicht in der Migration** (öffentliches Repo).
 
@@ -108,14 +108,15 @@ Regeln, in dieser Reihenfolge:
    - `done` false→true → `erledigt`; true→false → `wieder_offen`.
    - sonst eine der übrigen relevanten Spalten geändert → `geaendert`.
 5. Nur geteilte Listen: es existiert eine Zeile in `list_shares` dieser Liste mit `user_id <> lists.user_id`. Liste nicht (mehr) vorhanden (Kaskade beim Löschen einer Liste) → nichts.
-6. Bearbeiter: `auth.uid()`; ist er `NULL`, `push_config.agent_actor` mit `via_agent = true`; fehlt auch der → nichts.
+6. Bearbeiter: `auth.uid()`; ist er `NULL` **und** ist der Aufruf ein Dienstaufruf (JWT-Claim `role = service_role`, z. B. n8n über PostgREST), `push_config.agent_actor` mit `via_agent = true`; fehlt der → nichts. Wartungs-SQL ohne Claims (SQL-Editor, Migrationen, MCP `execute_sql`) zählt **nicht** als Agent.
+6a. Ein Bearbeiter, der nicht Besitzer oder Mitglied der Liste ist (z. B. nach Entzug der Freigabe, die eigene Aufgabe bleibt bearbeitbar), erzeugt kein Event. Der Agent ist ausgenommen.
 7. Insert in `notification_events` mit `left(text, 120)`.
 
 **RPCs** — alle `SECURITY DEFINER`, `SET search_path = public, pg_temp`, `revoke execute … from public, anon`, Grants wie angegeben.
 
 | Funktion | Grant | Verhalten |
 |---|---|---|
-| `push_abo_speichern(p_endpoint text, p_p256dh text, p_auth text, p_geraet text) returns void` | `authenticated` | Fehler, wenn `auth.uid()` null. Upsert auf `endpoint`: `user_id = auth.uid()`, Schlüssel, `geraet`, `last_seen_at = now()`. Übernimmt einen Endpoint, der vorher einem anderen Konto gehörte (Abmelden/Anmelden auf demselben Gerät). Prüft Formate wie die Check-Constraints. |
+| `push_abo_speichern(p_endpoint text, p_p256dh text, p_auth text, p_geraet text) returns void` | `authenticated` | Fehler, wenn `auth.uid()` null. Upsert auf `endpoint`: `user_id = auth.uid()`, Schlüssel, `geraet`, `last_seen_at = now()`. Übernimmt einen Endpoint, der vorher einem anderen Konto gehörte (Abmelden/Anmelden auf demselben Gerät), **nur wenn p256dh und auth identisch sind** (dasselbe Gerät liefert dasselbe Abo); sonst Fehler `42501` — der Endpoint allein genügt nicht. Prüft Formate wie die Check-Constraints. |
 | `push_abo_loeschen(p_endpoint text) returns void` | `authenticated` | Löscht das eigene Abo mit diesem Endpoint. |
 | `push_buendel_abholen(p_ruhe interval default '2 minutes', p_max interval default '10 minutes') returns jsonb` | nur `service_role` | Siehe unten. |
 | `push_abo_ergebnis(p_ok text[], p_weg text[]) returns void` | nur `service_role` | `last_ok_at = now()` für `p_ok`; löscht Abos mit Endpoint in `p_weg`. |
@@ -123,7 +124,7 @@ Regeln, in dieser Reihenfolge:
 **`push_buendel_abholen`** — atomar und doppelt-aufruf-sicher:
 
 1. `pg_try_advisory_xact_lock(hashtext('push_buendel_abholen'))`; ohne Lock → `'[]'`.
-2. Gruppen je (`list_id`, `actor_id`) bilden. **Veraltet:** jüngstes Event älter als 1 Tag → Events löschen, nicht senden. **Fällig:** jüngstes Event ≤ `now() - p_ruhe` **oder** ältestes ≤ `now() - p_max`.
+2. **Veraltet** (je Event, nicht je Gruppe): Event älter als 1 Tag → löschen, nicht senden; geschieht zuerst, damit ein altes Event weder in einer frischen Gruppe mitfährt noch sie über die Höchstwartezeit fällig macht. Danach Gruppen je (`list_id`, `actor_id`) bilden. **Fällig:** jüngstes Event ≤ `now() - p_ruhe` **oder** ältestes ≤ `now() - p_max`. Die Laufzeit ist linear in Events und Gruppen (kein quadratischer Plan; Test mit 10 000 Gruppen).
 3. Events fälliger Gruppen per `DELETE … RETURNING` abholen (Holen = Löschen; ein Fehler beim Versand verliert die Meldung, nie doppelt senden).
 4. Ergebnis (jsonb-Array, ein Element je Gruppe):
 
@@ -158,8 +159,10 @@ select net.http_post(
 where exists (select 1 from public.notification_events);
 ```
 
-- Idempotent (`cron.unschedule` des alten Jobs, falls vorhanden).
-- Vault-Secrets `push_versand_url` und `push_cron_secret` legt der Deploy an (`vault.create_secret`), nicht die Migration.
+- Idempotent (`cron.unschedule` der alten Jobs, falls vorhanden).
+- Vault-Secrets `push_versand_url` und `push_cron_secret` legt der Deploy an (`vault.create_secret`), nicht die Migration. Fehlen sie, bricht 027b mit klarer Meldung ab.
+- Zwei weitere Jobs, unabhängig vom Versandlauf: `push-aufraeumen` (stündlich, `delete from public.notification_events where created_at < now() - interval '1 day'`) und `push-protokoll-aufraeumen` (täglich, kürzt `cron.job_run_details` auf 3 Tage; sonst eine Zeile je Minute).
+- Kontrolle des HTTP-Status der Function: `select status_code, count(*) from net._http_response group by 1;` (`cron.job_run_details` zeigt nur, dass pg_net die Anfrage eingestellt hat).
 
 ### Edge Function `supabase/functions/push-versand/`
 
@@ -213,7 +216,11 @@ Secrets (Supabase Function Secrets, nie im Repo): `VAPID_PUBLIC_KEY`, `VAPID_PRI
 - Edge Function ohne JWT, aber mit zeitkonstant geprüftem Secret; Secret liegt in Function-Secrets und Vault, nie im Repo.
 - Payload ist Ende-zu-Ende verschlüsselt (aes128gcm); der Push-Dienst sieht keine Texte. Logs ohne Texte und Endpoints.
 - Trigger ist `SECURITY DEFINER` mit festem `search_path`, nicht per RPC aufrufbar.
-- Keine Bearbeitungsprotokolle über das Nötige hinaus: Events leben höchstens bis zum Versand bzw. 1 Tag.
+- Keine Bearbeitungsprotokolle über das Nötige hinaus: Events leben höchstens bis zum Versand bzw. 1 Tag (je Event erzwungen, zusätzlich stündlicher Aufräum-Job).
+
+### Bekanntes Restrisiko (Produktentscheidung offen)
+
+Empfänger sind Besitzer und **alle** Freigaben. Eine Freigabe braucht keine Zustimmung der Person (Policy aus Migration 003; die ID liefert `lookup_user_by_email`), und nur der Besitzer kann sie löschen. Damit kann ein beliebiges registriertes Konto (Registrierung ist offen) eine Liste mit frei gewähltem Titel anlegen, eine fremde Person freigeben und ihr per Aufgabentext Meldungen aufs Handy schicken, sofern sie Push eingeschaltet hat; stummschalten kann sie erst nach der ersten Meldung. Bremse sind nur die Bündelung (eine Meldung je Liste und Bearbeiter und 10 min) und die Stummschaltung. Für die Testversion mit zwei Personen vertretbar, **vor einem öffentlichen Einsatz entscheiden**: z. B. neue Freigaben starten stumm, bis die Liste einmal geöffnet wurde, plus ein Austrittsrecht für Freigegebene (Delete-Policy auf die eigene Zeile in `list_shares`) und eine Obergrenze je Empfänger und Stunde.
 
 ## Fehlerfälle
 

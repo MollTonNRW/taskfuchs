@@ -6,3 +6,7 @@
 .env.keys
 .env.local
 .env.*.local
+
+# Nur lokal: Stub fuer rls_auto_enable() (siehe Kopf der Datei). Wuerde in Produktion die echte
+# Funktion ueberschreiben (Auto-RLS fuer neue Tabellen wird ein No-op) -- nie committen.
+migrations/000_lokal_stub_*.sql

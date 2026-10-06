@@ -1141,6 +1141,12 @@ Icon-Pfade an die vorhandenen Dateien in `static/icons/` anpassen (prüfen, welc
 
 ### Task 12: Integration, Review, Deploy, Ende-zu-Ende (Orchestrator)
 
+- [ ] **Step 0: Lokale Datenbank vorbereiten** (vor `supabase test db`; ohne diese Reihenfolge ist `push_cron.test.sql` rot, weil die CLI Dateien mit Buchstabensuffix wie `027b` überspringt und `027b` die Vault-Secrets voraussetzt). Im Worktree, mit `docker exec -i supabase_db_<Projektname> psql -U postgres -v ON_ERROR_STOP=1` als `<psql>`:
+  1. Der lokale Stub `supabase/migrations/000_lokal_stub_rls_auto_enable.sql` muss vorhanden sein (gitignoriert, Sicherung in `Taskfuchs-wt/_lokal`); ohne ihn scheitert Migration 025 lokal.
+  2. `npx -y supabase@2.120.0 db reset`.
+  3. Vault-Secrets anlegen (lokal genügen Platzhalter, für den Ende-zu-Ende-Lauf die echte lokale Function-URL und das Secret): `select vault.create_secret('<url>', 'push_versand_url'); select vault.create_secret('<secret>', 'push_cron_secret');`
+  4. `<psql> < supabase/migrations/027b_push_cron.sql` (bricht ohne die Secrets ab).
+  5. `npx -y supabase@2.120.0 test db` → alle PASS (`push_cron.test.sql` ersetzt vorhandene Secrets selbst innerhalb seiner Transaktion).
 - [ ] **Step 1:** Stränge A–D in `feature/push-benachrichtigungen` mergen; volle Testläufe: `supabase test db`, `deno test`, `npm test`, `npm run check`, `npm run lint`, `npm run build`.
 - [ ] **Step 2:** Reviews: Datenbank/Security (RLS, `SECURITY DEFINER`, Grants, Trigger-Fehlertoleranz), Edge Function (Secret, Logs, Krypto), Frontend (`frontend-quality-reviewer`: CSP, Token, a11y), Gesamt (`devteam-reviewer`). P0/P1 beheben.
 - [ ] **Step 3: Deploy Produktion**, in dieser Reihenfolge:
