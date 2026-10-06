@@ -103,6 +103,20 @@ begin
     return;
   end if;
 
+  -- Eine Person, die nicht (mehr) Mitglied der Liste ist, loest nichts aus: nach dem
+  -- Entzug der Freigabe laesst sich die eigene Aufgabe weiter bearbeiten (RLS: user_id),
+  -- und der frei waehlbare Text ginge sonst als Meldung an die uebrigen Mitglieder.
+  -- Der Dienst (p_agent) ist ausgenommen, er gilt als der konfigurierte Agent-Bearbeiter.
+  if not p_agent and not exists (
+    select 1
+    from public.lists l
+    where l.id = p_list
+      and (l.user_id = p_actor
+           or exists (select 1 from public.list_shares s where s.list_id = l.id and s.user_id = p_actor))
+  ) then
+    return;
+  end if;
+
   insert into public.notification_events (list_id, actor_id, via_agent, art, task_id, task_text)
   values (p_list, p_actor, p_agent, p_art, p_task, left(coalesce(p_text, ''), 120));
 end;
@@ -118,29 +132,38 @@ declare
   v_actor uuid;
   v_agent boolean := false;
 begin
-  -- Billige Vorprüfungen ausserhalb des Ausnahmeblocks (kein Subtransaktions-Overhead
-  -- bei Massen-Updates wie Reorder oder "Einkauf fertig").
-  if tg_op = 'DELETE' then
-    if old.type = 'divider' then return null; end if;
-  else
-    if new.type = 'divider' then return null; end if;
-  end if;
-
-  if tg_op = 'UPDATE'
-     and new.done is not distinct from old.done
-     and new.text is not distinct from old.text
-     and new.note is not distinct from old.note
-     and new.due_date is not distinct from old.due_date
-     and new.assigned_to is not distinct from old.assigned_to
-     and new.priority is not distinct from old.priority
-     and new.timeframe is not distinct from old.timeframe
-     and new.list_id is not distinct from old.list_id then
-    return null;
-  end if;
-
+  -- Der ganze Rumpf liegt im Ausnahmeblock (Spec Regel 1): ein Fehler -- auch ein spaeter
+  -- entfernte tasks-Spalte in der Vorpruefung -- wird zur Warnung, nie zum gescheiterten
+  -- Schreibvorgang. Der Block kostet bei irrelevanten Massen-Updates (Reorder, "Einkauf fertig")
+  -- nur eine Subtransaktion ohne Schreibzugriff (keine XID); gemessen bei 5000 Zeilen
+  -- etwa 60-70 ms mit gegenueber 55-60 ms ohne Trigger.
   begin
+    if tg_op = 'DELETE' then
+      if old.type = 'divider' then return null; end if;
+    else
+      if new.type = 'divider' then return null; end if;
+    end if;
+
+    if tg_op = 'UPDATE'
+       and new.done is not distinct from old.done
+       and new.text is not distinct from old.text
+       and new.note is not distinct from old.note
+       and new.due_date is not distinct from old.due_date
+       and new.assigned_to is not distinct from old.assigned_to
+       and new.priority is not distinct from old.priority
+       and new.timeframe is not distinct from old.timeframe
+       and new.list_id is not distinct from old.list_id then
+      return null;
+    end if;
+
     v_actor := auth.uid();
     if v_actor is null then
+      -- Agent nur bei echtem Dienstaufruf (JWT-Claim role = service_role, z. B. n8n ueber
+      -- PostgREST). Wartungs-SQL (SQL-Editor, Migrationen, MCP) laeuft ohne Claims und
+      -- zaehlt nicht als Agent.
+      if coalesce(auth.role(), '') <> 'service_role' then
+        return null;
+      end if;
       select value::uuid into v_actor from public.push_config where key = 'agent_actor';
       if v_actor is null then
         return null;

@@ -8,7 +8,7 @@
 -- (Rolle authenticated mit sub-Claim), den Dienst (service_role) oder anon.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(144);
+select plan(150);
 
 -- ---------------------------------------------------------------------------
 -- Testpersonen (Kennungen aus Hex, damit sie als UUID gelten)
@@ -342,6 +342,11 @@ select pg_temp.als_postgres();
 select results_eq($q$select actor_id, via_agent, art, task_text from public.notification_events$q$,
   $q$values ('00000000-0000-0000-0000-0000000000a1'::uuid, true, 'neu'::text, 'Agent mit Config'::text)$q$,
   'Dienst mit agent_actor: Bearbeiter = agent_actor, via_agent = true');
+-- Wartungs-SQL (SQL-Editor, Migration, MCP) laeuft als postgres ohne JWT-Claims:
+-- das ist kein Dienstaufruf und zaehlt auch bei gesetztem agent_actor nicht als Agent
+delete from public.notification_events;
+update public.tasks set text = 'Wartung' where id = '20000000-0000-0000-0000-000000000009';
+select is(pg_temp.n_ev(), 0, 'Wartungs-SQL als postgres ohne JWT: kein Event, auch bei gesetztem agent_actor');
 delete from public.notification_events;
 select pg_temp.als('00000000-0000-0000-0000-0000000000b2');
 insert into public.tasks (id, list_id, user_id, text)
@@ -385,6 +390,33 @@ insert into public.tasks (id, list_id, user_id, text)
   values ('20000000-0000-0000-0000-00000000000c', '10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b2', 'Wieder heil');
 select pg_temp.als_postgres();
 select is(pg_temp.n_ev(null, 'neu'), 1, 'nach dem Zurueckbenennen erfasst der Trigger wieder');
+
+-- B13: Wer nicht (mehr) Mitglied der Liste ist, loest keine Meldung aus
+-- (die eigene Aufgabe laesst sich nach dem Entzug der Freigabe weiter bearbeiten)
+delete from public.notification_events;
+insert into public.list_shares (list_id, user_id, role)
+  values ('10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-0000000000c3', 'editor');
+select pg_temp.als('00000000-0000-0000-0000-0000000000c3');
+insert into public.tasks (id, list_id, user_id, text)
+  values ('20000000-0000-0000-0000-00000000000d', '10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-0000000000c3', 'Ex-Mitglied');
+select pg_temp.als_postgres();
+delete from public.notification_events;
+select pg_temp.als('00000000-0000-0000-0000-0000000000c3');
+update public.tasks set text = 'Ex-Mitglied 1' where id = '20000000-0000-0000-0000-00000000000d';
+select pg_temp.als_postgres();
+select is(pg_temp.n_ev('10000000-0000-0000-0000-000000000003', 'geaendert'), 1,
+  'Mitglied c3 aendert die eigene Aufgabe: Event "geaendert"');
+delete from public.list_shares
+  where list_id = '10000000-0000-0000-0000-000000000003' and user_id = '00000000-0000-0000-0000-0000000000c3';
+delete from public.notification_events;
+select pg_temp.als('00000000-0000-0000-0000-0000000000c3');
+update public.tasks set text = 'Ex-Mitglied 2' where id = '20000000-0000-0000-0000-00000000000d';
+select pg_temp.als_postgres();
+select is((select text from public.tasks where id = '20000000-0000-0000-0000-00000000000d'), 'Ex-Mitglied 2',
+  'Gegenprobe: die Aenderung des ehemaligen Mitglieds ging durch');
+select is(pg_temp.n_ev(), 0, 'ehemaliges Mitglied c3 aendert die eigene Aufgabe: kein Event');
+delete from public.tasks where id = '20000000-0000-0000-0000-00000000000d';
+delete from public.notification_events;
 
 -- ===========================================================================
 -- C. Rechte und RLS
@@ -714,6 +746,18 @@ select is((select count(*)::int from public.push_subscriptions where endpoint = 
   'push_abo_ergebnis: andere Abos bleiben unberuehrt');
 select pg_temp.als_service();
 select lives_ok($q$select public.push_abo_ergebnis(null, null)$q$, 'push_abo_ergebnis: NULL-Arrays sind erlaubt');
+select pg_temp.als_postgres();
+
+-- ===========================================================================
+-- F. Spaltenumbau an tasks: der Trigger darf Schreibvorgaenge nie scheitern lassen
+--    (Spec Regel 1: der ganze Rumpf liegt im Ausnahmeblock, auch die Vorpruefung)
+-- ===========================================================================
+alter table public.tasks drop column timeframe;
+select pg_temp.als('00000000-0000-0000-0000-0000000000a1');
+select lives_ok($q$update public.tasks set position = 5 where id = '20000000-0000-0000-0000-000000000001'$q$,
+  'Update gelingt, auch wenn der Trigger eine entfernte Spalte liest');
+select lives_ok($q$update public.tasks set text = 'Nach Spaltenumbau' where id = '20000000-0000-0000-0000-000000000001'$q$,
+  'relevantes Update gelingt, auch wenn der Trigger eine entfernte Spalte liest');
 select pg_temp.als_postgres();
 
 select * from finish();
