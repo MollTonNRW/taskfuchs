@@ -58,7 +58,7 @@ Rein additiv. Tabellen, RLS, Trigger, RPCs. Keine Extensions, kein Cron, keine S
 |---|---|---|
 | `id` | uuid PK | `gen_random_uuid()` |
 | `user_id` | uuid not null | FK `auth.users` on delete cascade |
-| `endpoint` | text not null **unique** | nur bekannte Push-Dienste (Host `fcm.googleapis.com`, `updates.push.services.mozilla.com`, `*.push.apple.com`, `*.notify.windows.com`), kein Port, kein Userinfo, Pfad nur aus druckbaren ASCII-Zeichen ohne Leerraum, ≤ 1000 Zeichen (Allowlist statt nur `https://`: sonst könnte jedes Konto den Versandlauf auf beliebige oder hängende Ziele lenken) |
+| `endpoint` | text not null **unique** | nur bekannte Push-Dienste (Host `fcm.googleapis.com`, `updates.push.services.mozilla.com`, `web.push.apple.com`, `*.notify.windows.com`; nur https, Port 443 oder ohne Port; dieselbe Liste prüft die Function in `webpush.ts`, Beispielliste in beiden Testwelten), kein Userinfo, Pfad nur aus druckbaren ASCII-Zeichen ohne Leerraum, ≤ 1000 Zeichen (Allowlist statt nur `https://`: sonst könnte jedes Konto den Versandlauf auf beliebige oder hängende Ziele lenken) |
 | `p256dh` | text not null | base64url ohne Padding, genau 87 Zeichen (65 Byte) |
 | `auth` | text not null | base64url ohne Padding, genau 22 Zeichen (16 Byte) |
 | `geraet` | text | ≤ 100, Anzeigename („Android · Taskfuchs-App“) |

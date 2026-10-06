@@ -8,7 +8,7 @@
 -- (Rolle authenticated mit sub-Claim), den Dienst (service_role) oder anon.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(192);
+select plan(206);
 
 -- ---------------------------------------------------------------------------
 -- Testpersonen (Kennungen aus Hex, damit sie als UUID gelten)
@@ -550,6 +550,38 @@ from (values
 ) as e(name, p, a);
 select pg_temp.als_postgres();
 delete from public.push_subscriptions where endpoint <> 'https://fcm.googleapis.com/fcm/send/ep-1';
+
+-- Endpoint-Allowlist, Beispielliste gegen den Check-Constraint (direkter Insert als postgres).
+-- Liste muss mit supabase/functions/push-versand/webpush_test.ts (ENDPOINT_BEISPIELE) uebereinstimmen:
+-- dieselben Endpoints, dieselben Urteile. Der Check (027) und oeffentlicherHttpsEndpoint (webpush.ts)
+-- muessen exakt dieselben Hosts erlauben; was die DB annimmt, muss die Function auch senden duerfen.
+create or replace function pg_temp.endpoint_erlaubt(p text) returns boolean language plpgsql as $$
+begin
+  insert into public.push_subscriptions (user_id, endpoint, p256dh, auth)
+    values ('00000000-0000-0000-0000-0000000000b2', p, pg_temp.kp(), pg_temp.ka());
+  delete from public.push_subscriptions where endpoint = p;
+  return true;
+exception when check_violation then
+  return false;
+end $$;
+select is(pg_temp.endpoint_erlaubt(e.url), e.erlaubt,
+  (case when e.erlaubt then 'Check erlaubt: ' else 'Check lehnt ab: ' end) || e.url)
+from (values
+  ('https://fcm.googleapis.com/fcm/send/abc', true),
+  ('https://fcm.googleapis.com/wp/abc', true),
+  ('https://updates.push.services.mozilla.com/wpush/v2/abc', true),
+  ('https://web.push.apple.com/abc', true),
+  ('https://wns2-db5p.notify.windows.com/w/?token=abc', true),
+  ('https://fcm.googleapis.com:443/x', true),
+  ('https://foo.push.apple.com/x', false),
+  ('http://fcm.googleapis.com/x', false),
+  ('https://fcm.googleapis.com.evil.de/x', false),
+  ('https://evil.de/x', false),
+  ('https://user@fcm.googleapis.com/x', false),
+  ('https://fcm.googleapis.com:8443/x', false),
+  ('https://notify.windows.com/x', false),
+  ('https://a..notify.windows.com/x', false)
+) as e(url, erlaubt);
 select pg_temp.als_anon();
 select pg_temp.als_anon();
 select throws_ok($q$select public.push_abo_speichern('https://fcm.googleapis.com/fcm/send/z', pg_temp.kp(), pg_temp.ka(), 'g')$q$, '42501', null, 'anon darf push_abo_speichern nicht aufrufen');

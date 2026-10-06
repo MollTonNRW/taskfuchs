@@ -153,13 +153,11 @@ Abschluss: `select * from finish(); rollback;`
 create table public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  endpoint text not null unique
-    constraint push_subscriptions_endpoint_check
-    check (endpoint like 'https://%' and length(endpoint) <= 1000),
+  endpoint text not null unique,  -- Check push_subscriptions_endpoint_check: Allowlist, siehe 027 und webpush.ts
   p256dh text not null
-    constraint push_subscriptions_p256dh_check check (length(p256dh) between 1 and 200),
+    constraint push_subscriptions_p256dh_check check (p256dh ~ '^[A-Za-z0-9_-]{87}$'),
   auth text not null
-    constraint push_subscriptions_auth_check check (length(auth) between 1 and 100),
+    constraint push_subscriptions_auth_check check (auth ~ '^[A-Za-z0-9_-]{22}$'),
   geraet text
     constraint push_subscriptions_geraet_check check (geraet is null or length(geraet) <= 100),
   created_at timestamptz not null default now(),

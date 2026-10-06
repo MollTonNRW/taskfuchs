@@ -396,6 +396,35 @@ Deno.test('senden: Abbruch über das Signal (Gesamtbudget des Laufs) beendet hä
 
 // --- Endpoint-Prüfung (SSRF-Schutz) ---------------------------------------------------------------
 
+/**
+ * Beispiele für die Allowlist, Urteil je Endpoint.
+ * Liste muss mit supabase/tests/push_benachrichtigungen.test.sql übereinstimmen (dort gegen den Check-Constraint
+ * aus Migration 027): dieselben Endpoints, dieselben Urteile. Datenbank und Function müssen exakt dieselben Hosts
+ * erlauben; was die Datenbank annimmt, muss die Function auch senden dürfen.
+ */
+const ENDPOINT_BEISPIELE: [url: string, erlaubt: boolean][] = [
+	['https://fcm.googleapis.com/fcm/send/abc', true],
+	['https://fcm.googleapis.com/wp/abc', true],
+	['https://updates.push.services.mozilla.com/wpush/v2/abc', true],
+	['https://web.push.apple.com/abc', true],
+	['https://wns2-db5p.notify.windows.com/w/?token=abc', true],
+	['https://fcm.googleapis.com:443/x', true],
+	['https://foo.push.apple.com/x', false],
+	['http://fcm.googleapis.com/x', false],
+	['https://fcm.googleapis.com.evil.de/x', false],
+	['https://evil.de/x', false],
+	['https://user@fcm.googleapis.com/x', false],
+	['https://fcm.googleapis.com:8443/x', false],
+	['https://notify.windows.com/x', false],
+	['https://a..notify.windows.com/x', false],
+];
+
+Deno.test('Endpoint-Prüfung: gemeinsame Beispielliste (identisch zum Check-Constraint der Datenbank)', () => {
+	for (const [url, erlaubt] of ENDPOINT_BEISPIELE) {
+		assertEquals(oeffentlicherHttpsEndpoint(new URL(url)), erlaubt, `${erlaubt ? 'erlaubt' : 'abgelehnt'}: ${url}`);
+	}
+});
+
 Deno.test('Endpoint-Prüfung: nur bekannte Push-Dienste auf Port 443 (Allowlist)', () => {
 	for (
 		const ok of [

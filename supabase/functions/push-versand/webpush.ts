@@ -183,16 +183,22 @@ async function vapidJwt(privateKey: CryptoKey, aud: string, sub: string): Promis
  * über FCM, Firefox, Edge/Windows (WNS), Safari. Ein Endpoint kann von jedem eingeloggten Konto frei gesetzt
  * werden und die Function schickt dorthin Daten mit gültigem VAPID-Kopf: deshalb Allowlist statt Negativfilter
  * (Trailing Dot, interne Namen, DNS auf Loopback, fremde Ports waren mit dem Negativfilter umgehbar).
+ *
+ * Liste muss mit dem Check-Constraint push_subscriptions_endpoint_check in
+ * supabase/migrations/027_push_benachrichtigungen.sql übereinstimmen (derselbe reguläre Ausdruck): was die
+ * Datenbank annimmt, muss die Function senden dürfen, und umgekehrt darf die Function nicht mehr erlauben.
+ * Beispielliste in beiden Testwelten: webpush_test.ts und supabase/tests/push_benachrichtigungen.test.sql.
  */
-const PUSH_HOSTS = ['fcm.googleapis.com', 'updates.push.services.mozilla.com', 'web.push.apple.com'];
-const PUSH_HOST_ENDUNGEN = ['.notify.windows.com'];
+const ENDPOINT_MUSTER =
+	/^https:\/\/(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|([a-z0-9-]+\.)+notify\.windows\.com)(:443)?\/[!-~]+$/;
 
-/** Nur https auf Port 443 bei einem bekannten Push-Dienst; sonst nie (SSRF-Schutz). */
+/**
+ * Nur https auf Port 443 bei einem bekannten Push-Dienst; sonst nie (SSRF-Schutz). Geprüft wird die von `URL`
+ * normalisierte Form (`href`: Host kleingeschrieben, Standardport 443 weggelassen, Prozent-Kodierung im Host aufgelöst),
+ * nicht die Eingabe — so wirken Tricks wie Trailing Dot, Großschreibung oder `%6c%6f…` nicht.
+ */
 export function oeffentlicherHttpsEndpoint(url: URL): boolean {
-	if (url.protocol !== 'https:' || url.username || url.password) return false;
-	if (url.port !== '') return false; // URL normalisiert den Standardport 443 zu ''
-	const host = url.hostname; // von URL bereits kleingeschrieben; ein Trailing Dot („host.“) passt nie
-	return PUSH_HOSTS.includes(host) || PUSH_HOST_ENDUNGEN.some((e) => host.endsWith(e) && host.length > e.length);
+	return ENDPOINT_MUSTER.test(url.href);
 }
 
 // --- Versand ----------------------------------------------------------------------------------

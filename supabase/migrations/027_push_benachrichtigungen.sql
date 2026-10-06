@@ -17,16 +17,9 @@
 create table if not exists public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  -- Nur bekannte Push-Dienste (Allowlist): schliesst IP-Literale, localhost, interne Hostnamen,
-  -- Userinfo-Tricks (host@evil), Ports, Leer- und Steuerzeichen aus. Sonst koennte jedes Konto
-  -- den Versandlauf auf beliebige oder haengende Ziele lenken (SSRF, Zeitueberschreitung).
-  -- Abweichung von der Spec ("beginnt mit https://"), dort nachgetragen.
-  endpoint text not null unique
-    constraint push_subscriptions_endpoint_check
-    check (
-      length(endpoint) <= 1000
-      and endpoint ~ '^https://(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|[a-z0-9.-]+\.push\.apple\.com|[a-z0-9.-]+\.notify\.windows\.com)/[!-~]+$'
-    ),
+  -- Check siehe unten (push_subscriptions_endpoint_check): getrennt angelegt, damit eine Aenderung der
+  -- Allowlist auch bei wiederholtem Einspielen auf eine vorhandene Tabelle wirkt.
+  endpoint text not null unique,
   -- base64url ohne Padding: p256dh = 65 Byte (87 Zeichen), auth = 16 Byte (22 Zeichen)
   p256dh text not null
     constraint push_subscriptions_p256dh_check check (p256dh ~ '^[A-Za-z0-9_-]{87}$'),
@@ -39,6 +32,21 @@ create table if not exists public.push_subscriptions (
   last_ok_at timestamptz
 );
 create index if not exists push_subscriptions_user_idx on public.push_subscriptions (user_id);
+
+-- Nur bekannte Push-Dienste (Allowlist): schliesst IP-Literale, localhost, interne Hostnamen,
+-- Userinfo-Tricks (host@evil), fremde Ports, Leer- und Steuerzeichen aus. Sonst koennte jedes Konto
+-- den Versandlauf auf beliebige oder haengende Ziele lenken (SSRF, Zeitueberschreitung).
+-- Erlaubt: https, Port 443 oder ohne Port, Hosts fcm.googleapis.com, updates.push.services.mozilla.com,
+-- web.push.apple.com und beliebige Unterdomains von notify.windows.com (WNS).
+-- Liste muss mit supabase/functions/push-versand/webpush.ts (ENDPOINT_MUSTER) uebereinstimmen; Beispielliste
+-- in supabase/tests/push_benachrichtigungen.test.sql und supabase/functions/push-versand/webpush_test.ts.
+-- Abweichung von der Spec ("beginnt mit https://"), dort nachgetragen.
+alter table public.push_subscriptions drop constraint if exists push_subscriptions_endpoint_check;
+alter table public.push_subscriptions add constraint push_subscriptions_endpoint_check
+  check (
+    length(endpoint) <= 1000
+    and endpoint ~ '^https://(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|([a-z0-9-]+\.)+notify\.windows\.com)(:443)?/[!-~]+$'
+  );
 
 create table if not exists public.list_notification_mutes (
   user_id uuid not null references auth.users(id) on delete cascade,
