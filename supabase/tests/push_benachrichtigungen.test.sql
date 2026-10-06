@@ -8,7 +8,7 @@
 -- (Rolle authenticated mit sub-Claim), den Dienst (service_role) oder anon.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(191);
+select plan(192);
 
 -- ---------------------------------------------------------------------------
 -- Testpersonen (Kennungen aus Hex, damit sie als UUID gelten)
@@ -901,6 +901,13 @@ select lives_ok($q$update public.tasks set position = 5 where id = '20000000-000
 select lives_ok($q$update public.tasks set text = 'Nach Spaltenumbau' where id = '20000000-0000-0000-0000-000000000001'$q$,
   'relevantes Update gelingt, auch wenn der Trigger eine entfernte Spalte liest');
 select pg_temp.als_postgres();
+
+-- Abnahme 06.10.: ohne force_custom_plan wird die Bündel-RPC nach 5 Aufrufen je Verbindung quadratisch.
+select ok(
+  (select array_to_string(proconfig, ',') from pg_proc
+   where oid = 'public.push_buendel_abholen(interval, interval)'::regprocedure) like '%plan_cache_mode=force_custom_plan%',
+  'push_buendel_abholen erzwingt Custom-Plans (plan_cache_mode)'
+);
 
 select * from finish();
 rollback;

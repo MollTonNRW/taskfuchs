@@ -295,6 +295,10 @@ create or replace function public.push_buendel_abholen(
 language plpgsql
 security definer
 set search_path = public, pg_temp
+-- Immer Custom-Plan: Nach 5 Aufrufen in derselben Verbindung (PostgREST-Pool, Cron jede
+-- Minute) wechselt plpgsql sonst auf einen generischen Plan, der in der Gruppenzahl
+-- quadratisch wird (Abnahme 06.10.: 10 000 Gruppen 12 s statt < 1 s).
+set plan_cache_mode = force_custom_plan
 as $$
 declare
   v_ergebnis jsonb;
