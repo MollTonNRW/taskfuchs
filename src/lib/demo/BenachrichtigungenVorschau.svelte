@@ -8,6 +8,9 @@
 	import { geteilteListen } from '$lib/push/seite';
 	import { DEMO_FREIGABEN, DEMO_ICH, DEMO_LISTEN } from '$lib/demo/fixtures';
 
+	/** Pfad der Seite davor — von der Route (`afterNavigate`), siehe `vorschau/benachrichtigungen/+page.svelte`. */
+	let { vonPfad = null }: { vonPfad?: string | null } = $props();
+
 	/**
 	 * Inhalt der Dev-Vorschau von „Benachrichtigungen" — dieselbe Seitenkomponente
 	 * wie `/app/benachrichtigungen`, aber mit Demodaten und einer ersetzten
@@ -86,5 +89,13 @@
 </script>
 
 <TfRoot>
-	<BenachrichtigungenSeite supabase={attrappe} benutzerId={DEMO_ICH.id} {listen} {stummIds} {umgebung} />
+	<BenachrichtigungenSeite
+		supabase={attrappe}
+		benutzerId={DEMO_ICH.id}
+		{listen}
+		{stummIds}
+		{umgebung}
+		appPfad="/vorschau"
+		{vonPfad}
+	/>
 </TfRoot>

@@ -10,7 +10,7 @@
 		type PushStatus,
 		type PushUmgebung
 	} from '$lib/push/abo';
-	import { beiRueckkehr, setzeStumm, statusText } from '$lib/push/seite';
+	import { beiRueckkehr, setzeStumm, statusText, zurueckWeg } from '$lib/push/seite';
 	import { toasts } from '$lib/stores/toast';
 	import Icon from '$lib/components/tf/Icon.svelte';
 	import ToastContainer from '$lib/components/tf/ToastContainer.svelte';
@@ -34,7 +34,9 @@
 		benutzerId,
 		listen,
 		stummIds,
-		umgebung = browserUmgebung()
+		umgebung = browserUmgebung(),
+		appPfad = '/app',
+		vonPfad = null
 	}: {
 		supabase: SupabaseClient;
 		benutzerId: string | null;
@@ -43,6 +45,14 @@
 		/** Listen, die diese Person stummgeschaltet hat. */
 		stummIds: string[];
 		umgebung?: PushUmgebung;
+		/** Ziel des Zurück-Pfeils; die Dev-Vorschau liegt nicht unter `/app`. */
+		appPfad?: string;
+		/**
+		 * Pfad der Seite davor (`afterNavigate` der Route), `null` bei direktem Aufruf.
+		 * Kommt von der Route, nicht aus der Komponente: `afterNavigate` ruft nur
+		 * Komponenten auf, die während der Navigation mounten.
+		 */
+		vonPfad?: string | null;
 	} = $props();
 
 	/** `null`: der Status wird noch ermittelt. */
@@ -61,6 +71,16 @@
 		if (beschaeftigt) return;
 		const gelesen = await pushStatus(umgebung);
 		if (!beschaeftigt) status = gelesen;
+	}
+
+	/** Die App liegt direkt davor im Verlauf: der Pfeil geht dann zurück, statt einen Eintrag zu legen. */
+	let kamAusDerApp = $derived(zurueckWeg(vonPfad, appPfad) === 'verlauf');
+
+	function zurueck(e: MouseEvent) {
+		// Strg/Cmd/Umschalt-Klick (neuer Tab) bleibt ein gewöhnlicher Link.
+		if (!kamAusDerApp || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+		e.preventDefault();
+		history.back();
 	}
 
 	onMount(() => {
@@ -120,7 +140,7 @@
 
 <main class="tf-bn">
 	<header class="tf-bn-kopf">
-		<a class="tf-ib gross" href="/app" aria-label="Zurück zur App">
+		<a class="tf-ib gross" href={appPfad} aria-label="Zurück zur App" onclick={zurueck}>
 			<Icon name="chevron-links" size={24} />
 		</a>
 		<h1>Benachrichtigungen</h1>

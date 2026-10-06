@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { beiRueckkehr, geteilteListen, setzeStumm, statusText } from './seite';
+import { beiRueckkehr, geteilteListen, setzeStumm, statusText, vonPfadAus, zurueckWeg } from './seite';
 
 const ICH = 'ich';
 const ANNA = 'anna';
@@ -172,5 +172,49 @@ describe('beiRueckkehr', () => {
 		wechsel('hidden');
 		wechsel('visible');
 		expect(aktualisieren).not.toHaveBeenCalled();
+	});
+});
+
+describe('zurueckWeg', () => {
+	it('geht im Verlauf zurueck, wenn man aus der App kam (sonst entstuende die Schleife /app, Seite, /app)', () => {
+		expect(zurueckWeg('/app', '/app')).toBe('verlauf');
+	});
+
+	it('navigiert zur App, wenn die Seite direkt geoeffnet wurde (kein Vorgaenger)', () => {
+		expect(zurueckWeg(null, '/app')).toBe('app');
+		expect(zurueckWeg(undefined, '/app')).toBe('app');
+	});
+
+	it('navigiert zur App, wenn man von einer anderen Seite kam', () => {
+		expect(zurueckWeg('/app/g2-koppeln', '/app')).toBe('app');
+		expect(zurueckWeg('/auth/login', '/app')).toBe('app');
+	});
+
+	it('vergleicht den ganzen Pfad, nicht den Anfang', () => {
+		expect(zurueckWeg('/application', '/app')).toBe('app');
+		expect(zurueckWeg('/app/', '/app')).toBe('app');
+	});
+
+	it('nimmt den Pfad der App als Parameter (die Vorschau liegt unter /vorschau)', () => {
+		expect(zurueckWeg('/vorschau', '/vorschau')).toBe('verlauf');
+		expect(zurueckWeg('/app', '/vorschau')).toBe('app');
+	});
+});
+
+describe('vonPfadAus', () => {
+	it('liest den Pfad der Seite davor', () => {
+		expect(vonPfadAus({ from: { url: new URL('https://a.de/app?liste=x#y') } })).toBe('/app');
+	});
+
+	it('liefert null bei direktem Aufruf (kein from)', () => {
+		expect(vonPfadAus({ from: null })).toBeNull();
+	});
+
+	// SvelteKit ruft afterNavigate beim Direktaufruf einer Seite mit `ssr = false` mit
+	// einem `from` auf, dessen `url` noch leer ist. Ein Wurf liefe durch die ganze
+	// Callback-Liste und risse auch fremde afterNavigate-Callbacks mit.
+	it('wirft nicht, wenn from existiert, aber url leer ist', () => {
+		expect(vonPfadAus({ from: { url: null } })).toBeNull();
+		expect(vonPfadAus({ from: { url: undefined } })).toBeNull();
 	});
 });

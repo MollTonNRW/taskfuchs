@@ -86,3 +86,28 @@ export function beiRueckkehr(
 	dokument.addEventListener('visibilitychange', beiSichtbarkeit);
 	return () => dokument.removeEventListener('visibilitychange', beiSichtbarkeit);
 }
+
+/**
+ * Wohin der Zurück-Pfeil der Seite führt.
+ *
+ * Kam man aus der App (`/app`), liegt sie schon im Verlauf: ein Link auf `/app`
+ * legte einen neuen Eintrag an (`/app`, Seite, `/app`), und die Zurück-Taste von
+ * Android führte danach wieder auf diese Seite statt aus der App. Dann also
+ * einen Schritt im Verlauf zurück (`'verlauf'`). Bei direktem Aufruf oder
+ * Herkunft von anderswo ist der Link richtig (`'app'`).
+ *
+ * @param vonPfad Pfad der Seite davor (`navigation.from?.url.pathname`), sonst `null`
+ * @param appPfad Pfad der App (Standard `/app`; die Dev-Vorschau liegt woanders)
+ */
+export function zurueckWeg(vonPfad: string | null | undefined, appPfad: string): 'verlauf' | 'app' {
+	return vonPfad === appPfad ? 'verlauf' : 'app';
+}
+
+/**
+ * Pfad der Seite davor aus dem Argument von `afterNavigate`; `null`, wenn es keinen gibt.
+ * Wirft nie: bei einem Direktaufruf einer Seite mit `ssr = false` ruft SvelteKit den
+ * Callback mit einem `from` auf, dessen `url` noch leer ist.
+ */
+export function vonPfadAus(nav: { from: { url?: { pathname: string } | null } | null }): string | null {
+	return nav.from?.url?.pathname ?? null;
+}
