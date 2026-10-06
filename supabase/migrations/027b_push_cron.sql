@@ -13,6 +13,9 @@
 --                              (Function nicht erreichbar, Secret falsch: Aufgabentexte bleiben nicht liegen)
 --   push-protokoll-aufraeumen  täglich: kürzt cron.job_run_details (sonst eine Zeile je Minute, ca. 300 MB/Jahr)
 --
+-- Timeout 70 s: die Function hat ein Gesamtbudget von 60 s je Lauf (lauf.ts, STANDARD_BUDGET_MS) und
+-- antwortet danach noch mit dem Bericht; pg_net soll nicht vorher aufgeben und die Antwort verwerfen.
+--
 -- Betrieb: cron.job_run_details zeigt "succeeded", sobald pg_net die Anfrage eingestellt hat;
 -- den HTTP-Status der Function zeigt: select status_code, count(*) from net._http_response group by 1;
 do $$
@@ -40,7 +43,7 @@ select cron.schedule(
       'content-type', 'application/json',
       'x-push-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'push_cron_secret')),
     body := '{}'::jsonb,
-    timeout_milliseconds := 10000)
+    timeout_milliseconds := 70000)
   where exists (select 1 from public.notification_events);
   $cron$
 );

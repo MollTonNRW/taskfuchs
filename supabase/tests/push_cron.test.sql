@@ -37,8 +37,8 @@ select is((select command like '%vault.decrypted_secrets%push_versand_url%' from
   'URL kommt aus dem Vault (push_versand_url)');
 select is((select command like '%vault.decrypted_secrets%push_cron_secret%' from cron.job where jobname = 'push-versand'), true,
   'Secret kommt aus dem Vault (push_cron_secret)');
-select is((select command like '%timeout_milliseconds := 10000%' from cron.job where jobname = 'push-versand'), true,
-  'Timeout 10 s');
+select is((select command like '%timeout_milliseconds := 70000%' from cron.job where jobname = 'push-versand'), true,
+  'Timeout 70 s (Function-Gesamtbudget 60 s + Puffer)');
 select is((select command !~* 'https?://' from cron.job where jobname = 'push-versand'), true,
   'im Kommando steht keine feste URL (nur Vault)');
 
@@ -91,7 +91,7 @@ select is((select method::text from net.http_request_queue), 'POST', 'Methode PO
 select is((select headers ->> 'x-push-secret' from net.http_request_queue), 'test-secret-fiktiv',
   'Header x-push-secret traegt das Secret aus dem Vault');
 select is((select headers ->> 'content-type' from net.http_request_queue), 'application/json', 'Header content-type');
-select is((select timeout_milliseconds from net.http_request_queue), 10000, 'Timeout 10000 ms');
+select is((select timeout_milliseconds from net.http_request_queue), 70000, 'Timeout 70000 ms');
 
 -- ---------------------------------------------------------------------------
 -- Aufraeum-Jobs: laufen unabhaengig vom Versandlauf (Function nicht erreichbar, Secret falsch)

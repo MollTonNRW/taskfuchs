@@ -544,7 +544,7 @@ select cron.schedule(
       'content-type', 'application/json',
       'x-push-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'push_cron_secret')),
     body := '{}'::jsonb,
-    timeout_milliseconds := 10000)
+    timeout_milliseconds := 70000)  -- Function-Gesamtbudget 60 s (lauf.ts) + Puffer
   where exists (select 1 from public.notification_events);
   $cron$
 );
