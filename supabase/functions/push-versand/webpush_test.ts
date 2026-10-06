@@ -167,17 +167,19 @@ Deno.test('verschluesseln: ungültige Abo-Schlüssel und zu große Payloads werd
 		'Abo-Schlüssel',
 	);
 	await assertRejects(() => verschluesseln(klar, p256dh, auth.slice(0, 15)), Error, 'Auth-Secret');
-	await assertRejects(() => verschluesseln(new Uint8Array(4080), p256dh, auth), Error, 'zu groß');
-	// Grenzfall: größte passende Payload (4096 - 17 Byte) geht durch und ist entschlüsselbar
-	const gross = new Uint8Array(4079).fill(0x61);
+	// RFC 8291 §4: Push-Dienste garantieren nur 4096 Byte Body; Kopf (86) + Delimiter (1) + Tag (16) lassen 3993 Byte Klartext
+	await assertRejects(() => verschluesseln(new Uint8Array(3994), p256dh, auth), Error, 'zu groß');
+	// Grenzfall: größte zulässige Payload (3993 Byte) ergibt genau 4096 Byte Body und ist entschlüsselbar
+	const gross = new Uint8Array(3993).fill(0x61);
 	const empf = neuerEmpfaenger('https://push.example.test/x');
 	const body = await verschluesseln(gross, decodeBase64Url(empf.abo.p256dh), decodeBase64Url(empf.abo.auth));
+	assertEquals(body.length, 4096);
 	const klarGross = ece.decrypt(Buffer.from(body), {
 		version: 'aes128gcm',
 		privateKey: empf.ecdh,
 		authSecret: empf.abo.auth,
 	});
-	assertEquals(klarGross.length, 4079);
+	assertEquals(klarGross.length, 3993);
 	assert((await absenderSchluesselErzeugen()).publicRaw.length === 65);
 });
 

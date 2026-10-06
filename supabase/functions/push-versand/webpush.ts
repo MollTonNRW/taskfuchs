@@ -44,6 +44,10 @@ const TTL_SEKUNDEN = 21600;
 const STANDARD_FRIST_MS = 10_000;
 const VAPID_GUELTIGKEIT_S = 12 * 3600; // RFC 8292: höchstens 24 h
 const RECORD_SIZE = 4096;
+const KOPF_BYTES = 21 + 65; // salt(16) + rs(4) + idlen(1) + keyid (Absender-Schlüssel, 65)
+const TAG_UND_DELIMITER = 16 + 1;
+/** RFC 8291 §4: Push-Dienste garantieren nur 4096 Byte Body; größter Klartext damit 4096 - 86 - 17 = 3993. */
+const MAX_KLARTEXT = 4096 - KOPF_BYTES - TAG_UND_DELIMITER;
 const ZEITUEBERSCHREITUNG = 'Zeitüberschreitung';
 const enc = new TextEncoder();
 
@@ -92,7 +96,7 @@ export async function verschluesseln(
 ): Promise<Bytes> {
 	if (p256dh.length !== 65 || p256dh[0] !== 0x04) throw new Error('Abo-Schlüssel ungültig');
 	if (auth.length !== 16) throw new Error('Abo-Auth-Secret ungültig');
-	if (klartext.length > RECORD_SIZE - 17) throw new Error('Payload zu groß');
+	if (klartext.length > MAX_KLARTEXT) throw new Error('Payload zu groß');
 
 	const as = absender ?? (await absenderSchluesselErzeugen());
 	const saltBytes = salt ?? crypto.getRandomValues(new Uint8Array(16));
