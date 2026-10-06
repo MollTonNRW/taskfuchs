@@ -293,3 +293,20 @@ Deno.test('Ereignis mit Text null (kaputte Daten) lässt den Lauf nicht scheiter
 	assertEquals(bericht, { buendel: 2, gesendet: 2, fehler: 0, entfernt: 0 });
 	assertEquals(JSON.parse(f.gesendet[1].payload).text, 'Annabelle hat eine Aufgabe hinzugefügt');
 });
+
+Deno.test('scheitert ergebnis() nach dem Versand, sind die Zähler trotzdem geloggt (und der Fehler wird weitergereicht)', async () => {
+	const f = fake(
+		[buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2)] }] })],
+		(ep) => ep === abo(2).endpoint ? 500 : 201,
+	);
+	await assertRejects(
+		() => lauf({ ...f.deps, ergebnis: () => Promise.reject(new Error('ergebnis: Netzfehler')) }),
+		Error,
+		'ergebnis: Netzfehler',
+	);
+	assertEquals(f.gesendet.length, 2);
+	assertEquals(f.logs, [
+		'push-versand: 1 Bündel, 1 gesendet, 1 Fehler, 0 entfernt',
+		'push-versand: Fehler nach Status: 500 ×1',
+	]);
+});

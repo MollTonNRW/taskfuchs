@@ -4,7 +4,7 @@
 // SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY stellt Supabase bereit.
 // Tests: `deno task test` im Function-Ordner (der Mock-Push-Dienst braucht Net-/Env-Rechte; reines `deno test` fragt danach).
 import { createClient } from '@supabase/supabase-js';
-import type { Buendel } from './typen.ts';
+import { rpcAbhaengigkeiten } from './db.ts';
 import { erstelleHandler } from './handler.ts';
 import { senderErstellen } from './webpush.ts';
 
@@ -27,15 +27,7 @@ Deno.serve(erstelleHandler({
 			subject: Deno.env.get('VAPID_SUBJECT') || 'https://taskfuchs.molltoncreative.de',
 		});
 		return {
-			abholen: async () => {
-				const { data, error } = await sb.rpc('push_buendel_abholen');
-				if (error) throw new Error(`abholen: ${error.code ?? 'fehlgeschlagen'}`);
-				return (data ?? []) as Buendel[];
-			},
-			ergebnis: async (ok, weg) => {
-				const { error } = await sb.rpc('push_abo_ergebnis', { p_ok: ok, p_weg: weg });
-				if (error) throw new Error(`ergebnis: ${error.code ?? 'fehlgeschlagen'}`);
-			},
+			...rpcAbhaengigkeiten(sb),
 			sender,
 			log: (msg) => console.log(msg),
 		};

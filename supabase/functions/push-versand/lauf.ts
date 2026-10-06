@@ -97,8 +97,6 @@ export async function lauf(d: Abhaengigkeiten, parallel: number = STANDARD_PARAL
 	for (const endpoint of weg) ok.delete(endpoint);
 	bericht.entfernt = weg.size;
 
-	if (ok.size > 0 || weg.size > 0) await d.ergebnis([...ok], [...weg]);
-
 	d.log(
 		`push-versand: ${bericht.buendel} Bündel, ${bericht.gesendet} gesendet, ${bericht.fehler} Fehler, ${bericht.entfernt} entfernt`,
 	);
@@ -107,5 +105,8 @@ export async function lauf(d: Abhaengigkeiten, parallel: number = STANDARD_PARAL
 			.map(([schluessel, anzahl]) => `${schluessel} ×${anzahl}`);
 		d.log(`push-versand: Fehler nach Status: ${teile.join(', ')}`);
 	}
+
+	// Erst loggen, dann melden: scheitert das Melden, sind die Zähler der schon versendeten Meldungen trotzdem im Log.
+	if (ok.size > 0 || weg.size > 0) await d.ergebnis([...ok], [...weg]);
 	return bericht;
 }
