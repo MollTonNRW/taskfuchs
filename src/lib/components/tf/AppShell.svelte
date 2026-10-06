@@ -46,6 +46,7 @@
 	import { theme } from '$lib/stores/tf/theme.svelte';
 	import { getProfilesByIds } from '$lib/services/supabase-crud';
 	import { abgleichen } from '$lib/push/abo';
+	import { listeAusUrl } from '$lib/utils/deeplink';
 	import { baueAusProfil, initialeAus, type Mitnutzer } from '$lib/utils/mitnutzer';
 	import type { VerlaufAnbindung } from '$lib/components/tf/TaskHistory.svelte';
 
@@ -87,7 +88,7 @@
 		resolveInput,
 		showInputDialog
 	} from '$lib/stores/toast';
-	import { pushState } from '$app/navigation';
+	import { pushState, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 
 	type List = Database['public']['Tables']['lists']['Row'];
@@ -147,6 +148,36 @@
 		}
 	});
 
+	/**
+	 * Deep Link `/app?liste=<id>` — das Ziel einer Push-Benachrichtigung.
+	 * Oeffnet die Liste (mobil: Tab „Listen", Unterschirm Liste) und nimmt den
+	 * Parameter danach aus der Adresse, damit ein Neuladen nicht erneut dorthin
+	 * springt. Eine unbekannte oder fremde ID ergibt den normalen Start; der
+	 * Parameter verschwindet trotzdem. Ist der Wert keine UUID, bleibt die
+	 * Adresse unberuehrt.
+	 *
+	 * Erst im naechsten Takt: bis dahin laeuft die Hydrierung, und
+	 * `replaceState` wie das `pushState` des Zurueck-Waechters werfen im
+	 * Dev-Modus, solange der SvelteKit-Router nicht gestartet ist.
+	 */
+	function deepLinkAnwenden(listIds: string[]) {
+		const id = listeAusUrl(untrack(() => page.url.search));
+		if (!id) return;
+		setTimeout(() => {
+			try {
+				const url = new URL(page.url);
+				url.searchParams.delete('liste');
+				replaceState(url, page.state);
+			} catch {
+				/* Router noch nicht bereit — die Adresse behaelt den Parameter, mehr nicht */
+			}
+			if (listIds.includes(id)) {
+				nav.setTab('listen');
+				nav.selectList(id);
+			}
+		}, 0);
+	}
+
 	// Initialize store in $effect (runs during hydration before onMount)
 	let storeReady = $state(false);
 	$effect(() => {
@@ -159,7 +190,9 @@
 			const uid = benutzerId;
 			untrack(() => historie.init(sb, uid));
 			// Gespeicherte Listenauswahl gegen die geladenen Listen pruefen
-			nav.hydrate(startListen.map((l: List) => l.id));
+			const listenIds = startListen.map((l: List) => l.id);
+			nav.hydrate(listenIds);
+			if (!vorschau) deepLinkAnwenden(listenIds);
 			storeReady = true;
 		}
 	});
