@@ -371,6 +371,27 @@ Deno.test('senden: Zeitüberschreitung wirft', async () => {
 	}
 });
 
+Deno.test('senden: Abbruch über das Signal (Gesamtbudget des Laufs) beendet hängende Sendungen sofort', async () => {
+	const mock = mockPushDienst(201, true);
+	try {
+		const sender = await testSender({ timeoutMs: 10_000 }); // eigene Frist wäre viel länger als der Abbruch
+		const { abo } = neuerEmpfaenger(mock.endpoint);
+		const ac = new AbortController();
+		setTimeout(() => ac.abort(), 50);
+		const start = performance.now();
+		await assertRejects(() => sender.senden(abo, 'x', ac.signal), Error, 'Zeitüberschreitung');
+		assert(performance.now() - start < 1000, 'Abbruch muss sofort greifen, nicht erst nach der Frist');
+		// bereits abgebrochenes Signal: es geht gar nichts mehr hinaus
+		const schon = new AbortController();
+		schon.abort();
+		const vorher = mock.aufgenommen.length;
+		await assertRejects(() => sender.senden(abo, 'x', schon.signal), Error, 'Zeitüberschreitung');
+		assertEquals(mock.aufgenommen.length, vorher);
+	} finally {
+		await mock.schliessen();
+	}
+});
+
 // --- Endpoint-Prüfung (SSRF-Schutz) ---------------------------------------------------------------
 
 Deno.test('Endpoint-Prüfung: nur bekannte Push-Dienste auf Port 443 (Allowlist)', () => {

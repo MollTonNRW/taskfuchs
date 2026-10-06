@@ -28,6 +28,13 @@ interface Auftrag {
 }
 
 const STANDARD_PARALLEL = 6;
+/**
+ * Gesamtbudget je Lauf. Die Ereignisse sind beim Abholen schon gelöscht; hängende Push-Endpoints dürfen den Lauf
+ * deshalb nicht bis ans Plattform-Limit der Edge Function treiben, sonst gingen Ergebnis-Meldung und Log verloren.
+ */
+const STANDARD_BUDGET_MS = 60_000;
+/** Sicherheitsgrenze: ein Konto mit sehr vielen (Fake-)Abos darf den gemeinsamen Pool nicht belegen. */
+const MAX_ABOS_JE_EMPFAENGER = 10;
 
 /** Führt `fn` für alle Elemente aus, höchstens `n` gleichzeitig. `fn` darf nicht werfen. */
 async function begrenztParallel<T>(items: T[], n: number, fn: (item: T) => Promise<void>): Promise<void> {
@@ -46,14 +53,18 @@ function schluesselOrdnung(a: string, b: string): number {
 	return Number.isNaN(na) ? a.localeCompare(b) : na - nb;
 }
 
-export async function lauf(d: Abhaengigkeiten, parallel: number = STANDARD_PARALLEL): Promise<Bericht> {
+export async function lauf(
+	d: Abhaengigkeiten,
+	parallel: number = STANDARD_PARALLEL,
+	budgetMs: number = STANDARD_BUDGET_MS,
+): Promise<Bericht> {
 	const buendel = await d.abholen();
 	const bericht: Bericht = { buendel: buendel.length, gesendet: 0, fehler: 0, entfernt: 0 };
 	if (buendel.length === 0) return bericht;
 
 	const ok = new Set<string>();
 	const weg = new Set<string>();
-	const fehlerStatus = new Map<string, number>(); // Schlüssel: HTTP-Status oder "netz"/"endpoint"/"bündel"
+	const fehlerStatus = new Map<string, number>(); // Schlüssel: HTTP-Status oder "netz"/"zeit"/"endpoint"/"bündel"
 	const fehlerZaehlen = (schluessel: string) => {
 		bericht.fehler += 1;
 		fehlerStatus.set(schluessel, (fehlerStatus.get(schluessel) ?? 0) + 1);
@@ -68,7 +79,7 @@ export async function lauf(d: Abhaengigkeiten, parallel: number = STANDARD_PARAL
 			const payload = JSON.stringify(nachricht);
 			const neue: Auftrag[] = [];
 			for (const empfaenger of b.empfaenger ?? []) {
-				for (const abo of empfaenger.abos ?? []) neue.push({ abo, payload });
+				for (const abo of (empfaenger.abos ?? []).slice(0, MAX_ABOS_JE_EMPFAENGER)) neue.push({ abo, payload });
 			}
 			auftraege.push(...neue);
 		} catch {
@@ -76,23 +87,44 @@ export async function lauf(d: Abhaengigkeiten, parallel: number = STANDARD_PARAL
 		}
 	}
 
-	await begrenztParallel(auftraege, parallel, async ({ abo, payload }) => {
-		try {
-			const status = await d.sender.senden(abo, payload);
-			const ergebnis = klassifizieren(status);
-			if (ergebnis === 'ok') {
-				bericht.gesendet += 1;
-				ok.add(abo.endpoint);
-			} else if (ergebnis === 'weg') {
-				weg.add(abo.endpoint);
-			} else {
-				fehlerZaehlen(String(status));
-			}
-		} catch (e) {
-			// Nur die neutralen Meldungen des Senders unterscheiden; alles andere ist ein Netzfehler.
-			fehlerZaehlen(e instanceof Error && e.message === 'Endpoint nicht erlaubt' ? 'endpoint' : 'netz');
-		}
+	// Nach Ablauf des Budgets wird nichts Neues mehr gestartet und Laufendes abgebrochen. Zusätzlich wird jede
+	// Sendung gegen den Ablauf "gerannt", damit auch ein Sender ohne Signal-Unterstützung den Lauf nicht festhält.
+	const abbruch = new AbortController();
+	const timer = setTimeout(() => abbruch.abort(), budgetMs);
+	const budgetAbgelaufen = new Promise<never>((_, reject) => {
+		abbruch.signal.addEventListener('abort', () => reject(new Error('Zeitbudget')), { once: true });
 	});
+	budgetAbgelaufen.catch(() => {}); // läuft das Budget nie ab, bleibt das Promise offen; sonst kein "unhandled rejection"
+
+	try {
+		await begrenztParallel(auftraege, parallel, async ({ abo, payload }) => {
+			if (abbruch.signal.aborted) return fehlerZaehlen('zeit');
+			try {
+				const status = await Promise.race([d.sender.senden(abo, payload, abbruch.signal), budgetAbgelaufen]);
+				const ergebnis = klassifizieren(status);
+				if (ergebnis === 'ok') {
+					bericht.gesendet += 1;
+					ok.add(abo.endpoint);
+				} else if (ergebnis === 'weg') {
+					weg.add(abo.endpoint);
+				} else {
+					fehlerZaehlen(String(status));
+				}
+			} catch (e) {
+				// Nur die neutralen Meldungen des Senders unterscheiden; alles andere ist ein Netzfehler.
+				const meldung = e instanceof Error ? e.message : '';
+				fehlerZaehlen(
+					meldung === 'Endpoint nicht erlaubt'
+						? 'endpoint'
+						: abbruch.signal.aborted || meldung === 'Zeitüberschreitung'
+						? 'zeit'
+						: 'netz',
+				);
+			}
+		});
+	} finally {
+		clearTimeout(timer);
+	}
 
 	// Ein Abo, das irgendwo als „weg“ gemeldet wurde, wird nicht zusätzlich als „ok“ markiert.
 	for (const endpoint of weg) ok.delete(endpoint);

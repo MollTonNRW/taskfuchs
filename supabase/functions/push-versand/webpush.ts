@@ -25,10 +25,10 @@ export function klassifizieren(status: number): Ergebnis {
 
 export interface Sender {
 	/**
-	 * Liefert den HTTP-Status des Push-Dienstes; wirft bei Netzfehler, Zeitüberschreitung oder
-	 * unzulässigem Endpoint. Fehlermeldungen enthalten nie den Endpoint.
+	 * Liefert den HTTP-Status des Push-Dienstes; wirft bei Netzfehler, Zeitüberschreitung, Abbruch über `signal`
+	 * (Gesamtbudget des Laufs) oder unzulässigem Endpoint. Fehlermeldungen enthalten nie den Endpoint.
 	 */
-	senden(abo: Abo, payload: string): Promise<number>;
+	senden(abo: Abo, payload: string, signal?: AbortSignal): Promise<number>;
 }
 
 export interface SenderConfig {
@@ -199,7 +199,7 @@ export async function senderErstellen(cfg: SenderConfig): Promise<Sender> {
 	const endpointErlaubt = cfg.endpointPruefung ?? oeffentlicherHttpsEndpoint;
 
 	return {
-		async senden(abo, payload) {
+		async senden(abo, payload, signal) {
 			try {
 				let url: URL;
 				try {
@@ -225,14 +225,16 @@ export async function senderErstellen(cfg: SenderConfig): Promise<Sender> {
 					},
 					body,
 					redirect: 'manual', // Push-Dienste leiten nicht um; nie einem Redirect auf andere Hosts folgen
-					signal: AbortSignal.timeout(frist),
+					signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(frist)]) : AbortSignal.timeout(frist),
 				});
 				await res.body?.cancel();
 				return res.status;
 			} catch (e) {
 				// Originalfehler (z. B. von fetch) nennen den Endpoint → nur neutrale Meldungen nach außen.
 				if (e instanceof Error && e.message === 'Endpoint nicht erlaubt') throw new Error(e.message);
-				if (e instanceof DOMException && e.name === 'TimeoutError') throw new Error(ZEITUEBERSCHREITUNG);
+				if (e instanceof DOMException && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
+					throw new Error(ZEITUEBERSCHREITUNG);
+				}
 				throw new Error('Versand fehlgeschlagen');
 			}
 		},

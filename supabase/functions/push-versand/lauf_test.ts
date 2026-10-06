@@ -230,8 +230,9 @@ Deno.test('Logs enthalten nur Zähler (auch bei Fehlern je Status): weder Texte 
 });
 
 Deno.test('höchstens `parallel` gleichzeitige Sendungen (Standard 6) und es wird auch parallel gesendet', async () => {
-	const abos = Array.from({ length: 20 }, (_, i) => abo(i));
-	const f = fake([buendel({ empfaenger: [{ user_id: BERND, abos }] })], () => 201, 5);
+	// 20 Empfänger mit je einem Abo (mehr als 10 Abos je Empfänger werden nicht bedient)
+	const empfaenger = Array.from({ length: 20 }, (_, i) => ({ user_id: `user-${i}`, abos: [abo(i)] }));
+	const f = fake([buendel({ empfaenger })], () => 201, 5);
 	const bericht = await lauf(f.deps);
 	assertEquals(bericht.gesendet, 20);
 	assertEquals(f.maxGleichzeitig(), 6);
@@ -320,4 +321,76 @@ Deno.test('abgelehnter Endpoint wird im Log getrennt von Netzfehlern gezählt (A
 	const bericht = await lauf(f.deps);
 	assertEquals(bericht, { buendel: 1, gesendet: 1, fehler: 2, entfernt: 0 });
 	assertEquals(f.logs[1], 'push-versand: Fehler nach Status: endpoint ×1, netz ×1');
+});
+
+// --- Gesamtbudget und Obergrenze je Empfänger -----------------------------------------------
+
+/** Sender, der für `haengende` Endpoints erst nach `haengtMs` antwortet (und das Abbruch-Signal beachtet). */
+function haengenderSender(haengende: (endpoint: string) => boolean, haengtMs: number) {
+	const zustand = { abgebrochen: 0, gestartet: 0 };
+	const sender: Abhaengigkeiten['sender'] = {
+		senden(a, _payload, signal) {
+			zustand.gestartet++;
+			if (!haengende(a.endpoint)) return Promise.resolve(201);
+			return new Promise<number>((resolve, reject) => {
+				const timer = setTimeout(() => resolve(201), haengtMs);
+				signal?.addEventListener('abort', () => {
+					zustand.abgebrochen++;
+					clearTimeout(timer);
+					reject(new DOMException('abgebrochen', 'AbortError'));
+				}, { once: true });
+			});
+		},
+	};
+	return { sender, zustand };
+}
+
+Deno.test('Gesamtbudget: hängende Abos halten den Lauf nicht fest; Offenes wird abgebrochen, Ergebnis und Log folgen trotzdem', async () => {
+	const abos = Array.from({ length: 9 }, (_, i) => abo(i));
+	const f = fake([buendel({ empfaenger: [{ user_id: BERND, abos }] })]);
+	// abo(0) antwortet sofort, die anderen 8 hängen "ewig" (300 ms gegen ein Budget von 100 ms)
+	const h = haengenderSender((ep) => ep !== abo(0).endpoint, 300);
+	const start = performance.now();
+	const bericht = await lauf({ ...f.deps, sender: h.sender }, 2, 100);
+	const dauer = performance.now() - start;
+	assert(dauer < 250, `Lauf dauerte ${Math.round(dauer)} ms, Budget war 100 ms`);
+	assertEquals(bericht, { buendel: 1, gesendet: 1, fehler: 8, entfernt: 0 });
+	assertEquals(f.ergebnisse, [{ ok: [abo(0).endpoint], weg: [] }]);
+	assertEquals(h.zustand.abgebrochen, 2, 'die zwei laufenden Sendungen werden per Signal abgebrochen');
+	assertEquals(h.zustand.gestartet, 3, 'nach Ablauf wird nichts Neues mehr gestartet (abo0 + 2 hängende)');
+	assertEquals(f.logs, [
+		'push-versand: 1 Bündel, 1 gesendet, 8 Fehler, 0 entfernt',
+		'push-versand: Fehler nach Status: zeit ×8',
+	]);
+});
+
+Deno.test('Gesamtbudget: auch ein Sender, der das Signal ignoriert, hält den Lauf nicht länger als das Budget fest', async () => {
+	const f = fake([buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2), abo(3)] }] })], () => 201, 300);
+	const start = performance.now();
+	const bericht = await lauf(f.deps, 3, 100);
+	const dauer = performance.now() - start;
+	assert(dauer < 250, `Lauf dauerte ${Math.round(dauer)} ms, Budget war 100 ms`);
+	assertEquals(bericht, { buendel: 1, gesendet: 0, fehler: 3, entfernt: 0 });
+	await new Promise((r) => setTimeout(r, 400)); // die abgehängten Fake-Sendungen auslaufen lassen (Test-Sanitizer)
+});
+
+Deno.test('Gesamtbudget: läuft alles rechtzeitig, ändert sich nichts (Timer wird aufgeräumt)', async () => {
+	const f = fake([buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2)] }] })], () => 201, 5);
+	assertEquals(await lauf(f.deps, 6, 5000), { buendel: 1, gesendet: 2, fehler: 0, entfernt: 0 });
+});
+
+Deno.test('höchstens 10 Abos je Empfänger: ein Konto mit vielen Fake-Abos blockiert den Pool nicht', async () => {
+	const viele = Array.from({ length: 25 }, (_, i) => abo(100 + i));
+	const f = fake([
+		buendel({
+			empfaenger: [
+				{ user_id: ANNA, abos: viele },
+				{ user_id: BERND, abos: [abo(1)] },
+			],
+		}),
+	]);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht.gesendet, 11, '10 vom Vielabonnenten + 1 vom anderen Empfänger');
+	assert(f.gesendet.some((g) => g.endpoint === abo(1).endpoint), 'der andere Empfänger bekommt seine Meldung');
+	assertEquals(f.gesendet.filter((g) => viele.some((v) => v.endpoint === g.endpoint)).length, 10);
 });
