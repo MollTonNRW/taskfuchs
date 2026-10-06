@@ -364,6 +364,10 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Push-Versand wird von pg_cron aufgerufen (kein Nutzer-JWT); Schutz über den Header x-push-secret.
+[functions.push-versand]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

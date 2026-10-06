@@ -1,0 +1,96 @@
+// lauf.ts — Ablauf eines Versandlaufs mit injizierten Abhängigkeiten (testbar ohne Netz und Datenbank).
+import { verdichten } from './buendeln.ts';
+import { nachrichtBauen } from './texte.ts';
+import type { Abo, Buendel } from './typen.ts';
+import { klassifizieren, type Sender } from './webpush.ts';
+
+export interface Abhaengigkeiten {
+	/** rpc push_buendel_abholen: holt und löscht die fälligen Bündel. */
+	abholen(): Promise<Buendel[]>;
+	/** rpc push_abo_ergebnis: Abos mit erfolgreichem Versand markieren, tote Abos löschen. */
+	ergebnis(ok: string[], weg: string[]): Promise<void>;
+	sender: Sender;
+	/** Nur Zähler loggen — nie Aufgabentexte, Namen, Titel, Endpoints oder Schlüssel. */
+	log(msg: string): void;
+}
+
+/** `buendel` = Anzahl abgeholter Bündel; `entfernt` = Anzahl verschiedener Abos, die der Push-Dienst nicht mehr kennt. */
+export interface Bericht {
+	buendel: number;
+	gesendet: number;
+	fehler: number;
+	entfernt: number;
+}
+
+interface Auftrag {
+	abo: Abo;
+	payload: string;
+}
+
+const STANDARD_PARALLEL = 6;
+
+/** Führt `fn` für alle Elemente aus, höchstens `n` gleichzeitig. `fn` darf nicht werfen. */
+async function begrenztParallel<T>(items: T[], n: number, fn: (item: T) => Promise<void>): Promise<void> {
+	let naechster = 0;
+	const arbeiter = Array.from({ length: Math.max(1, Math.min(n, items.length)) }, async () => {
+		while (naechster < items.length) await fn(items[naechster++]);
+	});
+	await Promise.all(arbeiter);
+}
+
+export async function lauf(d: Abhaengigkeiten, parallel: number = STANDARD_PARALLEL): Promise<Bericht> {
+	const buendel = await d.abholen();
+	const bericht: Bericht = { buendel: buendel.length, gesendet: 0, fehler: 0, entfernt: 0 };
+	if (buendel.length === 0) return bericht;
+
+	const auftraege: Auftrag[] = [];
+	for (const b of buendel) {
+		const nachricht = nachrichtBauen(b, verdichten(b.events ?? []));
+		if (!nachricht) continue;
+		const payload = JSON.stringify(nachricht);
+		for (const empfaenger of b.empfaenger ?? []) {
+			for (const abo of empfaenger.abos ?? []) auftraege.push({ abo, payload });
+		}
+	}
+
+	const ok = new Set<string>();
+	const weg = new Set<string>();
+	const fehlerStatus = new Map<string, number>(); // Schlüssel: HTTP-Status oder "netz"
+	const fehlerZaehlen = (schluessel: string) => {
+		bericht.fehler += 1;
+		fehlerStatus.set(schluessel, (fehlerStatus.get(schluessel) ?? 0) + 1);
+	};
+
+	await begrenztParallel(auftraege, parallel, async ({ abo, payload }) => {
+		try {
+			const status = await d.sender.senden(abo, payload);
+			const ergebnis = klassifizieren(status);
+			if (ergebnis === 'ok') {
+				bericht.gesendet += 1;
+				ok.add(abo.endpoint);
+			} else if (ergebnis === 'weg') {
+				weg.add(abo.endpoint);
+			} else {
+				fehlerZaehlen(String(status));
+			}
+		} catch {
+			fehlerZaehlen('netz');
+		}
+	});
+
+	// Ein Abo, das irgendwo als „weg“ gemeldet wurde, wird nicht zusätzlich als „ok“ markiert.
+	for (const endpoint of weg) ok.delete(endpoint);
+	bericht.entfernt = weg.size;
+
+	if (ok.size > 0 || weg.size > 0) await d.ergebnis([...ok], [...weg]);
+
+	d.log(
+		`push-versand: ${bericht.buendel} Bündel, ${bericht.gesendet} gesendet, ${bericht.fehler} Fehler, ${bericht.entfernt} entfernt`,
+	);
+	if (fehlerStatus.size > 0) {
+		const teile = [...fehlerStatus].sort(([a], [b]) => (a === 'netz' ? 1 : b === 'netz' ? -1 : Number(a) - Number(b)))
+			.map(([schluessel, anzahl]) => `${schluessel} ×${anzahl}`);
+		d.log(`push-versand: Fehler nach Status: ${teile.join(', ')}`);
+	}
+	return bericht;
+}
