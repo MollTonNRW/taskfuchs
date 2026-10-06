@@ -289,16 +289,19 @@ begin
     return '[]'::jsonb;
   end if;
 
-  -- Veraltete Gruppen (jüngstes Event älter als 1 Tag) verwerfen, nicht senden.
-  delete from public.notification_events e
-  using (
-    select list_id, actor_id
-    from public.notification_events
-    group by list_id, actor_id
-    having max(created_at) < now() - interval '1 day'
-  ) v
-  where e.list_id = v.list_id and e.actor_id = v.actor_id;
+  -- Aufbewahrung: Events leben hoechstens 1 Tag. Je Event geprueft, nicht je Gruppe: ein altes
+  -- Event faehrt sonst in einer frischen Gruppe mit (sein Text steht dann in der Meldung)
+  -- und macht sie ueber die Hoechstwartezeit sofort faellig. Zusaetzlich raeumt der Cron-Job
+  -- push-aufraeumen (027b) unabhaengig vom Versandlauf auf.
+  delete from public.notification_events
+  where created_at < now() - interval '1 day';
 
+  -- Ein Durchlauf, linear in der Zahl der Events und Gruppen: Gruppen werden einmal
+  -- nummeriert (neueste 200 je Gruppe behalten) und aggregiert; Empfaenger und Abos holt
+  -- eine Lateral-Abfrage je Gruppe ueber Indizes. Keine Verknuepfung zweier CTEs
+  -- untereinander und keine korrelierte Unterabfrage ueber eine CTE: der Planer waehlt
+  -- sonst bei den unbekannten Zeilenzahlen einer DELETE-CTE eine quadratische Schleife
+  -- (jedes Konto kann beliebig viele Listen anlegen und freigeben).
   with faellig as (
     select list_id, actor_id
     from public.notification_events
@@ -313,50 +316,18 @@ begin
     returning e.id, e.list_id, e.actor_id, e.via_agent, e.art, e.task_id, e.task_text, e.created_at
   ),
   gruppen as (
-    select a.list_id, a.actor_id, bool_or(a.via_agent) as via_agent
-    from abgeholt a
-    group by a.list_id, a.actor_id
-  ),
-  gruppen_events as (
-    select g.list_id, g.actor_id,
-      (
-        select jsonb_agg(
-                 jsonb_build_object('task_id', x.task_id, 'art', x.art, 'text', x.task_text, 'at', x.created_at)
-                 order by x.created_at, x.id)
-        from (
-          select b.* from abgeholt b
-          where b.list_id = g.list_id and b.actor_id = g.actor_id
-          order by b.created_at desc, b.id desc
-          limit 200
-        ) x
-      ) as events
-    from gruppen g
-  ),
-  mitglieder as (
-    select g.list_id, g.actor_id, m.user_id
-    from gruppen g
-    cross join lateral (
-      select l.user_id from public.lists l where l.id = g.list_id
-      union
-      select s.user_id from public.list_shares s where s.list_id = g.list_id
-    ) m
-    where m.user_id <> g.actor_id
-      and not exists (
-        select 1 from public.list_notification_mutes mu
-        where mu.user_id = m.user_id and mu.list_id = g.list_id
-      )
-      and exists (select 1 from public.push_subscriptions ps where ps.user_id = m.user_id)
-  ),
-  empfaenger as (
-    select mg.list_id, mg.actor_id,
-      jsonb_agg(jsonb_build_object(
-        'user_id', mg.user_id,
-        'abos', (
-          select jsonb_agg(jsonb_build_object('endpoint', ps.endpoint, 'p256dh', ps.p256dh, 'auth', ps.auth))
-          from public.push_subscriptions ps where ps.user_id = mg.user_id)
-      )) as liste
-    from mitglieder mg
-    group by mg.list_id, mg.actor_id
+    select r.list_id, r.actor_id,
+      bool_or(r.via_agent) as via_agent,
+      jsonb_agg(
+        jsonb_build_object('task_id', r.task_id, 'art', r.art, 'text', r.task_text, 'at', r.created_at)
+        order by r.created_at, r.id
+      ) filter (where r.rn <= 200) as events
+    from (
+      select a.*,
+             row_number() over (partition by a.list_id, a.actor_id order by a.created_at desc, a.id desc) as rn
+      from abgeholt a
+    ) r
+    group by r.list_id, r.actor_id
   )
   select coalesce(jsonb_agg(jsonb_build_object(
            'list_id', g.list_id,
@@ -365,14 +336,34 @@ begin
            'actor_id', g.actor_id,
            'actor_name', coalesce(nullif(p.display_name, ''), nullif(p.username, ''), 'Jemand'),
            'via_agent', g.via_agent,
-           'events', ge.events,
+           'events', g.events,
            'empfaenger', em.liste)), '[]'::jsonb)
   into v_ergebnis
   from gruppen g
-  join gruppen_events ge on ge.list_id = g.list_id and ge.actor_id = g.actor_id
-  join empfaenger em on em.list_id = g.list_id and em.actor_id = g.actor_id
   join public.lists l on l.id = g.list_id
-  left join public.profiles p on p.id = g.actor_id;
+  left join public.profiles p on p.id = g.actor_id
+  cross join lateral (
+    -- Empfaenger: Besitzer + alle Freigaben, ohne Bearbeiter, ohne Stummschaltung dieser Liste,
+    -- nur Personen mit mindestens einem Abo (ohne Abo ist ab.abos null)
+    select jsonb_agg(jsonb_build_object('user_id', m.user_id, 'abos', ab.abos)) as liste
+    from (
+      select l.user_id
+      union
+      select s.user_id from public.list_shares s where s.list_id = g.list_id
+    ) m
+    cross join lateral (
+      select jsonb_agg(jsonb_build_object('endpoint', ps.endpoint, 'p256dh', ps.p256dh, 'auth', ps.auth)) as abos
+      from public.push_subscriptions ps
+      where ps.user_id = m.user_id
+    ) ab
+    where m.user_id <> g.actor_id
+      and ab.abos is not null
+      and not exists (
+        select 1 from public.list_notification_mutes mu
+        where mu.user_id = m.user_id and mu.list_id = g.list_id
+      )
+  ) em
+  where em.liste is not null;
 
   return v_ergebnis;
 end;

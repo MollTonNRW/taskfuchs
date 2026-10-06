@@ -8,7 +8,7 @@
 -- (Rolle authenticated mit sub-Claim), den Dienst (service_role) oder anon.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(183);
+select plan(191);
 
 -- ---------------------------------------------------------------------------
 -- Testpersonen (Kennungen aus Hex, damit sie als UUID gelten)
@@ -811,6 +811,49 @@ select is((select jsonb_array_length(j -> 0 -> 'events') from erg), 200, 'hoechs
 select is((select j -> 0 -> 'events' -> 0 ->> 'text' from erg), 'e6', 'es bleiben die 200 neuesten (aelteste fallen heraus)');
 select is((select j -> 0 -> 'events' -> 199 ->> 'text' from erg), 'e205', 'aufsteigend sortiert bis zum neuesten');
 select is(pg_temp.n_ev(), 0, 'auch die abgeschnittenen aelteren Events sind geloescht');
+
+-- D9: Aufbewahrung gilt je Event, nicht je Gruppe: ein altes Event faehrt nicht in einer
+-- frischen Gruppe mit (sein Text laege sonst Tage in der Tabelle und stuende in der Meldung)
+insert into public.notification_events (list_id, actor_id, art, task_id, task_text, created_at) values
+  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b2', 'neu', '30000000-0000-0000-0000-000000000001', 'Alt vor 5 Tagen', now() - interval '5 days'),
+  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b2', 'neu', '30000000-0000-0000-0000-000000000002', 'Frisch', now() - interval '3 minutes');
+select pg_temp.abholen();
+select is((select jsonb_array_length(j) from erg), 1, 'altes und frisches Event derselben Gruppe: ein Buendel');
+select is((select jsonb_array_length(j -> 0 -> 'events') from erg), 1, 'das veraltete Event kommt nicht mehr im Buendel mit');
+select is((select j -> 0 -> 'events' -> 0 ->> 'text' from erg), 'Frisch', 'im Buendel steht nur das frische Event');
+select is(pg_temp.n_ev(), 0, 'altes und frisches Event sind aus der Warteschlange');
+
+-- Ein altes Event darf eine frische Gruppe nicht ueber die Hoechstwartezeit faellig machen
+insert into public.notification_events (list_id, actor_id, art, task_id, task_text, created_at) values
+  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b2', 'neu', '30000000-0000-0000-0000-000000000001', 'Alt vor 3 Tagen', now() - interval '3 days'),
+  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000b2', 'neu', '30000000-0000-0000-0000-000000000002', 'Neu', now() - interval '30 seconds');
+select pg_temp.abholen();
+select is((select j from erg), '[]'::jsonb, 'altes Event + frisches Event (30 s): noch nicht faellig');
+select is((select array_agg(task_text) from public.notification_events), array['Neu'],
+  'das alte Event ist verworfen, nur das frische bleibt liegen');
+delete from public.notification_events;
+
+-- D11: Laufzeit waechst linear mit der Gruppenzahl (eine Gruppe = Liste + Bearbeiter).
+-- Jedes Konto kann beliebig viele Listen anlegen und freigeben; ein quadratischer Lauf
+-- wuerde die Warteschlange fuer alle blockieren (Zeitgrenze am Datenbankzugang).
+insert into public.lists (id, user_id, title)
+  select ('40000000-0000-0000-0000-' || lpad(to_hex(g), 12, '0'))::uuid, '00000000-0000-0000-0000-0000000000a1', 'Perf ' || g
+  from generate_series(1, 10000) g;
+insert into public.list_shares (list_id, user_id, role)
+  select id, '00000000-0000-0000-0000-0000000000b2', 'editor' from public.lists where title like 'Perf %';
+insert into public.notification_events (list_id, actor_id, art, task_id, task_text, created_at)
+  select id, '00000000-0000-0000-0000-0000000000b2', 'neu', gen_random_uuid(), 'x', now() - interval '3 minutes'
+  from public.lists where title like 'Perf %';
+create temp table perf_zeit (sek numeric);
+do $$
+declare t0 timestamptz := clock_timestamp();
+begin
+  perform pg_temp.abholen();
+  insert into perf_zeit values (extract(epoch from clock_timestamp() - t0));
+end $$;
+select is((select jsonb_array_length(j) from erg), 10000, '10000 Gruppen: ein Buendel je Gruppe');
+select cmp_ok((select sek from perf_zeit), '<', 2.0, 'Abholen von 10000 Gruppen dauert unter 2 s (linear, nicht quadratisch)');
+delete from public.lists where title like 'Perf %';
 
 -- D8: Aufgabe in der Liste angelegt und geloescht -- Bündel enthaelt beide Events (Verdichtung macht die Function)
 -- (kein eigener Test noetig: die DB liefert die Rohereignisse, die Verdichtung ist Sache der Edge Function)
