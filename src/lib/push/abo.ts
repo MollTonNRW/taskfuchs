@@ -21,6 +21,29 @@ export interface PushUmgebung {
 	ausApp: boolean;
 }
 
+/**
+ * Wartet höchstens `ms` auf `versprechen`. `navigator.serviceWorker.ready`
+ * löst nie auf, solange kein Service Worker aktiv ist — ohne Frist hinge dann
+ * jeder Aufruf, auch das Abmelden.
+ */
+export function mitFrist<T>(versprechen: Promise<T>, ms: number): Promise<T> {
+	return new Promise<T>((ok, fehler) => {
+		const uhr = setTimeout(() => fehler(new Error('Service Worker nicht bereit')), ms);
+		versprechen.then(
+			(wert) => {
+				clearTimeout(uhr);
+				ok(wert);
+			},
+			(e) => {
+				clearTimeout(uhr);
+				fehler(e);
+			}
+		);
+	});
+}
+
+const SW_FRIST_MS = 4000;
+
 export function browserUmgebung(): PushUmgebung {
 	const hatPush =
 		typeof window !== 'undefined' &&
@@ -31,7 +54,7 @@ export function browserUmgebung(): PushUmgebung {
 		hatPush,
 		berechtigung: () => (hatPush ? Notification.permission : 'denied'),
 		berechtigungAnfragen: () => Notification.requestPermission(),
-		registrierung: () => navigator.serviceWorker.ready,
+		registrierung: () => mitFrist(navigator.serviceWorker.ready, SW_FRIST_MS),
 		userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
 		standalone: typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches === true,
 		ausApp: typeof document !== 'undefined' && document.referrer.startsWith('android-app://')
@@ -82,7 +105,12 @@ export async function pushStatus(u: PushUmgebung = browserUmgebung()): Promise<P
 	const b = u.berechtigung();
 	if (b === 'denied') return 'verweigert';
 	if (b !== 'granted') return 'aus';
-	return (await aktuellesAbo(u)) ? 'an' : 'aus';
+	try {
+		return (await aktuellesAbo(u)) ? 'an' : 'aus';
+	} catch {
+		// Service Worker nicht bereit: wie „aus" behandeln — Einschalten zeigt dann den Fehler.
+		return 'aus';
+	}
 }
 
 async function speichern(sb: SupabaseClient, abo: PushSubscription, u: PushUmgebung): Promise<void> {

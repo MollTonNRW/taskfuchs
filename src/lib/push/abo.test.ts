@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
 	abgleichen,
@@ -7,6 +7,7 @@ import {
 	browserUmgebung,
 	einschalten,
 	geraetName,
+	mitFrist,
 	pushStatus,
 	type Berechtigung,
 	type PushUmgebung
@@ -90,6 +91,38 @@ describe('pushStatus', () => {
 	it('meldet an bei erteilter Berechtigung mit Abo', async () => {
 		const { umgebung } = baueUmgebung({ berechtigung: 'granted', abo: baueAbo() });
 		expect(await pushStatus(umgebung)).toBe('an');
+	});
+});
+
+describe('pushStatus bei haengendem Service Worker', () => {
+	it('meldet aus statt zu werfen, wenn der Service Worker nicht bereit wird', async () => {
+		const { umgebung } = baueUmgebung({ berechtigung: 'granted' });
+		umgebung.registrierung = async () => {
+			throw new Error('Service Worker nicht bereit');
+		};
+		expect(await pushStatus(umgebung)).toBe('aus');
+	});
+});
+
+describe('mitFrist', () => {
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('liefert das Ergebnis, wenn es rechtzeitig kommt', async () => {
+		await expect(mitFrist(Promise.resolve(42), 1000)).resolves.toBe(42);
+	});
+
+	it('wirft nach Ablauf der Frist, statt ewig zu warten', async () => {
+		vi.useFakeTimers();
+		const nie = new Promise<number>(() => undefined);
+		const ergebnis = expect(mitFrist(nie, 3000)).rejects.toThrow('nicht bereit');
+		await vi.advanceTimersByTimeAsync(3000);
+		await ergebnis;
+	});
+
+	it('reicht den Fehler des Versprechens weiter', async () => {
+		await expect(mitFrist(Promise.reject(new Error('kaputt')), 1000)).rejects.toThrow('kaputt');
 	});
 });
 
