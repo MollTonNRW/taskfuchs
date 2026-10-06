@@ -877,15 +877,15 @@ export function geraetName(u: Pick<PushUmgebung, 'userAgent' | 'standalone' | 'a
 export function base64UrlZuUint8(s: string): Uint8Array
 ```
 
-- [ ] **Step 1: Tests (rot)** mit Fake-Umgebung und Fake-`sb.rpc`:
+- [x] **Step 1: Tests (rot)** mit Fake-Umgebung und Fake-`sb.rpc`:
   - `hatPush false` → `nicht-unterstuetzt`; Berechtigung `denied` → `verweigert`; `granted` ohne Abo → `aus`; mit Abo → `an`; `default` → `aus`.
   - `einschalten`: fragt Berechtigung an; `denied` → `verweigert`, kein `subscribe`, kein RPC; `granted` → `subscribe({ userVisibleOnly: true, applicationServerKey })` mit Uint8Array des öffentlichen Schlüssels (65 Byte, erstes Byte 0x04), danach `rpc('push_abo_speichern', { p_endpoint, p_p256dh, p_auth, p_geraet })`; RPC-Fehler → `unsubscribe()` und Fehler werfen.
   - `ausschalten`: RPC `push_abo_loeschen` mit Endpoint, danach `unsubscribe`; RPC-Fehler → trotzdem `unsubscribe`, kein Wurf; kein Abo → nichts.
   - `abgleichen`: nur bei `granted` und vorhandenem Abo → RPC speichern; sonst nichts; Fehler werden geschluckt.
   - `geraetName`: Android + `ausApp` → `Android · Taskfuchs-App`; Android + standalone → `Android · App`; Android Chrome → `Android · Chrome`; Desktop Chrome → `Desktop · Chrome`; Firefox → `… · Firefox`; unbekannt → `Browser`.
   - `base64UrlZuUint8(VAPID_PUBLIC_KEY).length === 65`.
-- [ ] **Step 2: Rot prüfen.** `npm test -- src/lib/push/abo.test.ts`.
-- [ ] **Step 3: Implementieren.**
+- [x] **Step 2: Rot prüfen.** `npm test -- src/lib/push/abo.test.ts`.
+- [x] **Step 3: Implementieren.**
 
 ```ts
 // src/lib/push/vapid.ts
@@ -1032,8 +1032,8 @@ export async function abgleichen(sb: SupabaseClient, u: PushUmgebung = browserUm
 
 Hinweis: `applicationServerKey` erwartet je nach TS-Lib `BufferSource`; bei Typfehler `base64UrlZuUint8(...) as BufferSource`.
 
-- [ ] **Step 4: Grün prüfen.** `npm test -- src/lib/push/abo.test.ts` PASS.
-- [ ] **Step 5: Commit.** `git commit -m "push: Abo-Logik für dieses Gerät"`
+- [x] **Step 4: Grün prüfen.** `npm test -- src/lib/push/abo.test.ts` PASS.
+- [x] **Step 5: Commit.** `git commit -m "push: Abo-Logik für dieses Gerät"`
 
 ### Task 8: Service Worker (Strang C)
 
@@ -1050,9 +1050,9 @@ export function leseNachricht(roh: string | null | undefined): PushAnzeige   // 
 export function zielUrl(url: unknown, origin: string): string                  // nur gleiche Origin, sonst '/app'
 ```
 
-- [ ] **Step 1: Tests (rot):** gültiges JSON → Felder übernommen; `null`, `''`, `'kaputt'`, `'[]'`, `'{"titel":5}'` → `{ titel: 'Taskfuchs', text: 'Neue Änderungen', url: '/app' }`; `zielUrl('/app?liste=x', 'https://a.de')` → `'/app?liste=x'`; `zielUrl('https://boese.de/x', 'https://a.de')` → `'/app'`; `zielUrl('//boese.de', …)` → `'/app'`; `zielUrl('javascript:alert(1)', …)` → `'/app'`; Texte über 300 Zeichen werden gekürzt.
-- [ ] **Step 2: Rot prüfen.**
-- [ ] **Step 3: Implementieren** (`nachricht.ts` rein; im SW):
+- [x] **Step 1: Tests (rot):** gültiges JSON → Felder übernommen; `null`, `''`, `'kaputt'`, `'[]'`, `'{"titel":5}'` → `{ titel: 'Taskfuchs', text: 'Neue Änderungen', url: '/app' }`; `zielUrl('/app?liste=x', 'https://a.de')` → `'/app?liste=x'`; `zielUrl('https://boese.de/x', 'https://a.de')` → `'/app'`; `zielUrl('//boese.de', …)` → `'/app'`; `zielUrl('javascript:alert(1)', …)` → `'/app'`; Texte über 300 Zeichen werden gekürzt.
+- [x] **Step 2: Rot prüfen.**
+- [x] **Step 3: Implementieren** (`nachricht.ts` rein; im SW):
 
 ```ts
 import { leseNachricht, zielUrl } from '$lib/push/nachricht';
@@ -1091,8 +1091,8 @@ sw.addEventListener('notificationclick', (event) => {
 ```
 
 Icon-Pfade an die vorhandenen Dateien in `static/icons/` anpassen (prüfen, welche existieren).
-- [ ] **Step 4: `npm test`, `npm run check`, `npm run build` ohne neue Fehler.**
-- [ ] **Step 5: Commit.** `git commit -m "service-worker: Push anzeigen, Tipp öffnet die Liste"`
+- [x] **Step 4: `npm test`, `npm run check`, `npm run build` ohne neue Fehler.**
+- [x] **Step 5: Commit.** `git commit -m "service-worker: Push anzeigen, Tipp öffnet die Liste"`
 
 ### Task 9: Seite „Benachrichtigungen“, Menü, Abmelden (Strang C)
 
@@ -1105,13 +1105,13 @@ Icon-Pfade an die vorhandenen Dateien in `static/icons/` anpassen (prüfen, welc
 - Consumes: `pushStatus`, `einschalten`, `ausschalten` aus Task 7; Tabelle `list_notification_mutes`.
 - Produces: Route `/app/benachrichtigungen`; Menüeintrag „Benachrichtigungen“.
 
-- [ ] **Step 1: Vorbild lesen:** `src/routes/app/g2-koppeln/+page.svelte` (Supabase-Zugriff, Layout, Zurück-Weg) und wie das Zahnrad-Menü in `NavColumn.svelte` Einträge rendert.
-- [ ] **Step 2: Tests (rot)** für reine Hilfen:
+- [x] **Step 1: Vorbild lesen:** `src/routes/app/g2-koppeln/+page.svelte` (Supabase-Zugriff, Layout, Zurück-Weg) und wie das Zahnrad-Menü in `NavColumn.svelte` Einträge rendert.
+- [x] **Step 2: Tests (rot)** für reine Hilfen:
   - `geteilteListen`: liefert nur Listen, die geteilt sind (eigene mit Share an andere, oder fremde, an denen ich Share habe), sortiert wie die Navigation, ohne Duplikate.
   - `statusText`: `nicht-unterstuetzt` → „Dieses Gerät kann keine Benachrichtigungen empfangen.“; `verweigert` → „Benachrichtigungen sind für Taskfuchs blockiert. Erlaube sie in den Android-Einstellungen unter Apps › Taskfuchs › Benachrichtigungen.“; `aus` → „Auf diesem Gerät aus.“; `an` → „Auf diesem Gerät an.“
-- [ ] **Step 3: Implementieren.** Seite: Überschrift „Benachrichtigungen“, Erklärsatz („Du bekommst eine Meldung, wenn jemand anderes in einer geteilten Liste etwas ändert. Mehrere Änderungen kurz hintereinander kommen gebündelt.“), Statuszeile, primärer Knopf „Auf diesem Gerät einschalten“ bzw. „Ausschalten“ (deaktiviert während der Anfrage, Fehler als Toast), Abschnitt „Geteilte Listen“ mit Checkbox je Liste (Label = Emoji + Titel, angehakt = Meldungen an; Ändern schreibt/löscht `list_notification_mutes`, optimistisch mit Rücknahme bei Fehler), Hinweis wenn keine geteilten Listen. Zurück zur App wie in `g2-koppeln`. Menüeintrag „Benachrichtigungen“ mit vorhandenem Icon (z. B. `glocke`, sonst im `Icon.svelte` nach Muster ein Glocken-Icon ergänzen: viewBox 24, Stroke 1.75). Abmelden: vor `signOut` `await ausschalten(sb).catch(() => {})`. App-Start: `abgleichen(sb)` einmal nach Login (dort, wo die Shell initialisiert).
-- [ ] **Step 4: `npm test`, `npm run check` (keine neuen Fehler gegenüber den 5 bekannten in `g2-koppeln`), `npm run lint` (keine neuen), `npm run build`. Sichtprüfung per `npm run dev` + Playwright-Screenshot mobil (390×844) hell und dunkel; Screenshots im Bericht nennen.**
-- [ ] **Step 5: Commit.** `git commit -m "einstellungen: Seite Benachrichtigungen, Menüeintrag, Abo beim Abmelden löschen"`
+- [x] **Step 3: Implementieren.** Seite: Überschrift „Benachrichtigungen“, Erklärsatz („Du bekommst eine Meldung, wenn jemand anderes in einer geteilten Liste etwas ändert. Mehrere Änderungen kurz hintereinander kommen gebündelt.“), Statuszeile, primärer Knopf „Auf diesem Gerät einschalten“ bzw. „Ausschalten“ (deaktiviert während der Anfrage, Fehler als Toast), Abschnitt „Geteilte Listen“ mit Checkbox je Liste (Label = Emoji + Titel, angehakt = Meldungen an; Ändern schreibt/löscht `list_notification_mutes`, optimistisch mit Rücknahme bei Fehler), Hinweis wenn keine geteilten Listen. Zurück zur App wie in `g2-koppeln`. Menüeintrag „Benachrichtigungen“ mit vorhandenem Icon (z. B. `glocke`, sonst im `Icon.svelte` nach Muster ein Glocken-Icon ergänzen: viewBox 24, Stroke 1.75). Abmelden: vor `signOut` `await ausschalten(sb).catch(() => {})`. App-Start: `abgleichen(sb)` einmal nach Login (dort, wo die Shell initialisiert).
+- [x] **Step 4: `npm test`, `npm run check` (keine neuen Fehler gegenüber den 5 bekannten in `g2-koppeln`), `npm run lint` (keine neuen), `npm run build`. Sichtprüfung per `npm run dev` + Playwright-Screenshot mobil (390×844) hell und dunkel; Screenshots im Bericht nennen.**
+- [x] **Step 5: Commit.** `git commit -m "einstellungen: Seite Benachrichtigungen, Menüeintrag, Abo beim Abmelden löschen"`
 
 ### Task 10: Deep Link `?liste=` (Strang C)
 
@@ -1122,11 +1122,11 @@ Icon-Pfade an die vorhandenen Dateien in `static/icons/` anpassen (prüfen, welc
 **Interfaces:**
 - Produces: `export function listeAusUrl(search: string): string | null` (nur UUID-Format, sonst null).
 
-- [ ] **Step 1: Tests (rot):** `'?liste=<uuid>'` → uuid; `'?liste=abc'` → null; `''` → null; `'?liste=<uuid>&x=1'` → uuid; Großbuchstaben-UUID → normalisiert klein.
-- [ ] **Step 2: Rot prüfen.**
-- [ ] **Step 3: Implementieren** und in `AppShell` beim Start (nachdem Listen geladen sind) anwenden: existiert die Liste → aktiv setzen (mobil: Tab „Listen“, Unterschirm Liste — über die vorhandenen Funktionen von `stores/tf/navigation.svelte.ts`), danach `history.replaceState` ohne `liste`. Unbekannte ID → normaler Start.
-- [ ] **Step 4: `npm test`, `npm run check`, `npm run build`.**
-- [ ] **Step 5: Commit.** `git commit -m "app: /app?liste=<id> öffnet die Liste (Ziel der Benachrichtigung)"`
+- [x] **Step 1: Tests (rot):** `'?liste=<uuid>'` → uuid; `'?liste=abc'` → null; `''` → null; `'?liste=<uuid>&x=1'` → uuid; Großbuchstaben-UUID → normalisiert klein.
+- [x] **Step 2: Rot prüfen.**
+- [x] **Step 3: Implementieren** und in `AppShell` beim Start (nachdem Listen geladen sind) anwenden: existiert die Liste → aktiv setzen (mobil: Tab „Listen“, Unterschirm Liste — über die vorhandenen Funktionen von `stores/tf/navigation.svelte.ts`), danach `history.replaceState` ohne `liste`. Unbekannte ID → normaler Start.
+- [x] **Step 4: `npm test`, `npm run check`, `npm run build`.**
+- [x] **Step 5: Commit.** `git commit -m "app: /app?liste=<id> öffnet die Liste (Ziel der Benachrichtigung)"`
 
 ### Task 11: TWA 1.3 mit Notification-Delegation (Strang D)
 
