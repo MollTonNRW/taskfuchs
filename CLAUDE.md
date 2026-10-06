@@ -463,6 +463,7 @@ PUBLIC_SUPABASE_ANON_KEY=<dein-anon-key>
 - **Gradle-Projekt:** `twa/` (Standalone)
 - **Keystore:** Referenz unter `twa/`, Keystore-Datei wird nicht eingecheckt (gitignored)
 - **Digital Asset Links:** `static/.well-known/assetlinks.json`
+- **Build, Signatur, Update:** Rezept in `twa/README.md`. `bubblewrap update` überschreibt handangepasste Dateien (dunkler Splash, Launcher- und Benachrichtigungs-Icons, `ic_launcher_background`, `mavenCentral` im Root-Gradle). Danach die Liste dort per `git checkout HEAD -- …` zurückholen.
 
 ### PWA Manifest
 - `display: standalone`
