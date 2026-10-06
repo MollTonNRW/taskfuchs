@@ -4,6 +4,7 @@
 /// <reference lib="webworker" />
 
 import { build, files, version } from '$service-worker';
+import { zielOeffnen } from '$lib/push/fenster';
 import { leseNachricht, zielUrl } from '$lib/push/nachricht';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
@@ -93,23 +94,5 @@ sw.addEventListener('notificationclick', (event) => {
 	event.notification.close();
 	// Nur die eigene Origin ist ein erlaubtes Ziel (`zielUrl` fällt sonst auf /app).
 	const ziel = new URL(zielUrl(event.notification.data?.url, sw.location.origin), sw.location.origin).href;
-	event.waitUntil(
-		(async () => {
-			// Ein offenes Fenster der App nutzen. `navigate` wirft bei einem Fenster, das
-			// dieser Service Worker nicht kontrolliert — dann das nächste, sonst ein neues.
-			const fenster = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).catch(() => []);
-			for (const f of fenster) {
-				if (new URL(f.url).origin !== sw.location.origin) continue;
-				// Fokus braucht die Nutzergeste des Tipps; ein Fehlschlag soll das Navigieren nicht verhindern.
-				await f.focus().catch(() => undefined);
-				try {
-					await f.navigate(ziel);
-					return;
-				} catch {
-					// nächstes Fenster bzw. unten ein neues öffnen
-				}
-			}
-			await sw.clients.openWindow(ziel);
-		})()
-	);
+	event.waitUntil(zielOeffnen(sw.clients, ziel, sw.location.origin));
 });
