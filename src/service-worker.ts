@@ -4,6 +4,8 @@
 /// <reference lib="webworker" />
 
 import { build, files, version } from '$service-worker';
+import { zielOeffnen } from '$lib/push/fenster';
+import { leseNachricht, zielUrl } from '$lib/push/nachricht';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
@@ -64,4 +66,33 @@ sw.addEventListener('fetch', (event) => {
 			}
 		})()
 	);
+});
+
+// ---------------------------------------------------------------------------
+// Push-Benachrichtigungen (Spec: Push-Benachrichtigungen für geteilte Listen)
+// ---------------------------------------------------------------------------
+
+// Jede Push-Nachricht MUSS eine sichtbare Meldung zeigen (`userVisibleOnly`),
+// sonst blendet der Browser eine eigene Ersatzmeldung ein. Darum wirft dieser
+// Handler nie: `leseNachricht` liefert bei kaputter Nutzlast einen Rückfalltext.
+sw.addEventListener('push', (event) => {
+	const n = leseNachricht(event.data?.text());
+	// `renotify` verlangt ein `tag` — ohne wäre es ein TypeError. Als Variable statt
+	// Literal, weil `renotify` in den DOM-Typen von TypeScript fehlt.
+	const optionen = {
+		body: n.text,
+		tag: n.tag,
+		renotify: Boolean(n.tag),
+		icon: '/icons/icon-192x192.png',
+		badge: '/icons/badge-96x96.png',
+		data: { url: n.url }
+	};
+	event.waitUntil(sw.registration.showNotification(n.titel, optionen));
+});
+
+sw.addEventListener('notificationclick', (event) => {
+	event.notification.close();
+	// Nur die eigene Origin ist ein erlaubtes Ziel (`zielUrl` fällt sonst auf /app).
+	const ziel = new URL(zielUrl(event.notification.data?.url, sw.location.origin), sw.location.origin).href;
+	event.waitUntil(zielOeffnen(sw.clients, ziel, sw.location.origin));
 });

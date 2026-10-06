@@ -86,6 +86,15 @@
 			{ t: 'path', d: 'M10 17l5-5-5-5M15 12H3' }
 		],
 		/**
+		 * Glocke — Benachrichtigungen. Steht ebenfalls NICHT in Abschnitt 8 (die
+		 * Spezifikation kennt keine Push-Meldungen). Körper mit Klöppel, Form und
+		 * Strichstärke folgen dem Set.
+		 */
+		glocke: [
+			{ t: 'path', d: 'M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9' },
+			{ t: 'path', d: 'M13.7 21a2 2 0 0 1-3.4 0' }
+		],
+		/**
 		 * Sanduhr — „Wartet auf" (Aufgabenhistorie). Steht ebenfalls NICHT in
 		 * Abschnitt 8: die Spezifikation kennt die Historie nicht. Zwei
 		 * Kammern aus Halbkreisen zwischen Deckel und Boden, die sich in der

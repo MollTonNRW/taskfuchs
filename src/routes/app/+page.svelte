@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import AppShell from '$lib/components/tf/AppShell.svelte';
+	import { abmelden } from '$lib/push/abo';
 
 	/**
 	 * Die angemeldete App. Alles Sichtbare steht in
@@ -14,8 +15,9 @@
 	 */
 	let { data } = $props();
 
-	async function abmelden() {
-		await data.supabase.auth.signOut();
+	async function abmeldenUndWeiter() {
+		// Löscht vorher das Push-Abo dieses Geräts (siehe `abmelden` in push/abo.ts).
+		await abmelden(data.supabase);
 		goto('/auth/login');
 	}
 </script>
@@ -27,5 +29,5 @@
 	startListen={data.lists}
 	startAufgaben={data.tasks}
 	startMitnutzer={data.mitnutzer}
-	onLogout={abmelden}
+	onLogout={abmeldenUndWeiter}
 />
