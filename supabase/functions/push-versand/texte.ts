@@ -49,13 +49,31 @@ const LABEL = {
 
 const REIHENFOLGE: Art[] = ['neu', 'erledigt', 'wieder_offen', 'geaendert', 'geloescht'];
 
-// Kürzt auf höchstens `max` Zeichen (Codepoints, damit Emoji-Paare nicht zerrissen werden);
-// Whitespace wird zusammengezogen, Kürzung endet auf „…“.
+const SEGMENTER = typeof Intl.Segmenter === 'function'
+	? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+	: null;
+
+// Lazy: bricht kuerzen() früh ab, wird auch ein sehr langer Listentitel nicht komplett segmentiert.
+function* graphemes(t: string): Generator<string> {
+	if (!SEGMENTER) return yield* Array.from(t);
+	for (const x of SEGMENTER.segment(t)) yield x.segment;
+}
+
+// Kürzt auf höchstens `max` Codepoints (harte Grenze, auch bei riesigen Graphemen) und schneidet nie in ein
+// Graphem (ZWJ-Emoji, Flaggen, Kombinationszeichen): was nicht ganz passt, entfällt ganz.
+// Whitespace wird zusammengezogen, Kürzung endet auf „…“. Null/undefined (kaputte Daten) ergibt "".
 function kuerzen(s: string | null | undefined, max: number): string {
 	const t = String(s ?? '').replace(/\s+/g, ' ').trim();
-	const zeichen = Array.from(t);
-	if (zeichen.length <= max) return t;
-	return zeichen.slice(0, max - 1).join('').trimEnd() + '…';
+	if (Array.from(t).length <= max) return t;
+	let aus = '';
+	let belegt = 0;
+	for (const g of graphemes(t)) {
+		const n = Array.from(g).length;
+		if (belegt + n > max - 1) break;
+		aus += g;
+		belegt += n;
+	}
+	return aus.trimEnd() + '…';
 }
 
 export function nachrichtBauen(b: Buendel, v: Verdichtet): Nachricht | null {

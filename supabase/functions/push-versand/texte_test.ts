@@ -131,6 +131,28 @@ Deno.test('Kürzung trennt keine Emoji-Paare (Text bleibt wohlgeformt)', () => {
 	assertEquals([...n.text.slice(n.text.indexOf('„') + 1, n.text.indexOf('“'))].length, 60);
 });
 
+Deno.test('Kürzung zerschneidet keine Grapheme: ZWJ-Emoji, Flaggen und Kombinationszeichen bleiben ganz oder fallen ganz weg', () => {
+	const aufgabeVon = (eingabe: string) => {
+		const t = text(buendel(), einzel('neu', eingabe));
+		return t.slice(t.indexOf('„') + 1, t.indexOf('“'));
+	};
+	// Familien-Emoji (7 Codepoints, 1 Grapheme): würde der Schnitt hineinfallen, entfällt es ganz, kein hängendes ZWJ
+	const familie = '👨‍👩‍👧‍👦';
+	assertEquals(aufgabeVon('x'.repeat(55) + familie), 'x'.repeat(55) + '…');
+	assert(!aufgabeVon('x'.repeat(55) + familie).includes('\u200d'));
+	// Flaggen (je 2 Regional-Indicator): nie auf einem einzelnen Indicator enden
+	assertEquals(aufgabeVon('🇩🇪'.repeat(40)), '🇩🇪'.repeat(29) + '…');
+	// Kombinationszeichen: "é" als e + U+0301 bleibt zusammen
+	assertEquals(aufgabeVon('a'.repeat(58) + 'e\u0301' + 'zzz'), 'a'.repeat(58) + '…');
+	// Grenze bleibt in Codepoints hart: ein einzelnes riesiges Grapheme sprengt sie nicht
+	const zalgo = aufgabeVon('x' + '\u0301'.repeat(200));
+	assert([...zalgo].length <= 60, `Länge ${[...zalgo].length}`);
+	assert(zalgo.isWellFormed());
+	// Titel nutzt dieselbe Kürzung
+	const titel = nachrichtBauen(buendel({ list_title: 'x'.repeat(55) + familie }), einzel('neu', 'Milch'))!.titel;
+	assertEquals(titel, 'x'.repeat(55) + '…');
+});
+
 Deno.test('Whitespace im Aufgabentext wird zusammengezogen', () => {
 	assertEquals(text(buendel(), einzel('neu', '  Milch\n  kaufen ')), 'Anna hat „Milch kaufen“ hinzugefügt');
 });
