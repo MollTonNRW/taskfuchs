@@ -112,6 +112,8 @@ Regeln, in dieser Reihenfolge:
 6a. Ein Bearbeiter, der nicht Besitzer oder Mitglied der Liste ist (z. B. nach Entzug der Freigabe, die eigene Aufgabe bleibt bearbeitbar), erzeugt kein Event. Der Agent ist ausgenommen.
 7. Insert in `notification_events` mit `left(text, 120)`.
 
+Eigene Änderungen erzeugen Events, aber keine Meldung: der Bearbeiter wird beim Abholen als Empfänger ausgeschlossen (`push_buendel_abholen`, s. u.).
+
 **RPCs** — alle `SECURITY DEFINER`, `SET search_path = public, pg_temp`, `revoke execute … from public, anon`, Grants wie angegeben.
 
 | Funktion | Grant | Verhalten |
@@ -160,6 +162,8 @@ where exists (select 1 from public.notification_events);
 ```
 
 - Idempotent (`cron.unschedule` der alten Jobs, falls vorhanden).
+- `timeout_milliseconds` 70 000 (70 s): die Function hat ein Gesamtbudget von 60 s je Lauf (s. „Grenzen der Function“) und antwortet danach noch; mit dem Standard von pg_net (5 s) oder 10 s gäbe die Anfrage vorher auf.
+- Die Supabase-CLI überspringt Dateien mit Buchstabensuffix (wie 022b, 026b): 027b wird von Hand eingespielt (lokal per `psql`, in Produktion per `apply_migration`/SQL-Editor).
 - Vault-Secrets `push_versand_url` und `push_cron_secret` legt der Deploy an (`vault.create_secret`), nicht die Migration. Fehlen sie, bricht 027b mit klarer Meldung ab.
 - Zwei weitere Jobs, unabhängig vom Versandlauf: `push-aufraeumen` (stündlich, `delete from public.notification_events where created_at < now() - interval '1 day'`) und `push-protokoll-aufraeumen` (täglich, kürzt `cron.job_run_details` auf 3 Tage; sonst eine Zeile je Minute).
 - Kontrolle des HTTP-Status der Function: `select status_code, count(*) from net._http_response group by 1;` (`cron.job_run_details` zeigt nur, dass pg_net die Anfrage eingestellt hat).
@@ -173,10 +177,18 @@ Deno/TypeScript. `verify_jwt = false` (Aufruf kommt von `pg_cron`); Schutz über
 | `index.ts` | `Deno.serve`: Secret prüfen, `supabase-js` mit `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, `rpc('push_buendel_abholen')`, je Bündel Text bauen, an alle Abos aller Empfänger senden (begrenzt parallel), `rpc('push_abo_ergebnis')`, Antwort `{ buendel, gesendet, fehler, entfernt }`. Logs nur Zähler — nie Aufgabentexte oder Endpoints; Fehler und entfernte Abos zusätzlich je HTTP-Status („Fehler nach Status: 429 ×2“, „entfernt nach Status: 410 ×1“). |
 | `buendeln.ts` | Rein: Events einer Gruppe je Aufgabe verdichten (s. u.), Zählung je Art, Beispieltexte. |
 | `texte.ts` | Rein: deutsche Texte, Payload bauen. |
-| `webpush.ts` | Versand (VAPID-JWT ES256 + aes128gcm). Bibliothek nach Test wählen (`jsr:@negrel/webpush` oder `npm:web-push`); die Wahl muss in Deno nachweislich verschlüsseln. Status 404/410 → Abo „weg“; 2xx → „ok“; sonst Fehler zählen, Abo behalten. TTL 21600 s, Urgency `high` (menschlich ausgelöste Meldungen, die immer eine sichtbare Notification erzeugen; mit `normal` verzögert Android im Doze-Modus die Zustellung). |
+| `webpush.ts` | Versand (VAPID-JWT ES256 + aes128gcm) als **eigene WebCrypto-Implementierung** ohne Web-Push-Bibliothek (Krypto-Kern etwa 50 Zeilen; `jsr:@negrel/webpush` und `npm:web-push` wurden geprüft und verworfen, Gründe im Kopf der Datei). Nachgewiesen gegen den RFC-8291-Testvektor (byte-genau) und durch unabhängige Entschlüsselung des echten Versands mit `npm:http_ece`; Header und VAPID-JWT gegen einen Mock-Push-Dienst. Status 404/410 → Abo „weg“; 2xx → „ok“; sonst Fehler zählen, Abo behalten. TTL 21600 s, Urgency `high` (menschlich ausgelöste Meldungen, die immer eine sichtbare Notification erzeugen; mit `normal` verzögert Android im Doze-Modus die Zustellung). |
 | `*_test.ts` | `deno test` für `buendeln`, `texte`, Secret-Prüfung und Versand-Klassifizierung (gemockt). |
 
 Secrets (Supabase Function Secrets, nie im Repo): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (beide base64url, Format von `web-push generate-vapid-keys`), `VAPID_SUBJECT` = `https://taskfuchs.molltoncreative.de`, `PUSH_CRON_SECRET`.
+
+**Grenzen der Function** (damit ein einzelnes Konto oder ein hängender Push-Dienst den Versand nicht für alle blockiert):
+
+- **Allowlist der Endpoints:** nur `https`, Port 443 oder ohne Port, Hosts `fcm.googleapis.com`, `updates.push.services.mozilla.com`, `web.push.apple.com` und `*.notify.windows.com`; kein Userinfo, keine Umleitungen (`redirect: 'manual'`). Derselbe reguläre Ausdruck wie der Check-Constraint in 027; ein unzulässiger Endpoint wird nie angefragt und im Log als `endpoint ×N` gezählt. Beispielliste in beiden Testwelten (pgTAP und Deno).
+- **Parallelität:** höchstens 6 Sendungen gleichzeitig; je Sendung höchstens 10 s.
+- **Gesamtbudget 60 s je Lauf:** danach wird nichts Neues gestartet und Laufendes abgebrochen (im Log `zeit ×N`); `push_abo_ergebnis` und das Log folgen trotzdem. Die Events sind beim Abholen schon gelöscht, nicht gesendete Meldungen sind verloren (bewusst, wie bei Push-Dienst-Fehlern). Der Cron-Timeout (70 s) liegt darüber.
+- **Höchstens 10 Abos je Empfänger** und Bündel (zusätzlich hält die Datenbank höchstens 10 Geräte je Person): ein Konto mit vielen Fake-Abos belegt den gemeinsamen Pool nicht.
+- **Payload-Obergrenze:** die Meldung bleibt unter 2 KB (Titel ≤ 60, Text ≤ 180 Zeichen); technisch lehnt `webpush.ts` Klartext über 3993 Byte ab (RFC 8291: 4096 − 86 Byte Kopf − 17 Byte Tag und Trenner) und zählt das als Fehler.
 
 **Verdichtung je Aufgabe** (`buendeln.ts`): erstes Event `neu` und letztes `geloescht` → Aufgabe fällt weg; sonst enthält die Folge `neu` → `neu`; sonst letzte Art. Danach Zählung je Art; Beispieltexte: bis zu 3 je Art in Reihenfolge des Auftretens. Bleibt nichts übrig → kein Versand.
 
@@ -237,7 +249,10 @@ Empfänger sind Besitzer und **alle** Freigaben. Eine Freigabe braucht keine Zus
 ## Tests
 
 - **Datenbank** (lokale Supabase per Docker, Migrationen 001–027): pgTAP unter `supabase/tests/push_benachrichtigungen.test.sql` — Trigger (jede Art, Trenner, irrelevante Updates, private Liste, Verschieben, Kaskade, `service_role` mit/ohne `agent_actor`, Fehler bricht Schreiben nicht), RLS (fremde Abos/Mutes unsichtbar, Events/Config unsichtbar, Mute nur für sichtbare Listen), RPC-Rechte (`anon`/`authenticated` dürfen Versand-RPCs nicht), `push_buendel_abholen` (Fälligkeit 2/10 min, veraltet > 1 Tag, Empfänger ohne Bearbeiter/Stumme/ohne Abo, Doppelaufruf liefert nichts doppelt).
-- **Edge Function:** `deno test` (rein + gemockter Versand), dazu ein echter Verschlüsselungs-Nachweis der gewählten Bibliothek.
+- **Cron (027b):** pgTAP `supabase/tests/push_cron.test.sql` (Jobs, Zeitplan, Timeout, Vault-Quelle, Aufräum-Jobs). Die CLI überspringt `027b` (Buchstabensuffix) und `027b` bricht ohne die Vault-Secrets ab: lokal nach `supabase db reset` zuerst Platzhalter-Secrets anlegen (`vault.create_secret` für `push_versand_url` und `push_cron_secret`), dann `027b` per `psql` einspielen, danach `supabase test db`. Der Test ersetzt vorhandene Secrets innerhalb seiner Transaktion selbst und rollt zurück.
+- **Lokaler Stub für 025:** Migration 025 widerruft die Rechte von `rls_auto_enable()`; die Funktion steht in keiner Migration und existiert nur in der Produktionsdatenbank, lokal scheitert 025 deshalb. Der gitignorierte Stub `supabase/migrations/000_lokal_stub_rls_auto_enable.sql` legt sie lokal an (nie committen, nie nach Produktion einspielen: er würde die echte Funktion überschreiben).
+- **Edge Function:** `deno test` (rein + gemockter Versand), dazu der Verschlüsselungs-Nachweis der eigenen Implementierung (RFC-8291-Testvektor, unabhängige Entschlüsselung, Mock-Push-Dienst mit Prüfung aller Header und des VAPID-JWT).
+- **Verträge über die Nähte** (je Seite ein Test mit fester Beispielform, damit eine einseitige Änderung rot wird): Endpoint-Allowlist (dieselbe Beispielliste in pgTAP gegen den Check-Constraint und in Deno gegen `oeffentlicherHttpsEndpoint`); App → Datenbank (`abo.test.ts`: echtes 65-Byte-`p256dh` und 16-Byte-`auth` erfüllen die Check-Constraints, 87 bzw. 22 Zeichen base64url); Datenbank → Function (`lauf_test.ts`: unverändert aus `push_buendel_abholen` übernommene jsonb-Form läuft durch `lauf()`); Function → Service Worker (`nachricht.test.ts`: Nutzlast im Format von `texte.ts` wird von `leseNachricht` ohne Rückfall gelesen).
 - **App:** Vitest für die reinen Teile von `abo.ts` und Deep-Link-Parsing; `npm run check`, `npm run lint` ohne neue Fehler, `npm run build`.
 - **Ende-zu-Ende (Testversion):** Franks Handy abonniert; Testereignisse werden direkt in `notification_events` gelegt (Bearbeiter = zweite Person, geteilte Liste) — keine sichtbaren Datenänderungen; Meldung kommt innerhalb von ~3 min, Tipp öffnet die Liste.
 
@@ -246,7 +261,7 @@ Empfänger sind Besitzer und **alle** Freigaben. Eine Freigabe braucht keine Zus
 1. Migration 027 in Produktion (rein additiv; Trigger fehlertolerant).
 2. VAPID-Schlüssel erzeugen; Function-Secrets setzen; Edge Function deployen; Smoke: 401 ohne Secret, 200 mit Secret.
 3. Vault-Secrets anlegen, `push_config.agent_actor` setzen, Migration 027b anwenden; Cron-Lauf prüfen (`cron.job_run_details`).
-4. App deployen (Opt-in, ohne Einschalten ändert sich für niemanden etwas); APK 1.3 bauen und an Frank geben.
+4. App deployen. Ohne Einschalten: kein Prompt, kein Abo; sichtbar neu sind nur Glocke (mobil) und Menüpunkt (Desktop). APK 1.3 bauen und an Frank geben.
 5. Ende-zu-Ende-Test mit Frank.
 
 Rückbau: Cron-Job entfernen, Trigger droppen — App und Daten bleiben unberührt.
