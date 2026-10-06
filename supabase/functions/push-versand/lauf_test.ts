@@ -211,6 +211,7 @@ Deno.test('Logs enthalten nur Zähler (auch bei Fehlern je Status): weder Texte 
 	assertEquals(f.logs, [
 		'push-versand: 1 Bündel, 1 gesendet, 4 Fehler, 1 entfernt',
 		'push-versand: Fehler nach Status: 429 ×2, 500 ×1, netz ×1',
+		'push-versand: entfernt nach Status: 410 ×1',
 	]);
 	const verboten = [
 		'Hafermilch-Geheimtext',
@@ -227,6 +228,42 @@ Deno.test('Logs enthalten nur Zähler (auch bei Fehlern je Status): weder Texte 
 	for (const zeile of f.logs) {
 		for (const v of verboten) assert(!zeile.includes(v), `Log enthält "${v}": ${zeile}`);
 	}
+});
+
+Deno.test('entfernte Abos werden je Status gezählt (Abo einmal, auch bei mehreren Bündeln), ohne Endpoint zu nennen', async () => {
+	const verhalten = (ep: string): number => {
+		if (ep === abo(1).endpoint || ep === abo(4).endpoint) return 410;
+		if (ep === abo(2).endpoint) return 404;
+		return 201;
+	};
+	const f = fake(
+		[
+			buendel({ empfaenger: [{ user_id: BERND, abos: [1, 2, 3, 4].map(abo) }] }),
+			// abo(1) kommt in einem zweiten Bündel nochmals vor und wird nochmals mit 410 beantwortet
+			buendel({ list_id: LISTE_2, events: [ereignis('t2', 'neu', 'Brot')] }),
+		],
+		verhalten,
+	);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht.entfernt, 3, 'drei verschiedene Abos');
+	assertEquals(f.logs, [
+		'push-versand: 2 Bündel, 1 gesendet, 0 Fehler, 3 entfernt',
+		'push-versand: entfernt nach Status: 404 ×1, 410 ×2',
+	]);
+	for (const zeile of f.logs) {
+		for (const v of ['geheimer-endpoint', 'push.example.test', 'geheim-1', 'auth-geheim']) {
+			assert(!zeile.includes(v), `Log enthält "${v}": ${zeile}`);
+		}
+	}
+});
+
+Deno.test('ohne entfernte Abos gibt es keine Zeile "entfernt nach Status"', async () => {
+	const f = fake([buendel()], () => 500);
+	await lauf(f.deps);
+	assertEquals(f.logs, [
+		'push-versand: 1 Bündel, 0 gesendet, 1 Fehler, 0 entfernt',
+		'push-versand: Fehler nach Status: 500 ×1',
+	]);
 });
 
 Deno.test('höchstens `parallel` gleichzeitige Sendungen (Standard 6) und es wird auch parallel gesendet', async () => {

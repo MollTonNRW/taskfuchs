@@ -170,7 +170,7 @@ Deno/TypeScript. `verify_jwt = false` (Aufruf kommt von `pg_cron`); Schutz über
 
 | Datei | Inhalt |
 |---|---|
-| `index.ts` | `Deno.serve`: Secret prüfen, `supabase-js` mit `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, `rpc('push_buendel_abholen')`, je Bündel Text bauen, an alle Abos aller Empfänger senden (begrenzt parallel), `rpc('push_abo_ergebnis')`, Antwort `{ buendel, gesendet, fehler, entfernt }`. Logs nur Zähler — nie Aufgabentexte oder Endpoints. |
+| `index.ts` | `Deno.serve`: Secret prüfen, `supabase-js` mit `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`, `rpc('push_buendel_abholen')`, je Bündel Text bauen, an alle Abos aller Empfänger senden (begrenzt parallel), `rpc('push_abo_ergebnis')`, Antwort `{ buendel, gesendet, fehler, entfernt }`. Logs nur Zähler — nie Aufgabentexte oder Endpoints; Fehler und entfernte Abos zusätzlich je HTTP-Status („Fehler nach Status: 429 ×2“, „entfernt nach Status: 410 ×1“). |
 | `buendeln.ts` | Rein: Events einer Gruppe je Aufgabe verdichten (s. u.), Zählung je Art, Beispieltexte. |
 | `texte.ts` | Rein: deutsche Texte, Payload bauen. |
 | `webpush.ts` | Versand (VAPID-JWT ES256 + aes128gcm). Bibliothek nach Test wählen (`jsr:@negrel/webpush` oder `npm:web-push`); die Wahl muss in Deno nachweislich verschlüsseln. Status 404/410 → Abo „weg“; 2xx → „ok“; sonst Fehler zählen, Abo behalten. TTL 21600 s, Urgency `high` (menschlich ausgelöste Meldungen, die immer eine sichtbare Notification erzeugen; mit `normal` verzögert Android im Doze-Modus die Zustellung). |

@@ -53,6 +53,12 @@ function schluesselOrdnung(a: string, b: string): number {
 	return Number.isNaN(na) ? a.localeCompare(b) : na - nb;
 }
 
+/** „429 ×2, 500 ×1, netz ×1“: nur Zähler, nie Endpoints oder Texte. */
+function statusZaehler(zaehler: Map<string, number>): string {
+	const sortiert = [...zaehler].sort(([a], [b]) => schluesselOrdnung(a, b));
+	return sortiert.map(([schluessel, anzahl]) => `${schluessel} ×${anzahl}`).join(', ');
+}
+
 export async function lauf(
 	d: Abhaengigkeiten,
 	parallel: number = STANDARD_PARALLEL,
@@ -63,7 +69,7 @@ export async function lauf(
 	if (buendel.length === 0) return bericht;
 
 	const ok = new Set<string>();
-	const weg = new Set<string>();
+	const weg = new Map<string, number>(); // Endpoint → HTTP-Status (404/410); je Abo einmal, der erste Status zählt
 	const fehlerStatus = new Map<string, number>(); // Schlüssel: HTTP-Status oder "netz"/"zeit"/"endpoint"/"bündel"
 	const fehlerZaehlen = (schluessel: string) => {
 		bericht.fehler += 1;
@@ -106,7 +112,7 @@ export async function lauf(
 					bericht.gesendet += 1;
 					ok.add(abo.endpoint);
 				} else if (ergebnis === 'weg') {
-					weg.add(abo.endpoint);
+					if (!weg.has(abo.endpoint)) weg.set(abo.endpoint, status);
 				} else {
 					fehlerZaehlen(String(status));
 				}
@@ -127,19 +133,23 @@ export async function lauf(
 	}
 
 	// Ein Abo, das irgendwo als „weg“ gemeldet wurde, wird nicht zusätzlich als „ok“ markiert.
-	for (const endpoint of weg) ok.delete(endpoint);
+	for (const endpoint of weg.keys()) ok.delete(endpoint);
 	bericht.entfernt = weg.size;
 
 	d.log(
 		`push-versand: ${bericht.buendel} Bündel, ${bericht.gesendet} gesendet, ${bericht.fehler} Fehler, ${bericht.entfernt} entfernt`,
 	);
-	if (fehlerStatus.size > 0) {
-		const teile = [...fehlerStatus].sort(([a], [b]) => schluesselOrdnung(a, b))
-			.map(([schluessel, anzahl]) => `${schluessel} ×${anzahl}`);
-		d.log(`push-versand: Fehler nach Status: ${teile.join(', ')}`);
+	if (fehlerStatus.size > 0) d.log(`push-versand: Fehler nach Status: ${statusZaehler(fehlerStatus)}`);
+	if (weg.size > 0) {
+		// Je Abo ein Status (404/410); zeigt, ob Push-Dienste Abos als "unbekannt" oder "abgelaufen" melden.
+		const entferntStatus = new Map<string, number>();
+		for (const status of weg.values()) {
+			entferntStatus.set(String(status), (entferntStatus.get(String(status)) ?? 0) + 1);
+		}
+		d.log(`push-versand: entfernt nach Status: ${statusZaehler(entferntStatus)}`);
 	}
 
 	// Erst loggen, dann melden: scheitert das Melden, sind die Zähler der schon versendeten Meldungen trotzdem im Log.
-	if (ok.size > 0 || weg.size > 0) await d.ergebnis([...ok], [...weg]);
+	if (ok.size > 0 || weg.size > 0) await d.ergebnis([...ok], [...weg.keys()]);
 	return bericht;
 }
