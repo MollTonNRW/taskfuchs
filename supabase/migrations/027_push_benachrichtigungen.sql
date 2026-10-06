@@ -2,11 +2,13 @@
 -- Push-Benachrichtigungen für geteilte Listen.
 -- Spec: docs/superpowers/specs/2026-10-06-push-benachrichtigungen-design.md
 -- Rein additiv. Keine Extensions, kein Cron, keine Secrets, keine User-IDs (öffentliches Repo).
+-- Wiederholbar (wie 022, 024, 026): Tabellen und Indizes mit "if not exists" (vorhandene Tabellen
+-- bleiben unverändert), Policies und Trigger werden vorher entfernt, Funktionen "create or replace".
 
 -- ---------------------------------------------------------------------------
 -- Tabellen
 -- ---------------------------------------------------------------------------
-create table public.push_subscriptions (
+create table if not exists public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   -- Nur bekannte Push-Dienste (Allowlist): schliesst IP-Literale, localhost, interne Hostnamen,
@@ -30,16 +32,16 @@ create table public.push_subscriptions (
   last_seen_at timestamptz not null default now(),
   last_ok_at timestamptz
 );
-create index push_subscriptions_user_idx on public.push_subscriptions (user_id);
+create index if not exists push_subscriptions_user_idx on public.push_subscriptions (user_id);
 
-create table public.list_notification_mutes (
+create table if not exists public.list_notification_mutes (
   user_id uuid not null references auth.users(id) on delete cascade,
   list_id uuid not null references public.lists(id) on delete cascade,
   created_at timestamptz not null default now(),
   primary key (user_id, list_id)
 );
 
-create table public.notification_events (
+create table if not exists public.notification_events (
   id bigint generated always as identity primary key,
   list_id uuid not null references public.lists(id) on delete cascade,
   actor_id uuid not null references auth.users(id) on delete cascade,
@@ -51,10 +53,10 @@ create table public.notification_events (
   task_text text not null default '',
   created_at timestamptz not null default now()
 );
-create index notification_events_gruppe_idx
+create index if not exists notification_events_gruppe_idx
   on public.notification_events (list_id, actor_id, created_at);
 
-create table public.push_config (
+create table if not exists public.push_config (
   key text primary key,
   value text not null
 );
@@ -67,15 +69,20 @@ alter table public.list_notification_mutes enable row level security;
 alter table public.notification_events enable row level security;
 alter table public.push_config enable row level security;
 
+drop policy if exists "push_subscriptions: eigene lesen" on public.push_subscriptions;
 create policy "push_subscriptions: eigene lesen" on public.push_subscriptions
   for select to authenticated using (user_id = (select auth.uid()));
+drop policy if exists "push_subscriptions: eigene loeschen" on public.push_subscriptions;
 create policy "push_subscriptions: eigene loeschen" on public.push_subscriptions
   for delete to authenticated using (user_id = (select auth.uid()));
 
+drop policy if exists "list_notification_mutes: eigene lesen" on public.list_notification_mutes;
 create policy "list_notification_mutes: eigene lesen" on public.list_notification_mutes
   for select to authenticated using (user_id = (select auth.uid()));
+drop policy if exists "list_notification_mutes: eigene loeschen" on public.list_notification_mutes;
 create policy "list_notification_mutes: eigene loeschen" on public.list_notification_mutes
   for delete to authenticated using (user_id = (select auth.uid()));
+drop policy if exists "list_notification_mutes: sichtbare Liste stummschalten" on public.list_notification_mutes;
 create policy "list_notification_mutes: sichtbare Liste stummschalten" on public.list_notification_mutes
   for insert to authenticated
   with check (
@@ -204,6 +211,7 @@ begin
 end;
 $$;
 
+drop trigger if exists tasks_push_event on public.tasks;
 create trigger tasks_push_event
   after insert or update or delete on public.tasks
   for each row execute function public.push_event_erfassen();
