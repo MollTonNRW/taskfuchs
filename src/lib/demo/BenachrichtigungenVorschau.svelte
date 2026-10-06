@@ -25,6 +25,8 @@
 	 *   keine=1            keine geteilten Listen
 	 *   stumm=<id>,<id>    diese Listen sind stumm (z. B. l-einkaufen)
 	 *   dunkel=1           dunkles Theme
+	 *   erlaubt=1          bei verweigert: beim nächsten Sichtbarwerden der Seite ist die
+	 *                      Berechtigung nicht mehr blockiert (Rückkehr aus den Android-Einstellungen)
 	 */
 	const p = page.url.searchParams;
 	const startStatus = p.get('status') ?? 'aus';
@@ -51,6 +53,15 @@
 		}
 	};
 	if (startStatus === 'an') aktuell = abo;
+
+	// Wie ein Wechsel in die Android-Einstellungen und zurück: die Seite wird wieder sichtbar,
+	// und die Berechtigung ist inzwischen erteilbar. Dieser Listener steht vor dem der Seite
+	// und läuft darum zuerst.
+	if (p.get('erlaubt') === '1') {
+		document.addEventListener('visibilitychange', () => {
+			if (document.visibilityState === 'visible' && berechtigung === 'denied') berechtigung = 'default';
+		});
+	}
 
 	const umgebung: PushUmgebung = {
 		hatPush: startStatus !== 'nicht-unterstuetzt',
