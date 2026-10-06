@@ -28,9 +28,9 @@ const FREMDER_SCHLUESSEL = Uint8Array.from(DEPLOY_SCHLUESSEL, (b, i) => (i === 0
  */
 function baueAbo(
 	endpoint = 'https://push.example.test/abo-1',
-	angelegtMit: Uint8Array | null | 'ohne-options' = DEPLOY_SCHLUESSEL
+	angelegtMit: Uint8Array | null | 'ohne-options' = DEPLOY_SCHLUESSEL,
+	schluessel: Record<string, ArrayLike<number>> = { p256dh: [1, 2, 3, 251, 255], auth: [250, 0, 7] }
 ) {
-	const schluessel: Record<string, number[]> = { p256dh: [1, 2, 3, 251, 255], auth: [250, 0, 7] };
 	return {
 		endpoint,
 		options:
@@ -234,10 +234,7 @@ describe('einschalten', () => {
 
 		// auf dem Server: neues Abo gespeichert, das tote alte Abo entfernt, nie das alte gespeichert
 		expect(rpc).toHaveBeenCalledWith('push_abo_loeschen', { p_endpoint: 'https://push.example.test/alt' });
-		expect(rpc).toHaveBeenCalledWith(
-			'push_abo_speichern',
-			expect.objectContaining({ p_endpoint: neuesAbo.endpoint })
-		);
+		expect(rpc).toHaveBeenCalledWith('push_abo_speichern', expect.objectContaining({ p_endpoint: neuesAbo.endpoint }));
 		expect(rpc).not.toHaveBeenCalledWith(
 			'push_abo_speichern',
 			expect.objectContaining({ p_endpoint: 'https://push.example.test/alt' })
@@ -564,6 +561,57 @@ describe('geraetName', () => {
 	});
 });
 
+/**
+ * Vertrag mit der Datenbank (Migration 027, Check-Constraints push_subscriptions_p256dh_check und
+ * push_subscriptions_auth_check): p256dh = 65 Byte (unkomprimierter Punkt, erstes Byte 0x04) als base64url
+ * ohne Padding = genau 87 Zeichen, auth = 16 Byte = genau 22 Zeichen. Die Muster unten sind wortgleich zu 027.
+ * Echte Laengen statt der Kurzwerte der anderen Tests: nur so faellt Padding, Standard-Base64 oder eine
+ * falsche Laenge auf, bevor die Datenbank den Aufruf mit 23514 ablehnt.
+ */
+describe('Vertrag mit den Check-Constraints der Datenbank (027)', () => {
+	const DB_P256DH = /^[A-Za-z0-9_-]{87}$/;
+	const DB_AUTH = /^[A-Za-z0-9_-]{22}$/;
+
+	/** 65 Byte, 0x04 vorn, der Rest deckt den ganzen Wertebereich ab (auch Bytes, die in Base64 `+` und `/` ergeben). */
+	const P256DH = Uint8Array.from({ length: 65 }, (_, i) => (i === 0 ? 0x04 : (i * 37 + 11) % 256));
+	/** 16 Byte, mit Werten, die in Standard-Base64 `+` oder `/` ergeben (0xfb, 0xff, 0xbe). */
+	const AUTH = Uint8Array.from([
+		0xfb, 0xff, 0xbe, 0x00, 0x01, 0x7f, 0x80, 0xfe, 0xfa, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70
+	]);
+
+	function standardBase64(b: Uint8Array): string {
+		return btoa(String.fromCharCode(...b));
+	}
+
+	it('Vorbedingung: die Beispielschluessel haben Laenge 65 und 16 und brauchen die URL-sichere Abbildung', () => {
+		expect(P256DH.length).toBe(65);
+		expect(P256DH[0]).toBe(0x04);
+		expect(AUTH.length).toBe(16);
+		expect(standardBase64(P256DH)).toMatch(/[+/=]/);
+		expect(standardBase64(AUTH)).toMatch(/[+/=]/);
+	});
+
+	it.each([
+		['einschalten', (sb: SupabaseClient, u: PushUmgebung) => einschalten(sb, u)],
+		['abgleichen', (sb: SupabaseClient, u: PushUmgebung) => abgleichen(sb, u)]
+	] as const)('%s: die RPC-Parameter erfuellen die Check-Constraints von p256dh und auth', async (_name, aufruf) => {
+		const abo = baueAbo('https://fcm.googleapis.com/fcm/send/abc', DEPLOY_SCHLUESSEL, { p256dh: P256DH, auth: AUTH });
+		const { umgebung } = baueUmgebung({ anfrage: 'granted', berechtigung: 'granted', abo });
+		const { sb, rpc } = baueSb();
+
+		await aufruf(sb, umgebung);
+
+		expect(rpc).toHaveBeenCalledTimes(1);
+		const [name, params] = rpc.mock.calls[0] as unknown as [string, { p_p256dh: string; p_auth: string }];
+		expect(name).toBe('push_abo_speichern');
+		expect(params.p_p256dh).toMatch(DB_P256DH);
+		expect(params.p_auth).toMatch(DB_AUTH);
+		// verlustfrei: aus den Parametern kommen genau die Bytes des Browsers zurueck
+		expect(Array.from(base64UrlZuUint8(params.p_p256dh))).toEqual(Array.from(P256DH));
+		expect(Array.from(base64UrlZuUint8(params.p_auth))).toEqual(Array.from(AUTH));
+	});
+});
+
 describe('base64UrlZuUint8', () => {
 	it('wandelt den oeffentlichen VAPID-Schluessel in einen 65-Byte-Punkt', () => {
 		const bytes = base64UrlZuUint8(VAPID_PUBLIC_KEY);
@@ -581,7 +629,13 @@ describe('base64UrlZuUint8', () => {
 
 	it('der oeffentliche VAPID-Schluessel ist ein gueltiger Punkt auf der Kurve P-256', async () => {
 		await expect(
-			crypto.subtle.importKey('raw', base64UrlZuUint8(VAPID_PUBLIC_KEY), { name: 'ECDH', namedCurve: 'P-256' }, true, [])
+			crypto.subtle.importKey(
+				'raw',
+				base64UrlZuUint8(VAPID_PUBLIC_KEY),
+				{ name: 'ECDH', namedCurve: 'P-256' },
+				true,
+				[]
+			)
 		).resolves.toBeDefined();
 	});
 
