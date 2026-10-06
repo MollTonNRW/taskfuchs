@@ -310,3 +310,14 @@ Deno.test('scheitert ergebnis() nach dem Versand, sind die Zähler trotzdem gelo
 		'push-versand: Fehler nach Status: 500 ×1',
 	]);
 });
+
+Deno.test('abgelehnter Endpoint wird im Log getrennt von Netzfehlern gezählt (Allowlist sichtbar), ohne den Endpoint zu nennen', async () => {
+	const f = fake(
+		[buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2), abo(3)] }] })],
+		(ep) =>
+			ep === abo(1).endpoint ? new Error('Endpoint nicht erlaubt') : ep === abo(2).endpoint ? new Error('x') : 201,
+	);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 1, gesendet: 1, fehler: 2, entfernt: 0 });
+	assertEquals(f.logs[1], 'push-versand: Fehler nach Status: endpoint ×1, netz ×1');
+});

@@ -36,7 +36,7 @@ export interface SenderConfig {
 	privateKey: string;
 	subject: string;
 	timeoutMs?: number;
-	/** Standard: nur öffentliche https-Endpoints (kein localhost, keine IP-Adressen). Nur für Tests ersetzen. */
+	/** Standard: nur bekannte Push-Dienste per https auf Port 443 (Allowlist). Nur für Tests ersetzen. */
 	endpointPruefung?: (url: URL) => boolean;
 }
 
@@ -174,13 +174,21 @@ async function vapidJwt(privateKey: CryptoKey, aud: string, sub: string): Promis
 
 // --- Endpoint-Prüfung ------------------------------------------------------------------------
 
-/** Push-Endpoints sind öffentliche https-Adressen von Push-Diensten; nie localhost oder IP-Adressen (SSRF). */
+/**
+ * Hosts der Push-Dienste (RFC 8030), die Browser als Endpoint vergeben: Chrome/Android/Samsung/Opera/Edge-Android
+ * über FCM, Firefox, Edge/Windows (WNS), Safari. Ein Endpoint kann von jedem eingeloggten Konto frei gesetzt
+ * werden und die Function schickt dorthin Daten mit gültigem VAPID-Kopf: deshalb Allowlist statt Negativfilter
+ * (Trailing Dot, interne Namen, DNS auf Loopback, fremde Ports waren mit dem Negativfilter umgehbar).
+ */
+const PUSH_HOSTS = ['fcm.googleapis.com', 'updates.push.services.mozilla.com', 'web.push.apple.com'];
+const PUSH_HOST_ENDUNGEN = ['.notify.windows.com'];
+
+/** Nur https auf Port 443 bei einem bekannten Push-Dienst; sonst nie (SSRF-Schutz). */
 export function oeffentlicherHttpsEndpoint(url: URL): boolean {
 	if (url.protocol !== 'https:' || url.username || url.password) return false;
-	const host = url.hostname.toLowerCase();
-	if (host === 'localhost' || host.endsWith('.localhost') || host.includes(':')) return false; // IPv6-Literal
-	if (/^[\d.]+$/.test(host)) return false; // IPv4-Literal (auch verkürzte Schreibweisen)
-	return host.includes('.');
+	if (url.port !== '') return false; // URL normalisiert den Standardport 443 zu ''
+	const host = url.hostname; // von URL bereits kleingeschrieben; ein Trailing Dot („host.“) passt nie
+	return PUSH_HOSTS.includes(host) || PUSH_HOST_ENDUNGEN.some((e) => host.endsWith(e) && host.length > e.length);
 }
 
 // --- Versand ----------------------------------------------------------------------------------

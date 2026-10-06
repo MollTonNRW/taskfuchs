@@ -53,7 +53,7 @@ export async function lauf(d: Abhaengigkeiten, parallel: number = STANDARD_PARAL
 
 	const ok = new Set<string>();
 	const weg = new Set<string>();
-	const fehlerStatus = new Map<string, number>(); // Schlüssel: HTTP-Status oder "netz"/"bündel"
+	const fehlerStatus = new Map<string, number>(); // Schlüssel: HTTP-Status oder "netz"/"endpoint"/"bündel"
 	const fehlerZaehlen = (schluessel: string) => {
 		bericht.fehler += 1;
 		fehlerStatus.set(schluessel, (fehlerStatus.get(schluessel) ?? 0) + 1);
@@ -88,8 +88,9 @@ export async function lauf(d: Abhaengigkeiten, parallel: number = STANDARD_PARAL
 			} else {
 				fehlerZaehlen(String(status));
 			}
-		} catch {
-			fehlerZaehlen('netz');
+		} catch (e) {
+			// Nur die neutralen Meldungen des Senders unterscheiden; alles andere ist ein Netzfehler.
+			fehlerZaehlen(e instanceof Error && e.message === 'Endpoint nicht erlaubt' ? 'endpoint' : 'netz');
 		}
 	});
 

@@ -373,27 +373,60 @@ Deno.test('senden: Zeitüberschreitung wirft', async () => {
 
 // --- Endpoint-Prüfung (SSRF-Schutz) ---------------------------------------------------------------
 
-Deno.test('Endpoint-Prüfung: öffentliche Push-Dienste ja; http, localhost, IP-Adressen, Zugangsdaten nein', () => {
+Deno.test('Endpoint-Prüfung: nur bekannte Push-Dienste auf Port 443 (Allowlist)', () => {
 	for (
 		const ok of [
 			'https://fcm.googleapis.com/fcm/send/abc',
+			'https://fcm.googleapis.com/wp/abc',
+			'https://FCM.GOOGLEAPIS.COM/fcm/send/abc', // Hostnamen sind nicht schreibungsabhängig
+			'https://fcm.googleapis.com:443/fcm/send/abc', // expliziter Standardport
 			'https://updates.push.services.mozilla.com/wpush/v2/xyz',
+			'https://wns2-par02p.notify.windows.com/w/?token=abc',
 			'https://web.push.apple.com/Qx',
 		]
 	) assertEquals(oeffentlicherHttpsEndpoint(new URL(ok)), true, ok);
+});
+
+Deno.test('Endpoint-Prüfung: http, localhost, interne Namen, IP-Adressen, fremde Ports und Umgehungen werden abgelehnt', () => {
 	for (
 		const schlecht of [
+			// Protokoll, Zugangsdaten
 			'http://fcm.googleapis.com/fcm/send/abc',
+			'https://user:pw@fcm.googleapis.com/x',
+			'https://fcm.googleapis.com@evil.example/x',
+			// localhost in allen Schreibweisen (Trailing Dot, Prozent-Kodierung)
 			'https://localhost/x',
+			'https://localhost./x',
+			'https://%6c%6f%63%61%6c%68%6f%73%74./x',
 			'https://foo.localhost/x',
+			// IP-Literale
 			'https://127.0.0.1/x',
 			'https://10.0.0.5/x',
 			'https://169.254.169.254/latest',
 			'https://2130706433/x',
 			'https://[::1]/x',
 			'https://[fd00::1]/x',
+			// interne und DNS-umgebogene Namen
 			'https://intern/x',
-			'https://user:pw@fcm.googleapis.com/x',
+			'https://x.internal/x',
+			'https://metadata.google.internal/',
+			'https://instance-data.ec2.internal/',
+			'https://kubernetes.default.svc/',
+			'https://host.docker.internal/',
+			'https://127.0.0.1.nip.io/x',
+			'https://localtest.me/',
+			// richtiger Dienst, aber falscher Port oder angehängte/vorangestellte Domain
+			'https://fcm.googleapis.com:6379/',
+			'https://fcm.googleapis.com:8443/fcm/send/abc',
+			'https://fcm.googleapis.com./fcm/send/abc',
+			'https://fcm.googleapis.com.evil.example/x',
+			'https://evilfcm.googleapis.com/x',
+			'https://evil.example/fcm.googleapis.com',
+			// Windows: nur Unterdomains von notify.windows.com
+			'https://notify.windows.com/x',
+			'https://evilnotify.windows.com/x',
+			'https://notify.windows.com.evil.example/x',
+			'https://.notify.windows.com/x',
 		]
 	) assertEquals(oeffentlicherHttpsEndpoint(new URL(schlecht)), false, schlecht);
 });
@@ -407,6 +440,11 @@ Deno.test('senden: unzulässiger Endpoint wird nicht angefragt und wirft ohne de
 		assert(!fehler.message.includes('127.0.0.1'));
 		await assertRejects(() => sender.senden({ ...abo, endpoint: 'kein url' }, 'x'), Error, 'Endpoint nicht erlaubt');
 		assertEquals(mock.aufgenommen.length, 0, 'es darf keine Anfrage hinausgehen');
+		// Umgehung des früheren Negativfilters: Trailing Dot und Prozent-Kodierung führten trotzdem auf den Loopback
+		for (const host of ['localhost.', '%6c%6f%63%61%6c%68%6f%73%74.']) {
+			const e = `https://${host}:${new URL(mock.endpoint).port}/push/abc123`;
+			await assertRejects(() => sender.senden({ ...abo, endpoint: e }, 'x'), Error, 'Endpoint nicht erlaubt');
+		}
 	} finally {
 		await mock.schliessen();
 	}
