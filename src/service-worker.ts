@@ -95,17 +95,19 @@ sw.addEventListener('notificationclick', (event) => {
 	const ziel = new URL(zielUrl(event.notification.data?.url, sw.location.origin), sw.location.origin).href;
 	event.waitUntil(
 		(async () => {
-			try {
-				const fenster = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true });
-				for (const f of fenster) {
-					if (new URL(f.url).origin === sw.location.origin) {
-						await f.focus();
-						await f.navigate(ziel).catch(() => undefined);
-						return;
-					}
+			// Ein offenes Fenster der App nutzen. `navigate` wirft bei einem Fenster, das
+			// dieser Service Worker nicht kontrolliert — dann das nächste, sonst ein neues.
+			const fenster = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true }).catch(() => []);
+			for (const f of fenster) {
+				if (new URL(f.url).origin !== sw.location.origin) continue;
+				// Fokus braucht die Nutzergeste des Tipps; ein Fehlschlag soll das Navigieren nicht verhindern.
+				await f.focus().catch(() => undefined);
+				try {
+					await f.navigate(ziel);
+					return;
+				} catch {
+					// nächstes Fenster bzw. unten ein neues öffnen
 				}
-			} catch {
-				// Fenster nicht erreichbar — unten ein neues öffnen
 			}
 			await sw.clients.openWindow(ziel);
 		})()
