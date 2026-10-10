@@ -40,23 +40,23 @@
    die App hell (siehe src/lib/stores/tf/theme.svelte.ts).
    --------------------------------------------------------------------- */
 :root {
-	--bg: #f3eee4;
-	--surface: #fbf8f2;
-	--surface-2: #efe8dc;
-	--line: #e2d9ca;
-	--line-2: #efe9df;
+	--bg: #faf8f5;
+	--surface: #ffffff;
+	--surface-2: #f3f1ee;
+	--line: #e6e2dc;
+	--line-2: #f1eee9;
 	--ink: #2b2521;
 	--ink-2: #6b6259;
-	--ink-3: #7a7064;
+	--ink-3: #736a5e;
 	--accent: #e4641b;
 	--accent-ink: #b8480b;
-	--accent-soft: #fbe7d8;
+	--accent-soft: #fdeee3;
 	--low: #22c55e;
 	--normal: #eab308;
 	--high: #ef4444;
 	--asap: #991b1b;
-	--sel: #f6e9db;
-	--new: #fff4e8;
+	--sel: #fcefe4;
+	--new: #fff8f1;
 
 	/* Abgeleitet: weicher Akzentschimmer fuer Fokus-/Hover-Schatten.
 	   Kein eigener Palettenwert, nur --accent mit Deckkraft. */
