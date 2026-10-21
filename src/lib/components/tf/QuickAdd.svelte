@@ -1,3 +1,14 @@
+<script lang="ts" module>
+	/**
+	 * Oeffnet ein Tastendruck die Zeile? Nur Enter/Leertaste auf der Zeile
+	 * selbst. Tasten aus dem Eingabefeld steigen bis hierher auf — ohne die
+	 * Pruefung schluckte `preventDefault` jedes Leerzeichen im Feld.
+	 */
+	export function oeffnetZeile(e: Pick<KeyboardEvent, 'key' | 'target' | 'currentTarget'>): boolean {
+		return e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ');
+	}
+</script>
+
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import Icon from './Icon.svelte';
@@ -75,7 +86,7 @@
 	}
 
 	function tasteAufZeile(e: KeyboardEvent) {
-		if (e.key === 'Enter' || e.key === ' ') {
+		if (oeffnetZeile(e)) {
 			e.preventDefault();
 			oeffnen();
 		}
