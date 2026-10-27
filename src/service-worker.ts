@@ -5,6 +5,7 @@
 
 import { build, files, version } from '$service-worker';
 import { zielOeffnen } from '$lib/push/fenster';
+import { istUpdate, fensterNeuLaden } from '$lib/push/fenster-neuladen';
 import { leseNachricht, zielUrl } from '$lib/push/nachricht';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;
@@ -28,10 +29,13 @@ sw.addEventListener('install', (event) => {
 sw.addEventListener('activate', (event) => {
 	event.waitUntil(
 		caches.keys().then(async (keys) => {
+			const update = istUpdate(keys, CACHE);
 			for (const key of keys) {
 				if (key !== CACHE) await caches.delete(key);
 			}
-			sw.clients.claim();
+			await sw.clients.claim();
+			// Auch Fenster mit einem Build ohne eigene Update-Prüfung auf die neue Fassung holen.
+			if (update) await fensterNeuLaden(sw.clients, sw.location.origin);
 		})
 	);
 });
