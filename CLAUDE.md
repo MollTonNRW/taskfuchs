@@ -179,6 +179,10 @@ Wer alten Code oder alte Dokumentation liest, sucht sonst danach:
 | `DoneBar.svelte` | ~35 | Erledigt-Balken mit Zähler und „Erledigte löschen" |
 | `Logo.svelte` | ~30 | Fuchskopf-Siegel |
 
+### Crossover Familien-Quests
+
+Die Listen „Familie" (Typ Aufgaben) und – nur bei eingeschaltetem Schalter – „Einkaufen" (Typ Einkauf) sind in Navigation und Listenübersicht Links nach außen zu Familien-Quests (neuer Tab). Erkennung, URLs und Schalterlogik: `src/lib/utils/quests.ts` (einzige URL-Stelle). Schalter „Einkaufen in Familien-Quests" (Default an seit dem Umzug 15.11.2026, „aus" pro Gerät möglich): `stores/tf/quests.svelte.ts`, localStorage `tf-einkauf-quests`, pro Gerät, nur über die Einstellung in der App; Erkennung nur für eigene oder mit mir geteilte Listen. Solange „Familie" offene Aufgaben hat, bleibt „Alte Aufgaben ansehen (N)".
+
 ### Composables (`src/lib/composables/tf/`)
 
 | Datei | Beschreibung |

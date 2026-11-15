@@ -7,6 +7,7 @@
 	import AvatarStack from './AvatarStack.svelte';
 	import type { SmartView } from '$lib/stores/tf/navigation.svelte';
 	import type { Mitnutzer } from '$lib/utils/mitnutzer';
+	import { QUESTS_URL } from '$lib/utils/quests';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 
@@ -44,6 +45,9 @@
 		onListDragEnd,
 		ziehIndex,
 		ziehListId,
+		questsZielFuer = () => null,
+		einkaufInQuests = false,
+		onToggleEinkaufQuests,
 		neueListeOffen = false
 	}: {
 		lists: List[];
@@ -71,6 +75,11 @@
 		/** Einfuegestelle beim Umsortieren (Index zwischen den Zeilen). */
 		ziehIndex: number | null;
 		ziehListId: string | null;
+		/** Familien-Quests-URL, wenn die Liste dorthin umgeleitet wird, sonst null. */
+		questsZielFuer?: (list: List) => string | null;
+		/** Schalter: Liste „Einkaufen" oeffnet Familien-Quests (Default an). */
+		einkaufInQuests?: boolean;
+		onToggleEinkaufQuests?: () => void;
 		/** Startet mit ausgeklappter Karte „Neue Liste" — nur die Vorschau-Route. */
 		neueListeOffen?: boolean;
 	} = $props();
@@ -119,24 +128,45 @@
 		<div class="tf-navh">Listen</div>
 
 		{#each lists as list, i (list.id)}
-			<button
-				class="tf-ni"
-				class:on={!smartView && list.id === activeListId}
-				class:ziel-oben={ziehListId && ziehListId !== list.id && ziehIndex === i}
-				class:ziel-unten={ziehListId && ziehListId !== list.id && ziehIndex === i + 1}
-				onclick={() => onSelectList(list.id)}
-				oncontextmenu={(e) => onListContext(e, list)}
-				draggable="true"
-				ondragstart={(e) => onListDragStart(e, list)}
-				ondragover={(e) => onListDragOver(e, i)}
-				ondrop={onListDrop}
-				ondragend={onListDragEnd}
-			>
-				<span class="em">{list.icon}</span>
-				<span class="name">{list.title}</span>
-				<AvatarStack leute={fremde(list.id)} />
-				<span class="n">{offeneJeListe.get(list.id) ?? 0}</span>
-			</button>
+			{@const ziel = questsZielFuer(list)}
+			{#if ziel}
+				<a class="tf-ni quest" href={ziel} target="_blank" rel="noopener noreferrer" oncontextmenu={(e) => onListContext(e, list)}>
+					<span class="em">{list.icon}</span>
+					<span class="name">
+						{list.title}
+						<span class="sub">öffnet Familien-Quests</span>
+					</span>
+					<Icon name="extern" size={16} />
+				</a>
+				{#if (offeneJeListe.get(list.id) ?? 0) > 0}
+					<button
+						class="tf-ni alt"
+						class:on={!smartView && list.id === activeListId}
+						onclick={() => onSelectList(list.id)}
+					>
+						<span class="name">Alte Aufgaben ansehen ({offeneJeListe.get(list.id)})</span>
+					</button>
+				{/if}
+			{:else}
+				<button
+					class="tf-ni"
+					class:on={!smartView && list.id === activeListId}
+					class:ziel-oben={ziehListId && ziehListId !== list.id && ziehIndex === i}
+					class:ziel-unten={ziehListId && ziehListId !== list.id && ziehIndex === i + 1}
+					onclick={() => onSelectList(list.id)}
+					oncontextmenu={(e) => onListContext(e, list)}
+					draggable="true"
+					ondragstart={(e) => onListDragStart(e, list)}
+					ondragover={(e) => onListDragOver(e, i)}
+					ondrop={onListDrop}
+					ondragend={onListDragEnd}
+				>
+					<span class="em">{list.icon}</span>
+					<span class="name">{list.title}</span>
+					<AvatarStack leute={fremde(list.id)} />
+					<span class="n">{offeneJeListe.get(list.id) ?? 0}</span>
+				</button>
+			{/if}
 		{/each}
 
 		{#if neueListeAuf}
@@ -186,6 +216,32 @@
 					<Icon name="glocke" size={16} />
 					Benachrichtigungen
 				</a>
+				<a
+					class="tf-mi hoch"
+					href={QUESTS_URL}
+					target="_blank"
+					rel="noopener noreferrer"
+					role="menuitem"
+					onclick={() => (menueAuf = false)}
+				>
+					<Icon name="extern" size={16} />
+					Familien-Quests
+					<span class="tf-nur-sr">(öffnet in neuem Tab)</span>
+				</a>
+				{#if onToggleEinkaufQuests}
+					<button
+						class="tf-mi hoch"
+						role="menuitemcheckbox"
+						aria-checked={einkaufInQuests}
+						onclick={() => {
+							menueAuf = false;
+							onToggleEinkaufQuests();
+						}}
+					>
+						<Icon name={einkaufInQuests ? 'haken' : 'listen'} size={16} />
+						Einkaufen in Familien-Quests: {einkaufInQuests ? 'an' : 'aus'}
+					</button>
+				{/if}
 				<a class="tf-mi" href="/app/g2-koppeln" role="menuitem" onclick={() => (menueAuf = false)}>
 					<Icon name="person" size={16} />
 					G2 Brille koppeln

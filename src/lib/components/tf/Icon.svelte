@@ -100,7 +100,9 @@
 		 * Kammern aus Halbkreisen zwischen Deckel und Boden, die sich in der
 		 * Mitte beruehren; Form und Strichstaerke folgen dem Set.
 		 */
-		sanduhr: [{ t: 'path', d: 'M6 3h12M6 21h12M7 3v4a5 5 0 0 0 10 0V3M7 21v-4a5 5 0 0 1 10 0v4' }]
+		sanduhr: [{ t: 'path', d: 'M6 3h12M6 21h12M7 3v4a5 5 0 0 0 10 0V3M7 21v-4a5 5 0 0 1 10 0v4' }],
+		/** Link nach aussen (Familien-Quests): Pfeil aus dem Rahmen. */
+		extern: [{ t: 'path', d: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5' }]
 	} as const satisfies Record<string, readonly Shape[]>;
 
 	export type IconName = keyof typeof ICONS;

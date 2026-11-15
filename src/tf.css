@@ -3402,3 +3402,54 @@ body:has(.tf-ek-fertig) .tf-toasts {
 		transition-duration: 0.01ms !important;
 	}
 }
+
+/* Crossover: Listen, die Familien-Quests oeffnen (Link nach aussen) */
+.tf-ni.quest,
+.tf-li.quest {
+	text-decoration: none;
+	height: auto;
+	min-height: 44px;
+	padding-top: 4px;
+	padding-bottom: 4px;
+}
+.tf-ni.quest .name,
+.tf-li.quest .name {
+	white-space: normal;
+}
+.tf-ni.quest .sub,
+.tf-li.quest .sub {
+	display: block;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--ink-2);
+}
+.tf-ni.quest > .tf-ico,
+.tf-li.quest > .tf-ico {
+	color: var(--ink-2);
+	flex: none;
+}
+/* „Alte Aufgaben ansehen (N)": unauffaellig, eingerueckt unter dem Link */
+.tf-ni.alt,
+.tf-li.alt {
+	min-height: 44px;
+	padding-left: 52px;
+	font-size: 13px;
+	color: var(--ink-2);
+}
+.tf-li.alt {
+	height: 44px;
+}
+
+/* Nur fuer Screenreader sichtbar (Hinweis „oeffnet in neuem Tab") */
+.tf-nur-sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+/* Menuezeilen mit 44-px-Touchziel (Familien-Quests-Eintraege) */
+.tf-mi.hoch {
+	min-height: 44px;
+}

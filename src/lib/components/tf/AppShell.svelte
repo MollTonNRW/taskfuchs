@@ -44,6 +44,8 @@
 	import type { Priority, Timeframe } from '$lib/constants';
 	import { nav, type MobileTab } from '$lib/stores/tf/navigation.svelte';
 	import { theme } from '$lib/stores/tf/theme.svelte';
+	import { quests } from '$lib/stores/tf/quests.svelte';
+	import { questsZiel } from '$lib/utils/quests';
 	import { getProfilesByIds } from '$lib/services/supabase-crud';
 	import { abgleichen } from '$lib/push/abo';
 	import { listeAusUrl } from '$lib/utils/deeplink';
@@ -770,7 +772,14 @@
 	}
 
 	// Realtime + Keyboard shortcuts
+	/** Eigene oder mit mir geteilte Liste (Mitnutzer enthaelt mich) -> Ziel in Familien-Quests oder null. */
+	function questsZielFuer(l: List): string | null {
+		const geteilt = (mitnutzer[l.id] ?? []).some((m: Mitnutzer) => m.ich);
+		return questsZiel(l, quests.einkaufAn, benutzerId, geteilt);
+	}
+
 	onMount(() => {
+		quests.laden();
 		// Push-Abo dieses Geraets auffrischen. Wirkt nur, wenn die Berechtigung schon
 		// erteilt ist und ein Abo besteht; fragt nie nach und wirft nie. Nicht in der
 		// Vorschau (Attrappe statt Datenbank).
@@ -1347,6 +1356,9 @@
 			initiale={benutzerInitiale}
 			isDark={theme.isDark}
 			onSelectList={(id) => nav.selectList(id)}
+			{questsZielFuer}
+			einkaufInQuests={quests.einkaufAn}
+			onToggleEinkaufQuests={() => quests.toggleEinkauf()}
 			onSelectSmart={(v) => nav.selectSmart(v)}
 			onSuche={() => (searchOpen = true)}
 			onNeueListe={neueListeAnlegen}
@@ -1449,6 +1461,9 @@
 							initiale={benutzerInitiale}
 							isDark={theme.isDark}
 							onSelectList={(id) => nav.selectList(id)}
+							{questsZielFuer}
+			einkaufInQuests={quests.einkaufAn}
+							onToggleEinkaufQuests={() => quests.toggleEinkauf()}
 							onSelectSmart={(v) => nav.selectSmart(v)}
 							onNeueListe={neueListeAnlegen}
 							onListContext={(e, list) => ctx.handleListContext(e, list)}
