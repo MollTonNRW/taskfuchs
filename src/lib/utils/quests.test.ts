@@ -10,7 +10,12 @@ import {
 	EINKAUF_SCHALTER_KEY
 } from './quests';
 
-const liste = (title: string, kind: 'aufgaben' | 'einkauf' = 'aufgaben') => ({ title, kind });
+const ICH = 'frank-id';
+const liste = (title: string, kind: 'aufgaben' | 'einkauf' = 'aufgaben', user_id: string = ICH) => ({
+	title,
+	kind,
+	user_id
+});
 
 describe('URLs', () => {
 	it('stehen an einer Stelle', () => {
@@ -22,43 +27,56 @@ describe('URLs', () => {
 
 describe('istFamilieListe', () => {
 	it('erkennt „Familie" unabhaengig von Gross-/Kleinschreibung und Leerraum', () => {
-		expect(istFamilieListe(liste('Familie'))).toBe(true);
-		expect(istFamilieListe(liste('  familie '))).toBe(true);
-		expect(istFamilieListe(liste('FAMILIE'))).toBe(true);
+		expect(istFamilieListe(ICH, liste('Familie'))).toBe(true);
+		expect(istFamilieListe(ICH, liste('  familie '))).toBe(true);
+		expect(istFamilieListe(ICH, liste('FAMILIE'))).toBe(true);
 	});
 	it('erkennt keine aehnlichen Namen', () => {
-		expect(istFamilieListe(liste('Familienurlaub'))).toBe(false);
-		expect(istFamilieListe(liste('Arbeit'))).toBe(false);
+		expect(istFamilieListe(ICH, liste('Familienurlaub'))).toBe(false);
+		expect(istFamilieListe(ICH, liste('Arbeit'))).toBe(false);
 	});
 	it('erkennt keine Einkaufsliste dieses Namens', () => {
-		expect(istFamilieListe(liste('Familie', 'einkauf'))).toBe(false);
+		expect(istFamilieListe(ICH, liste('Familie', 'einkauf'))).toBe(false);
 	});
 });
 
 describe('istEinkaufListe', () => {
 	it('braucht Listentyp Einkauf UND den Namen „Einkaufen"', () => {
-		expect(istEinkaufListe(liste('Einkaufen', 'einkauf'))).toBe(true);
-		expect(istEinkaufListe(liste(' einkaufen ', 'einkauf'))).toBe(true);
+		expect(istEinkaufListe(ICH, liste('Einkaufen', 'einkauf'))).toBe(true);
+		expect(istEinkaufListe(ICH, liste(' einkaufen ', 'einkauf'))).toBe(true);
 	});
 	it('eine Aufgabenliste „Einkaufen" zaehlt nicht', () => {
-		expect(istEinkaufListe(liste('Einkaufen', 'aufgaben'))).toBe(false);
+		expect(istEinkaufListe(ICH, liste('Einkaufen', 'aufgaben'))).toBe(false);
 	});
 	it('andere Einkaufslisten bleiben in Taskfuchs', () => {
-		expect(istEinkaufListe(liste('Baumarkt', 'einkauf'))).toBe(false);
+		expect(istEinkaufListe(ICH, liste('Baumarkt', 'einkauf'))).toBe(false);
+	});
+});
+
+describe('Besitz', () => {
+	it('fremde geteilte Liste gleichen Namens wird nicht umgeleitet', () => {
+		const fremd = liste('Familie', 'aufgaben', 'jemand-anders');
+		expect(istFamilieListe(ICH, fremd)).toBe(false);
+		expect(questsZiel(fremd, true, ICH)).toBeNull();
+		const fremdEinkauf = liste('Einkaufen', 'einkauf', 'jemand-anders');
+		expect(questsZiel(fremdEinkauf, true, ICH)).toBeNull();
+	});
+	it('ohne bekannten Nutzer wird nie umgeleitet', () => {
+		expect(questsZiel(liste('Familie'), true, null)).toBeNull();
 	});
 });
 
 describe('questsZiel', () => {
 	it('Familie geht immer nach Familien-Quests', () => {
-		expect(questsZiel(liste('Familie'), false)).toBe(QUESTS_AUFTRAEGE_URL);
-		expect(questsZiel(liste('Familie'), true)).toBe(QUESTS_AUFTRAEGE_URL);
+		expect(questsZiel(liste('Familie'), false, ICH)).toBe(QUESTS_AUFTRAEGE_URL);
+		expect(questsZiel(liste('Familie'), true, ICH)).toBe(QUESTS_AUFTRAEGE_URL);
 	});
 	it('Einkaufen nur bei eingeschaltetem Schalter', () => {
-		expect(questsZiel(liste('Einkaufen', 'einkauf'), false)).toBeNull();
-		expect(questsZiel(liste('Einkaufen', 'einkauf'), true)).toBe(QUESTS_EINKAUF_URL);
+		expect(questsZiel(liste('Einkaufen', 'einkauf'), false, ICH)).toBeNull();
+		expect(questsZiel(liste('Einkaufen', 'einkauf'), true, ICH)).toBe(QUESTS_EINKAUF_URL);
 	});
 	it('normale Listen bleiben', () => {
-		expect(questsZiel(liste('Arbeit'), true)).toBeNull();
+		expect(questsZiel(liste('Arbeit'), true, ICH)).toBeNull();
 	});
 });
 

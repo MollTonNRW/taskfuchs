@@ -3439,3 +3439,17 @@ body:has(.tf-ek-fertig) .tf-toasts {
 .tf-li.alt {
 	height: 44px;
 }
+
+/* Nur fuer Screenreader sichtbar (Hinweis „oeffnet in neuem Tab") */
+.tf-nur-sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+/* Menuezeilen mit 44-px-Touchziel (Familien-Quests-Eintraege) */
+.tf-mi.hoch {
+	min-height: 44px;
+}

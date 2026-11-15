@@ -5,7 +5,7 @@
 	import NewListCard from './NewListCard.svelte';
 	import AvatarStack from './AvatarStack.svelte';
 	import type { Mitnutzer } from '$lib/utils/mitnutzer';
-	import { questsZiel, QUESTS_URL } from '$lib/utils/quests';
+	import { QUESTS_URL } from '$lib/utils/quests';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 
@@ -33,6 +33,7 @@
 		onListContext,
 		onToggleTheme,
 		onLogout,
+		questsZielFuer = () => null,
 		einkaufInQuests = false,
 		onToggleEinkaufQuests,
 		neueListeOffen = false
@@ -52,6 +53,8 @@
 		onListContext: (e: MouseEvent, list: List) => void;
 		onToggleTheme: () => void;
 		onLogout: () => void;
+		/** Familien-Quests-URL, wenn die Liste dorthin umgeleitet wird, sonst null. */
+		questsZielFuer?: (list: List) => string | null;
 		/** Schalter: Liste „Einkaufen" oeffnet Familien-Quests (Default aus). */
 		einkaufInQuests?: boolean;
 		onToggleEinkaufQuests?: () => void;
@@ -77,9 +80,9 @@
 <div class="tf-lsec">Meine Listen</div>
 
 {#each lists as list (list.id)}
-	{@const ziel = questsZiel(list, einkaufInQuests)}
+	{@const ziel = questsZielFuer(list)}
 	{#if ziel}
-		<a class="tf-li quest" href={ziel} target="_blank" rel="noopener" oncontextmenu={(e) => onListContext(e, list)}>
+		<a class="tf-li quest" href={ziel} target="_blank" rel="noopener noreferrer" oncontextmenu={(e) => onListContext(e, list)}>
 			<span class="em">{list.icon}</span>
 			<span class="name">
 				{list.title}
@@ -127,9 +130,9 @@
 	</button>
 {/if}
 
-<a class="tf-li" href={QUESTS_URL} target="_blank" rel="noopener">
+<a class="tf-li" href={QUESTS_URL} target="_blank" rel="noopener noreferrer">
 	<span class="em"><Icon name="extern" /></span>
-	<span class="name">Familien-Quests</span>
+	<span class="name">Familien-Quests <span class="tf-nur-sr">(öffnet in neuem Tab)</span></span>
 </a>
 {#if onToggleEinkaufQuests}
 	<button class="tf-li" role="switch" aria-checked={einkaufInQuests} onclick={onToggleEinkaufQuests}>

@@ -7,7 +7,7 @@
 	import AvatarStack from './AvatarStack.svelte';
 	import type { SmartView } from '$lib/stores/tf/navigation.svelte';
 	import type { Mitnutzer } from '$lib/utils/mitnutzer';
-	import { questsZiel, QUESTS_URL } from '$lib/utils/quests';
+	import { QUESTS_URL } from '$lib/utils/quests';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 
@@ -45,6 +45,7 @@
 		onListDragEnd,
 		ziehIndex,
 		ziehListId,
+		questsZielFuer = () => null,
 		einkaufInQuests = false,
 		onToggleEinkaufQuests,
 		neueListeOffen = false
@@ -74,6 +75,8 @@
 		/** Einfuegestelle beim Umsortieren (Index zwischen den Zeilen). */
 		ziehIndex: number | null;
 		ziehListId: string | null;
+		/** Familien-Quests-URL, wenn die Liste dorthin umgeleitet wird, sonst null. */
+		questsZielFuer?: (list: List) => string | null;
 		/** Schalter: Liste „Einkaufen" oeffnet Familien-Quests (Default aus). */
 		einkaufInQuests?: boolean;
 		onToggleEinkaufQuests?: () => void;
@@ -103,12 +106,20 @@
 	</button>
 
 	<div class="tf-nav-scroll">
-		<button class="tf-ni" class:on={smartView === 'pins'} onclick={() => onSelectSmart('pins')}>
+		<button
+			class="tf-ni"
+			class:on={smartView === 'pins'}
+			onclick={() => onSelectSmart('pins')}
+		>
 			<Icon name="pin" size={16} />
 			<span class="name">Angepinnt</span>
 			<span class="n">{pinAnzahl}</span>
 		</button>
-		<button class="tf-ni" class:on={smartView === 'dringend'} onclick={() => onSelectSmart('dringend')}>
+		<button
+			class="tf-ni"
+			class:on={smartView === 'dringend'}
+			onclick={() => onSelectSmart('dringend')}
+		>
 			<Icon name="blitz" size={16} />
 			<span class="name">Dringend</span>
 			<span class="n">{dringendAnzahl}</span>
@@ -117,9 +128,9 @@
 		<div class="tf-navh">Listen</div>
 
 		{#each lists as list, i (list.id)}
-			{@const ziel = questsZiel(list, einkaufInQuests)}
+			{@const ziel = questsZielFuer(list)}
 			{#if ziel}
-				<a class="tf-ni quest" href={ziel} target="_blank" rel="noopener" oncontextmenu={(e) => onListContext(e, list)}>
+				<a class="tf-ni quest" href={ziel} target="_blank" rel="noopener noreferrer" oncontextmenu={(e) => onListContext(e, list)}>
 					<span class="em">{list.icon}</span>
 					<span class="name">
 						{list.title}
@@ -206,19 +217,20 @@
 					Benachrichtigungen
 				</a>
 				<a
-					class="tf-mi"
+					class="tf-mi hoch"
 					href={QUESTS_URL}
 					target="_blank"
-					rel="noopener"
+					rel="noopener noreferrer"
 					role="menuitem"
 					onclick={() => (menueAuf = false)}
 				>
 					<Icon name="extern" size={16} />
 					Familien-Quests
+					<span class="tf-nur-sr">(öffnet in neuem Tab)</span>
 				</a>
 				{#if onToggleEinkaufQuests}
 					<button
-						class="tf-mi"
+						class="tf-mi hoch"
 						role="menuitemcheckbox"
 						aria-checked={einkaufInQuests}
 						onclick={() => {
@@ -252,5 +264,9 @@
 
 {#if menueAuf}
 	<!-- Klick daneben schliesst nur dieses kleine Menue. -->
-	<div style="position:fixed;inset:0;z-index:29" onclick={() => (menueAuf = false)} role="presentation"></div>
+	<div
+		style="position:fixed;inset:0;z-index:29"
+		onclick={() => (menueAuf = false)}
+		role="presentation"
+	></div>
 {/if}

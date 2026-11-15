@@ -5,30 +5,26 @@ import { EINKAUF_SCHALTER_KEY, liesEinkaufSchalter } from '$lib/utils/quests';
  * Schalter „Einkaufen in Familien-Quests oeffnen" (Default aus).
  *
  * Lebt im Browser (localStorage), nicht in der Datenbank: ohne Deploy und ohne
- * Migration umschaltbar, pro Geraet. Zusaetzlich per Adresse setzbar:
- * `/app?einkauf-quests=an` bzw. `=aus` (wird gespeichert) — so laesst sich der
- * Schalter beim Umzug auf jedem Geraet per Link setzen.
+ * Migration umschaltbar, pro Geraet. Geaendert wird er nur ueber die
+ * Einstellung in der App. Der gespeicherte Wert wird erst im Browser nach dem
+ * Mounten gelesen (`laden`), damit Server- und Client-Render identisch beginnen
+ * (kein Hydration-Mismatch).
  */
-function lese(): boolean {
-	if (!browser) return false;
-	try {
-		const url = new URL(window.location.href).searchParams.get('einkauf-quests');
-		if (url === 'an' || url === 'aus') {
-			localStorage.setItem(EINKAUF_SCHALTER_KEY, url);
-			return url === 'an';
-		}
-		return liesEinkaufSchalter(localStorage.getItem(EINKAUF_SCHALTER_KEY));
-	} catch {
-		return false;
-	}
-}
-
 function createQuests() {
-	let einkaufAn = $state<boolean>(lese());
+	let einkaufAn = $state<boolean>(false);
 
 	return {
 		get einkaufAn() {
 			return einkaufAn;
+		},
+		/** Im onMount der Shell aufrufen. */
+		laden() {
+			if (!browser) return;
+			try {
+				einkaufAn = liesEinkaufSchalter(localStorage.getItem(EINKAUF_SCHALTER_KEY));
+			} catch {
+				/* privater Modus — Default aus */
+			}
 		},
 		toggleEinkauf() {
 			if (!browser) return;

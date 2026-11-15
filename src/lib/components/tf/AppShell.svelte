@@ -45,6 +45,7 @@
 	import { nav, type MobileTab } from '$lib/stores/tf/navigation.svelte';
 	import { theme } from '$lib/stores/tf/theme.svelte';
 	import { quests } from '$lib/stores/tf/quests.svelte';
+	import { questsZiel } from '$lib/utils/quests';
 	import { getProfilesByIds } from '$lib/services/supabase-crud';
 	import { abgleichen } from '$lib/push/abo';
 	import { listeAusUrl } from '$lib/utils/deeplink';
@@ -772,6 +773,7 @@
 
 	// Realtime + Keyboard shortcuts
 	onMount(() => {
+		quests.laden();
 		// Push-Abo dieses Geraets auffrischen. Wirkt nur, wenn die Berechtigung schon
 		// erteilt ist und ein Abo besteht; fragt nie nach und wirft nie. Nicht in der
 		// Vorschau (Attrappe statt Datenbank).
@@ -1348,6 +1350,7 @@
 			initiale={benutzerInitiale}
 			isDark={theme.isDark}
 			onSelectList={(id) => nav.selectList(id)}
+			questsZielFuer={(l) => questsZiel(l, quests.einkaufAn, benutzerId)}
 			einkaufInQuests={quests.einkaufAn}
 			onToggleEinkaufQuests={() => quests.toggleEinkauf()}
 			onSelectSmart={(v) => nav.selectSmart(v)}
@@ -1452,7 +1455,8 @@
 							initiale={benutzerInitiale}
 							isDark={theme.isDark}
 							onSelectList={(id) => nav.selectList(id)}
-							einkaufInQuests={quests.einkaufAn}
+							questsZielFuer={(l) => questsZiel(l, quests.einkaufAn, benutzerId)}
+			einkaufInQuests={quests.einkaufAn}
 							onToggleEinkaufQuests={() => quests.toggleEinkauf()}
 							onSelectSmart={(v) => nav.selectSmart(v)}
 							onNeueListe={neueListeAnlegen}
