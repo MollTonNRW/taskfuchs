@@ -5,7 +5,7 @@
  * - Liste „Einkaufen" (Typ Einkauf): nur wenn der Schalter an ist, Default aus,
  *   bis der Umzug der Einkaufsliste live ist.
  *
- * Erkennung ueber Name (getrimmt, ohne Gross-/Kleinschreibung), Listentyp UND Besitzer:
+ * Erkennung ueber Name (getrimmt, ohne Gross-/Kleinschreibung), Listentyp UND Beteiligung (eigen oder mit mir geteilt):
  * die Datenbank hat kein Kennzeichen fuer „diese Liste", und der Name allein
  * wuerde auch eine Einkaufsliste „Familie" treffen. Nur exakte Namen, damit
  * „Familienurlaub" in Taskfuchs bleibt.
@@ -25,26 +25,31 @@ function name(l: ListeKurz): string {
 }
 
 /**
- * Nur EIGENE Listen (Besitzer = angemeldeter Nutzer): eine mit mir geteilte
- * Liste einer fremden Person, die zufaellig „Familie" heisst, bleibt in
- * Taskfuchs. Ohne bekannten Nutzer wird nie umgeleitet.
+ * Die Liste gehoert mir ODER ist per list_shares mit mir geteilt (auch als
+ * Editor). Eine Liste, die gar nicht meine ist, wird nie umgeleitet. Ohne
+ * bekannten Nutzer ebenfalls nicht.
  */
-function istMeine(benutzerId: string | null, l: ListeKurz): boolean {
-	return !!benutzerId && l.user_id === benutzerId;
+function istBeteiligt(benutzerId: string | null, l: ListeKurz, geteiltMitMir: boolean): boolean {
+	return !!benutzerId && (l.user_id === benutzerId || geteiltMitMir);
 }
 
-export function istFamilieListe(benutzerId: string | null, l: ListeKurz): boolean {
-	return istMeine(benutzerId, l) && l.kind === 'aufgaben' && name(l) === 'familie';
+export function istFamilieListe(benutzerId: string | null, l: ListeKurz, geteiltMitMir = false): boolean {
+	return istBeteiligt(benutzerId, l, geteiltMitMir) && l.kind === 'aufgaben' && name(l) === 'familie';
 }
 
-export function istEinkaufListe(benutzerId: string | null, l: ListeKurz): boolean {
-	return istMeine(benutzerId, l) && l.kind === 'einkauf' && name(l) === 'einkaufen';
+export function istEinkaufListe(benutzerId: string | null, l: ListeKurz, geteiltMitMir = false): boolean {
+	return istBeteiligt(benutzerId, l, geteiltMitMir) && l.kind === 'einkauf' && name(l) === 'einkaufen';
 }
 
 /** Ziel-URL in Familien-Quests oder null, wenn die Liste in Taskfuchs bleibt. */
-export function questsZiel(l: ListeKurz, einkaufAn: boolean, benutzerId: string | null): string | null {
-	if (istFamilieListe(benutzerId, l)) return QUESTS_AUFTRAEGE_URL;
-	if (einkaufAn && istEinkaufListe(benutzerId, l)) return QUESTS_EINKAUF_URL;
+export function questsZiel(
+	l: ListeKurz,
+	einkaufAn: boolean,
+	benutzerId: string | null,
+	geteiltMitMir = false
+): string | null {
+	if (istFamilieListe(benutzerId, l, geteiltMitMir)) return QUESTS_AUFTRAEGE_URL;
+	if (einkaufAn && istEinkaufListe(benutzerId, l, geteiltMitMir)) return QUESTS_EINKAUF_URL;
 	return null;
 }
 

@@ -772,6 +772,12 @@
 	}
 
 	// Realtime + Keyboard shortcuts
+	/** Eigene oder mit mir geteilte Liste (Mitnutzer enthaelt mich) -> Ziel in Familien-Quests oder null. */
+	function questsZielFuer(l: List): string | null {
+		const geteilt = (mitnutzer[l.id] ?? []).some((m: Mitnutzer) => m.ich);
+		return questsZiel(l, quests.einkaufAn, benutzerId, geteilt);
+	}
+
 	onMount(() => {
 		quests.laden();
 		// Push-Abo dieses Geraets auffrischen. Wirkt nur, wenn die Berechtigung schon
@@ -1350,7 +1356,7 @@
 			initiale={benutzerInitiale}
 			isDark={theme.isDark}
 			onSelectList={(id) => nav.selectList(id)}
-			questsZielFuer={(l) => questsZiel(l, quests.einkaufAn, benutzerId)}
+			{questsZielFuer}
 			einkaufInQuests={quests.einkaufAn}
 			onToggleEinkaufQuests={() => quests.toggleEinkauf()}
 			onSelectSmart={(v) => nav.selectSmart(v)}
@@ -1455,7 +1461,7 @@
 							initiale={benutzerInitiale}
 							isDark={theme.isDark}
 							onSelectList={(id) => nav.selectList(id)}
-							questsZielFuer={(l) => questsZiel(l, quests.einkaufAn, benutzerId)}
+							{questsZielFuer}
 			einkaufInQuests={quests.einkaufAn}
 							onToggleEinkaufQuests={() => quests.toggleEinkauf()}
 							onSelectSmart={(v) => nav.selectSmart(v)}

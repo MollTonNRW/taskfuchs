@@ -53,16 +53,28 @@ describe('istEinkaufListe', () => {
 	});
 });
 
-describe('Besitz', () => {
-	it('fremde geteilte Liste gleichen Namens wird nicht umgeleitet', () => {
+describe('Beteiligung', () => {
+	const ANNA = 'anna-id';
+	it('Anna: Liste gehoert Frank, ist mit ihr geteilt (Editor) -> umleiten', () => {
+		const familie = liste('Familie', 'aufgaben', ICH);
+		const einkauf = liste('Einkaufen', 'einkauf', ICH);
+		expect(questsZiel(familie, false, ANNA, true)).toBe(QUESTS_AUFTRAEGE_URL);
+		expect(questsZiel(einkauf, true, ANNA, true)).toBe(QUESTS_EINKAUF_URL);
+		expect(questsZiel(einkauf, false, ANNA, true)).toBeNull();
+	});
+	it('fremde Liste gleichen Namens, nicht geteilt -> nicht umleiten', () => {
 		const fremd = liste('Familie', 'aufgaben', 'jemand-anders');
 		expect(istFamilieListe(ICH, fremd)).toBe(false);
-		expect(questsZiel(fremd, true, ICH)).toBeNull();
+		expect(questsZiel(fremd, true, ICH, false)).toBeNull();
 		const fremdEinkauf = liste('Einkaufen', 'einkauf', 'jemand-anders');
-		expect(questsZiel(fremdEinkauf, true, ICH)).toBeNull();
+		expect(questsZiel(fremdEinkauf, true, ICH, false)).toBeNull();
+	});
+	it('geteilt, aber Name oder Typ passt nicht -> bleibt', () => {
+		expect(questsZiel(liste('Arbeit', 'aufgaben', ICH), true, ANNA, true)).toBeNull();
+		expect(questsZiel(liste('Familie', 'einkauf', ICH), true, ANNA, true)).toBeNull();
 	});
 	it('ohne bekannten Nutzer wird nie umgeleitet', () => {
-		expect(questsZiel(liste('Familie'), true, null)).toBeNull();
+		expect(questsZiel(liste('Familie'), true, null, true)).toBeNull();
 	});
 });
 
