@@ -2,8 +2,8 @@
  * Crossover Taskfuchs × Familien-Quests — reine Logik, eine Stelle fuer URLs.
  *
  * - Liste „Familie": oeffnet immer Familien-Quests (Aufgaben dort).
- * - Liste „Einkaufen" (Typ Einkauf): nur wenn der Schalter an ist, Default aus,
- *   bis der Umzug der Einkaufsliste live ist.
+ * - Liste „Einkaufen" (Typ Einkauf): wenn der Schalter an ist; Default an, seit
+ *   der Umzug der Einkaufsliste live ist (15.11.2026). „aus" pro Geraet bleibt moeglich.
  *
  * Erkennung ueber Name (getrimmt, ohne Gross-/Kleinschreibung), Listentyp UND Beteiligung (eigen oder mit mir geteilt):
  * die Datenbank hat kein Kennzeichen fuer „diese Liste", und der Name allein
@@ -53,7 +53,7 @@ export function questsZiel(
 	return null;
 }
 
-/** Gespeicherter Wert -> Schalter. Nur der Wert „an" schaltet ein, sonst aus. */
+/** Gespeicherter Wert -> Schalter. Nur der Wert „aus" schaltet ab, sonst an (Default an seit dem Umzug 15.11.2026). */
 export function liesEinkaufSchalter(wert: string | null): boolean {
-	return wert === 'an';
+	return wert !== 'aus';
 }

@@ -2,7 +2,7 @@ import { browser } from '$app/environment';
 import { EINKAUF_SCHALTER_KEY, liesEinkaufSchalter } from '$lib/utils/quests';
 
 /**
- * Schalter „Einkaufen in Familien-Quests oeffnen" (Default aus).
+ * Schalter „Einkaufen in Familien-Quests oeffnen" (Default an seit 15.11.2026).
  *
  * Lebt im Browser (localStorage), nicht in der Datenbank: ohne Deploy und ohne
  * Migration umschaltbar, pro Geraet. Geaendert wird er nur ueber die
@@ -11,7 +11,7 @@ import { EINKAUF_SCHALTER_KEY, liesEinkaufSchalter } from '$lib/utils/quests';
  * (kein Hydration-Mismatch).
  */
 function createQuests() {
-	let einkaufAn = $state<boolean>(false);
+	let einkaufAn = $state<boolean>(true);
 
 	return {
 		get einkaufAn() {
@@ -23,7 +23,7 @@ function createQuests() {
 			try {
 				einkaufAn = liesEinkaufSchalter(localStorage.getItem(EINKAUF_SCHALTER_KEY));
 			} catch {
-				/* privater Modus — Default aus */
+				/* privater Modus — Default an */
 			}
 		},
 		toggleEinkauf() {

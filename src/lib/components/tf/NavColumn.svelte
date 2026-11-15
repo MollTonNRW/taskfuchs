@@ -77,7 +77,7 @@
 		ziehListId: string | null;
 		/** Familien-Quests-URL, wenn die Liste dorthin umgeleitet wird, sonst null. */
 		questsZielFuer?: (list: List) => string | null;
-		/** Schalter: Liste „Einkaufen" oeffnet Familien-Quests (Default aus). */
+		/** Schalter: Liste „Einkaufen" oeffnet Familien-Quests (Default an). */
 		einkaufInQuests?: boolean;
 		onToggleEinkaufQuests?: () => void;
 		/** Startet mit ausgeklappter Karte „Neue Liste" — nur die Vorschau-Route. */

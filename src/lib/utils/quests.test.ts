@@ -92,15 +92,15 @@ describe('questsZiel', () => {
 	});
 });
 
-describe('liesEinkaufSchalter (Wert -> an/aus, Default aus)', () => {
-	it('ohne Wert ist der Schalter aus', () => {
-		expect(liesEinkaufSchalter(null)).toBe(false);
-		expect(liesEinkaufSchalter('')).toBe(false);
+describe('liesEinkaufSchalter (Wert -> an/aus, Default an seit Live-Gang 15.11.2026)', () => {
+	it('ohne Wert ist der Schalter an', () => {
+		expect(liesEinkaufSchalter(null)).toBe(true);
+		expect(liesEinkaufSchalter('')).toBe(true);
 	});
-	it('nur „an" schaltet ein', () => {
+	it('nur „aus" schaltet ab', () => {
 		expect(liesEinkaufSchalter('an')).toBe(true);
 		expect(liesEinkaufSchalter('aus')).toBe(false);
-		expect(liesEinkaufSchalter('true')).toBe(false);
+		expect(liesEinkaufSchalter('true')).toBe(true);
 	});
 	it('Schluessel ist stabil', () => {
 		expect(EINKAUF_SCHALTER_KEY).toBe('tf-einkauf-quests');
