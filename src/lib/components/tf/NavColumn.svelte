@@ -7,6 +7,7 @@
 	import AvatarStack from './AvatarStack.svelte';
 	import type { SmartView } from '$lib/stores/tf/navigation.svelte';
 	import type { Mitnutzer } from '$lib/utils/mitnutzer';
+	import { questsZiel, QUESTS_URL } from '$lib/utils/quests';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 
@@ -44,6 +45,8 @@
 		onListDragEnd,
 		ziehIndex,
 		ziehListId,
+		einkaufInQuests = false,
+		onToggleEinkaufQuests,
 		neueListeOffen = false
 	}: {
 		lists: List[];
@@ -71,6 +74,9 @@
 		/** Einfuegestelle beim Umsortieren (Index zwischen den Zeilen). */
 		ziehIndex: number | null;
 		ziehListId: string | null;
+		/** Schalter: Liste „Einkaufen" oeffnet Familien-Quests (Default aus). */
+		einkaufInQuests?: boolean;
+		onToggleEinkaufQuests?: () => void;
 		/** Startet mit ausgeklappter Karte „Neue Liste" — nur die Vorschau-Route. */
 		neueListeOffen?: boolean;
 	} = $props();
@@ -97,20 +103,12 @@
 	</button>
 
 	<div class="tf-nav-scroll">
-		<button
-			class="tf-ni"
-			class:on={smartView === 'pins'}
-			onclick={() => onSelectSmart('pins')}
-		>
+		<button class="tf-ni" class:on={smartView === 'pins'} onclick={() => onSelectSmart('pins')}>
 			<Icon name="pin" size={16} />
 			<span class="name">Angepinnt</span>
 			<span class="n">{pinAnzahl}</span>
 		</button>
-		<button
-			class="tf-ni"
-			class:on={smartView === 'dringend'}
-			onclick={() => onSelectSmart('dringend')}
-		>
+		<button class="tf-ni" class:on={smartView === 'dringend'} onclick={() => onSelectSmart('dringend')}>
 			<Icon name="blitz" size={16} />
 			<span class="name">Dringend</span>
 			<span class="n">{dringendAnzahl}</span>
@@ -119,24 +117,45 @@
 		<div class="tf-navh">Listen</div>
 
 		{#each lists as list, i (list.id)}
-			<button
-				class="tf-ni"
-				class:on={!smartView && list.id === activeListId}
-				class:ziel-oben={ziehListId && ziehListId !== list.id && ziehIndex === i}
-				class:ziel-unten={ziehListId && ziehListId !== list.id && ziehIndex === i + 1}
-				onclick={() => onSelectList(list.id)}
-				oncontextmenu={(e) => onListContext(e, list)}
-				draggable="true"
-				ondragstart={(e) => onListDragStart(e, list)}
-				ondragover={(e) => onListDragOver(e, i)}
-				ondrop={onListDrop}
-				ondragend={onListDragEnd}
-			>
-				<span class="em">{list.icon}</span>
-				<span class="name">{list.title}</span>
-				<AvatarStack leute={fremde(list.id)} />
-				<span class="n">{offeneJeListe.get(list.id) ?? 0}</span>
-			</button>
+			{@const ziel = questsZiel(list, einkaufInQuests)}
+			{#if ziel}
+				<a class="tf-ni quest" href={ziel} target="_blank" rel="noopener" oncontextmenu={(e) => onListContext(e, list)}>
+					<span class="em">{list.icon}</span>
+					<span class="name">
+						{list.title}
+						<span class="sub">öffnet Familien-Quests</span>
+					</span>
+					<Icon name="extern" size={16} />
+				</a>
+				{#if (offeneJeListe.get(list.id) ?? 0) > 0}
+					<button
+						class="tf-ni alt"
+						class:on={!smartView && list.id === activeListId}
+						onclick={() => onSelectList(list.id)}
+					>
+						<span class="name">Alte Aufgaben ansehen ({offeneJeListe.get(list.id)})</span>
+					</button>
+				{/if}
+			{:else}
+				<button
+					class="tf-ni"
+					class:on={!smartView && list.id === activeListId}
+					class:ziel-oben={ziehListId && ziehListId !== list.id && ziehIndex === i}
+					class:ziel-unten={ziehListId && ziehListId !== list.id && ziehIndex === i + 1}
+					onclick={() => onSelectList(list.id)}
+					oncontextmenu={(e) => onListContext(e, list)}
+					draggable="true"
+					ondragstart={(e) => onListDragStart(e, list)}
+					ondragover={(e) => onListDragOver(e, i)}
+					ondrop={onListDrop}
+					ondragend={onListDragEnd}
+				>
+					<span class="em">{list.icon}</span>
+					<span class="name">{list.title}</span>
+					<AvatarStack leute={fremde(list.id)} />
+					<span class="n">{offeneJeListe.get(list.id) ?? 0}</span>
+				</button>
+			{/if}
 		{/each}
 
 		{#if neueListeAuf}
@@ -186,6 +205,31 @@
 					<Icon name="glocke" size={16} />
 					Benachrichtigungen
 				</a>
+				<a
+					class="tf-mi"
+					href={QUESTS_URL}
+					target="_blank"
+					rel="noopener"
+					role="menuitem"
+					onclick={() => (menueAuf = false)}
+				>
+					<Icon name="extern" size={16} />
+					Familien-Quests
+				</a>
+				{#if onToggleEinkaufQuests}
+					<button
+						class="tf-mi"
+						role="menuitemcheckbox"
+						aria-checked={einkaufInQuests}
+						onclick={() => {
+							menueAuf = false;
+							onToggleEinkaufQuests();
+						}}
+					>
+						<Icon name={einkaufInQuests ? 'haken' : 'listen'} size={16} />
+						Einkaufen in Familien-Quests: {einkaufInQuests ? 'an' : 'aus'}
+					</button>
+				{/if}
 				<a class="tf-mi" href="/app/g2-koppeln" role="menuitem" onclick={() => (menueAuf = false)}>
 					<Icon name="person" size={16} />
 					G2 Brille koppeln
@@ -208,9 +252,5 @@
 
 {#if menueAuf}
 	<!-- Klick daneben schliesst nur dieses kleine Menue. -->
-	<div
-		style="position:fixed;inset:0;z-index:29"
-		onclick={() => (menueAuf = false)}
-		role="presentation"
-	></div>
+	<div style="position:fixed;inset:0;z-index:29" onclick={() => (menueAuf = false)} role="presentation"></div>
 {/if}

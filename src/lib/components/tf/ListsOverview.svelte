@@ -5,6 +5,7 @@
 	import NewListCard from './NewListCard.svelte';
 	import AvatarStack from './AvatarStack.svelte';
 	import type { Mitnutzer } from '$lib/utils/mitnutzer';
+	import { questsZiel, QUESTS_URL } from '$lib/utils/quests';
 
 	type List = Database['public']['Tables']['lists']['Row'];
 
@@ -32,6 +33,8 @@
 		onListContext,
 		onToggleTheme,
 		onLogout,
+		einkaufInQuests = false,
+		onToggleEinkaufQuests,
 		neueListeOffen = false
 	}: {
 		lists: List[];
@@ -49,6 +52,9 @@
 		onListContext: (e: MouseEvent, list: List) => void;
 		onToggleTheme: () => void;
 		onLogout: () => void;
+		/** Schalter: Liste „Einkaufen" oeffnet Familien-Quests (Default aus). */
+		einkaufInQuests?: boolean;
+		onToggleEinkaufQuests?: () => void;
 		/** Startet mit ausgeklappter Karte „Neue Liste" — nur die Vorschau-Route. */
 		neueListeOffen?: boolean;
 	} = $props();
@@ -71,18 +77,35 @@
 <div class="tf-lsec">Meine Listen</div>
 
 {#each lists as list (list.id)}
-	<button
-		class="tf-li"
-		class:on={list.id === activeListId}
-		onclick={() => onSelectList(list.id)}
-		oncontextmenu={(e) => onListContext(e, list)}
-	>
-		<span class="em">{list.icon}</span>
-		<span class="name">{list.title}</span>
-		<AvatarStack leute={fremde(list.id)} />
-		<span class="n">{offeneJeListe.get(list.id) ?? 0}</span>
-		<Icon name="chevron-rechts" size={16} class="chev" />
-	</button>
+	{@const ziel = questsZiel(list, einkaufInQuests)}
+	{#if ziel}
+		<a class="tf-li quest" href={ziel} target="_blank" rel="noopener" oncontextmenu={(e) => onListContext(e, list)}>
+			<span class="em">{list.icon}</span>
+			<span class="name">
+				{list.title}
+				<span class="sub">öffnet Familien-Quests</span>
+			</span>
+			<Icon name="extern" size={16} class="chev" />
+		</a>
+		{#if (offeneJeListe.get(list.id) ?? 0) > 0}
+			<button class="tf-li alt" class:on={list.id === activeListId} onclick={() => onSelectList(list.id)}>
+				<span class="name">Alte Aufgaben ansehen ({offeneJeListe.get(list.id)})</span>
+			</button>
+		{/if}
+	{:else}
+		<button
+			class="tf-li"
+			class:on={list.id === activeListId}
+			onclick={() => onSelectList(list.id)}
+			oncontextmenu={(e) => onListContext(e, list)}
+		>
+			<span class="em">{list.icon}</span>
+			<span class="name">{list.title}</span>
+			<AvatarStack leute={fremde(list.id)} />
+			<span class="n">{offeneJeListe.get(list.id) ?? 0}</span>
+			<Icon name="chevron-rechts" size={16} class="chev" />
+		</button>
+	{/if}
 {/each}
 
 {#if neueListeAuf}
@@ -101,6 +124,18 @@
 	<button class="tf-li" onclick={() => (neueListeAuf = true)}>
 		<span class="em"><Icon name="plus" /></span>
 		<span class="name">Neue Liste</span>
+	</button>
+{/if}
+
+<a class="tf-li" href={QUESTS_URL} target="_blank" rel="noopener">
+	<span class="em"><Icon name="extern" /></span>
+	<span class="name">Familien-Quests</span>
+</a>
+{#if onToggleEinkaufQuests}
+	<button class="tf-li" role="switch" aria-checked={einkaufInQuests} onclick={onToggleEinkaufQuests}>
+		<span class="em"><Icon name={einkaufInQuests ? 'haken' : 'listen'} /></span>
+		<span class="name">Einkaufen in Familien-Quests</span>
+		<span class="n">{einkaufInQuests ? 'an' : 'aus'}</span>
 	</button>
 {/if}
 

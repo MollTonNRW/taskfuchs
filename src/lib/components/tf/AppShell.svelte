@@ -44,6 +44,7 @@
 	import type { Priority, Timeframe } from '$lib/constants';
 	import { nav, type MobileTab } from '$lib/stores/tf/navigation.svelte';
 	import { theme } from '$lib/stores/tf/theme.svelte';
+	import { quests } from '$lib/stores/tf/quests.svelte';
 	import { getProfilesByIds } from '$lib/services/supabase-crud';
 	import { abgleichen } from '$lib/push/abo';
 	import { listeAusUrl } from '$lib/utils/deeplink';
@@ -1347,6 +1348,8 @@
 			initiale={benutzerInitiale}
 			isDark={theme.isDark}
 			onSelectList={(id) => nav.selectList(id)}
+			einkaufInQuests={quests.einkaufAn}
+			onToggleEinkaufQuests={() => quests.toggleEinkauf()}
 			onSelectSmart={(v) => nav.selectSmart(v)}
 			onSuche={() => (searchOpen = true)}
 			onNeueListe={neueListeAnlegen}
@@ -1449,6 +1452,8 @@
 							initiale={benutzerInitiale}
 							isDark={theme.isDark}
 							onSelectList={(id) => nav.selectList(id)}
+							einkaufInQuests={quests.einkaufAn}
+							onToggleEinkaufQuests={() => quests.toggleEinkauf()}
 							onSelectSmart={(v) => nav.selectSmart(v)}
 							onNeueListe={neueListeAnlegen}
 							onListContext={(e, list) => ctx.handleListContext(e, list)}
