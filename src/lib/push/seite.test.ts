@@ -1,6 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { beiRueckkehr, geteilteListen, setzeStumm, statusText, vonPfadAus, zurueckWeg } from './seite';
+import {
+	beiRueckkehr,
+	FRISTEN_STANDARD,
+	FRISTEN_UHRZEITEN,
+	FRISTEN_VORLAEUFE,
+	fristenAusZeile,
+	geteilteListen,
+	setzeStumm,
+	speichereFristen,
+	statusText,
+	vonPfadAus,
+	zurueckWeg
+} from './seite';
 
 const ICH = 'ich';
 const ANNA = 'anna';
@@ -216,5 +228,75 @@ describe('vonPfadAus', () => {
 	it('wirft nicht, wenn from existiert, aber url leer ist', () => {
 		expect(vonPfadAus({ from: { url: null } })).toBeNull();
 		expect(vonPfadAus({ from: { url: undefined } })).toBeNull();
+	});
+});
+
+describe('Erinnerungen an Fristen', () => {
+	it('bietet 05:00 bis 22:00 im Halbstundentakt an', () => {
+		expect(FRISTEN_UHRZEITEN[0]).toBe('05:00');
+		expect(FRISTEN_UHRZEITEN[1]).toBe('05:30');
+		expect(FRISTEN_UHRZEITEN.at(-1)).toBe('22:00');
+		expect(FRISTEN_UHRZEITEN).toHaveLength(35);
+		expect(FRISTEN_UHRZEITEN).toContain(FRISTEN_STANDARD.uhrzeit);
+	});
+
+	it('kennt genau die Vorläufe, die die Datenbank erlaubt', () => {
+		expect(FRISTEN_VORLAEUFE.map((v) => v.minuten)).toEqual([0, 15, 30, 60, 120]);
+		expect(FRISTEN_VORLAEUFE.map((v) => v.minuten)).toContain(FRISTEN_STANDARD.vorlauf);
+	});
+
+	it('nimmt ohne Zeile den Standard: an, 08:00, ohne Vortag, 30 Minuten', () => {
+		expect(fristenAusZeile(null)).toEqual({ aktiv: true, uhrzeit: '08:00', vortag: false, vorlauf: 30 });
+		expect(fristenAusZeile(undefined)).toEqual(FRISTEN_STANDARD);
+	});
+
+	it('liest eine gespeicherte Zeile (Uhrzeit kommt als HH:MM:SS)', () => {
+		expect(fristenAusZeile({ aktiv: false, uhrzeit: '06:30:00', vortag: true, vorlauf: 60 })).toEqual({
+			aktiv: false,
+			uhrzeit: '06:30',
+			vortag: true,
+			vorlauf: 60
+		});
+	});
+
+	it('ersetzt Unbekanntes einzeln durch den Standard', () => {
+		expect(fristenAusZeile({ aktiv: 'ja', uhrzeit: '23:15:00', vortag: null, vorlauf: 45 })).toEqual(
+			FRISTEN_STANDARD
+		);
+		expect(fristenAusZeile({ aktiv: false, uhrzeit: 800, vortag: true, vorlauf: '30' })).toEqual({
+			aktiv: false,
+			uhrzeit: '08:00',
+			vortag: true,
+			vorlauf: 30
+		});
+	});
+
+	it('gibt eine Kopie heraus, nie den eingefrorenen Standard selbst', () => {
+		const e = fristenAusZeile(null);
+		e.aktiv = false;
+		expect(FRISTEN_STANDARD.aktiv).toBe(true);
+	});
+
+	it('speichert alle vier Werte über die RPC', async () => {
+		const rpc = vi.fn().mockResolvedValue({ error: null });
+		await speichereFristen({ rpc } as unknown as SupabaseClient, {
+			aktiv: true,
+			uhrzeit: '07:30',
+			vortag: true,
+			vorlauf: 15
+		});
+		expect(rpc).toHaveBeenCalledWith('push_fristen_einstellen', {
+			p_aktiv: true,
+			p_uhrzeit: '07:30',
+			p_vortag: true,
+			p_vorlauf: 15
+		});
+	});
+
+	it('wirft bei einem Fehler, damit die Seite zurücknehmen kann', async () => {
+		const rpc = vi.fn().mockResolvedValue({ error: { message: 'kaputt' } });
+		await expect(speichereFristen({ rpc } as unknown as SupabaseClient, { ...FRISTEN_STANDARD })).rejects.toThrow(
+			'kaputt'
+		);
 	});
 });

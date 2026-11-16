@@ -82,7 +82,7 @@ Deno.test('richtiges Secret -> 200 mit Bericht als JSON', async () => {
 	const res = await handler(post({ 'x-push-secret': SECRET }));
 	assertEquals(res.status, 200);
 	assertEquals(res.headers.get('content-type'), 'application/json');
-	assertEquals(await res.json(), { buendel: 0, gesendet: 0, fehler: 0, entfernt: 0 });
+	assertEquals(await res.json(), { buendel: 0, erinnerungen: 0, gesendet: 0, fehler: 0, entfernt: 0 });
 	assertEquals(zaehler.erzeugt, 1);
 	assertEquals(zaehler.abgeholt, 1);
 });

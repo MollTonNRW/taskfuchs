@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { listeAusUrl } from './deeplink';
+import { ansichtAusUrl, listeAusUrl } from './deeplink';
 
 const ID = '3f2b8c1e-9a4d-4e7b-8c21-5d6f7a8b9c0d';
 
@@ -45,5 +45,20 @@ describe('listeAusUrl', () => {
 	it('nimmt bei mehrfachem Parameter den ersten', () => {
 		const zweite = '11111111-2222-4333-8444-555555555555';
 		expect(listeAusUrl(`?liste=${ID}&liste=${zweite}`)).toBe(ID);
+	});
+});
+
+describe('ansichtAusUrl', () => {
+	it('liest die Ansicht „Dringend" (Ziel der Tagesmeldung) und „Angepinnt"', () => {
+		expect(ansichtAusUrl('?ansicht=dringend')).toBe('dringend');
+		expect(ansichtAusUrl('?x=1&ansicht=pins')).toBe('pins');
+	});
+
+	it('liefert null ohne Parameter und bei unbekannten Werten', () => {
+		expect(ansichtAusUrl('')).toBeNull();
+		expect(ansichtAusUrl('?ansicht=')).toBeNull();
+		expect(ansichtAusUrl('?ansicht=Dringend')).toBeNull();
+		expect(ansichtAusUrl('?ansicht=papierkorb')).toBeNull();
+		expect(ansichtAusUrl('?ansicht=dringend%00')).toBeNull();
 	});
 });

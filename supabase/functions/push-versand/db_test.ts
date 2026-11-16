@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertRejects } from '@std/assert';
 import { rpcAbhaengigkeiten, type RpcAntwort, type RpcClient } from './db.ts';
-import type { Buendel } from './typen.ts';
+import type { Buendel, Tagesmeldung } from './typen.ts';
 
 /** RPC-Client, der nur die Antwort liefert, die der Test vorgibt (und die Aufrufe festhält). */
 function clientMit(antwort: RpcAntwort) {
@@ -52,4 +52,20 @@ Deno.test('Gateway-Fehler ohne code: Meldung nennt den HTTP-Status; die Fehlerme
 	const fehler = await assertRejects(() => rpcAbhaengigkeiten(c.client).abholen(), Error);
 	assertEquals(fehler.message, 'abholen: HTTP 502');
 	assert(!fehler.message.includes('db.intern'));
+});
+
+Deno.test('fristenAbholen: ruft push_fristen_abholen; fehlende Teile werden zu leeren Listen', async () => {
+	const tage = [{ user_id: 'u' }] as unknown as Tagesmeldung[];
+	const a = clientMit({ data: { tage, termine: [] }, error: null, status: 200 });
+	assertEquals(await rpcAbhaengigkeiten(a.client).fristenAbholen(), { tage, termine: [] });
+	assertEquals(a.aufrufe, [{ name: 'push_fristen_abholen', args: undefined }]);
+	const b = clientMit({ data: null, error: null, status: 200 });
+	assertEquals(await rpcAbhaengigkeiten(b.client).fristenAbholen(), { tage: [], termine: [] });
+});
+
+Deno.test('fristenAbholen: Datenbankfehler mit neutraler Kennung', async () => {
+	const a = clientMit({ data: null, error: { code: 'PGRST202', message: 'https://geheim.example' }, status: 404 });
+	const e = await assertRejects(() => rpcAbhaengigkeiten(a.client).fristenAbholen(), Error);
+	assertEquals(e.message, 'fristen: PGRST202');
+	assert(!e.message.includes('geheim'));
 });

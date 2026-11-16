@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertRejects } from '@std/assert';
 import { type Abhaengigkeiten, lauf } from './lauf.ts';
-import type { Abo, Buendel, Ereignis } from './typen.ts';
+import type { Abo, Buendel, Ereignis, Erinnerungen } from './typen.ts';
 import { oeffentlicherHttpsEndpoint } from './webpush.ts';
 
 const LISTE_1 = '11111111-1111-4111-8111-111111111111';
@@ -95,7 +95,7 @@ Deno.test('zwei Bündel, drei Abos: 3 Sendungen mit vollständiger Payload, Erge
 		}),
 	]);
 	const bericht = await lauf(f.deps);
-	assertEquals(bericht, { buendel: 2, gesendet: 3, fehler: 0, entfernt: 0 });
+	assertEquals(bericht, { buendel: 2, erinnerungen: 0, gesendet: 3, fehler: 0, entfernt: 0 });
 	assertEquals(f.gesendet.length, 3);
 
 	const p1 = JSON.parse(f.gesendet[0].payload);
@@ -123,7 +123,7 @@ Deno.test('410 und 404 landen in weg und zählen als entfernt; ok bleibt ok', as
 		(ep) => ep === abo(2).endpoint ? 410 : ep === abo(3).endpoint ? 404 : 201,
 	);
 	const bericht = await lauf(f.deps);
-	assertEquals(bericht, { buendel: 1, gesendet: 1, fehler: 0, entfernt: 2 });
+	assertEquals(bericht, { buendel: 1, erinnerungen: 0, gesendet: 1, fehler: 0, entfernt: 2 });
 	assertEquals(f.ergebnisse, [{ ok: [abo(1).endpoint], weg: [abo(2).endpoint, abo(3).endpoint] }]);
 });
 
@@ -133,7 +133,7 @@ Deno.test('Netzfehler (Wurf) zählt als Fehler; Endpoint weder in ok noch in weg
 		(ep) => ep === abo(1).endpoint ? new Error('Versand fehlgeschlagen') : 201,
 	);
 	const bericht = await lauf(f.deps);
-	assertEquals(bericht, { buendel: 1, gesendet: 1, fehler: 1, entfernt: 0 });
+	assertEquals(bericht, { buendel: 1, erinnerungen: 0, gesendet: 1, fehler: 1, entfernt: 0 });
 	assertEquals(f.ergebnisse, [{ ok: [abo(2).endpoint], weg: [] }]);
 });
 
@@ -143,7 +143,7 @@ Deno.test('Dienstfehler 429/500/413 zählen als Fehler und lassen das Abo unber�
 		(ep) => ep === abo(1).endpoint ? 429 : ep === abo(2).endpoint ? 500 : 413,
 	);
 	const bericht = await lauf(f.deps);
-	assertEquals(bericht, { buendel: 1, gesendet: 0, fehler: 3, entfernt: 0 });
+	assertEquals(bericht, { buendel: 1, erinnerungen: 0, gesendet: 0, fehler: 3, entfernt: 0 });
 	assertEquals(f.ergebnisse.length, 0, 'nichts zu melden');
 });
 
@@ -152,14 +152,14 @@ Deno.test('Bündel, das nach der Verdichtung leer ist (neu + gelöscht), wird ni
 		buendel({ events: [ereignis('t1', 'neu', 'Vertipper'), ereignis('t1', 'geloescht', 'Vertipper')] }),
 	]);
 	const bericht = await lauf(f.deps);
-	assertEquals(bericht, { buendel: 1, gesendet: 0, fehler: 0, entfernt: 0 });
+	assertEquals(bericht, { buendel: 1, erinnerungen: 0, gesendet: 0, fehler: 0, entfernt: 0 });
 	assertEquals(f.gesendet.length, 0);
 	assertEquals(f.ergebnisse.length, 0);
 });
 
 Deno.test('leere Abholung: kein Versand, ergebnis nicht aufgerufen, Bericht 0, kein Log', async () => {
 	const f = fake([]);
-	assertEquals(await lauf(f.deps), { buendel: 0, gesendet: 0, fehler: 0, entfernt: 0 });
+	assertEquals(await lauf(f.deps), { buendel: 0, erinnerungen: 0, gesendet: 0, fehler: 0, entfernt: 0 });
 	assertEquals(f.gesendet.length, 0);
 	assertEquals(f.ergebnisse.length, 0);
 	assertEquals(f.logs.length, 0);
@@ -172,7 +172,7 @@ Deno.test('Bündel ohne Empfänger oder mit fehlenden Feldern wirft nicht und se
 		buendel({ events: null as unknown as Buendel['events'] }),
 		buendel({ empfaenger: [{ user_id: BERND, abos: null as unknown as Abo[] }] }),
 	]);
-	assertEquals(await lauf(f.deps), { buendel: 4, gesendet: 0, fehler: 0, entfernt: 0 });
+	assertEquals(await lauf(f.deps), { buendel: 4, erinnerungen: 0, gesendet: 0, fehler: 0, entfernt: 0 });
 	assertEquals(f.gesendet.length, 0);
 });
 
@@ -310,7 +310,7 @@ Deno.test('ein defektes Bündel reißt den Lauf nicht mit: die übrigen werden g
 		}),
 	]);
 	const bericht = await lauf(f.deps);
-	assertEquals(bericht, { buendel: 2, gesendet: 1, fehler: 1, entfernt: 0 });
+	assertEquals(bericht, { buendel: 2, erinnerungen: 0, gesendet: 1, fehler: 1, entfernt: 0 });
 	assertEquals(f.gesendet.length, 1);
 	assertEquals(f.ergebnisse, [{ ok: [abo(1).endpoint], weg: [] }]);
 	assertEquals(f.logs, [
@@ -329,7 +329,7 @@ Deno.test('Ereignis mit Text null (kaputte Daten) lässt den Lauf nicht scheiter
 		}),
 	]);
 	const bericht = await lauf(f.deps);
-	assertEquals(bericht, { buendel: 2, gesendet: 2, fehler: 0, entfernt: 0 });
+	assertEquals(bericht, { buendel: 2, erinnerungen: 0, gesendet: 2, fehler: 0, entfernt: 0 });
 	assertEquals(JSON.parse(f.gesendet[1].payload).text, 'Annabelle hat eine Aufgabe hinzugefügt');
 });
 
@@ -357,7 +357,7 @@ Deno.test('abgelehnter Endpoint wird im Log getrennt von Netzfehlern gezählt (A
 			ep === abo(1).endpoint ? new Error('Endpoint nicht erlaubt') : ep === abo(2).endpoint ? new Error('x') : 201,
 	);
 	const bericht = await lauf(f.deps);
-	assertEquals(bericht, { buendel: 1, gesendet: 1, fehler: 2, entfernt: 0 });
+	assertEquals(bericht, { buendel: 1, erinnerungen: 0, gesendet: 1, fehler: 2, entfernt: 0 });
 	assertEquals(f.logs[1], 'push-versand: Fehler nach Status: endpoint ×1, netz ×1');
 });
 
@@ -412,7 +412,7 @@ Deno.test('Vertrag mit push_buendel_abholen: ein Bündel in der jsonb-Form der D
 	const f = fake([]);
 	const bericht = await lauf({ ...f.deps, abholen: () => Promise.resolve(ausDerDb) });
 
-	assertEquals(bericht, { buendel: 1, gesendet: 2, fehler: 0, entfernt: 0 });
+	assertEquals(bericht, { buendel: 1, erinnerungen: 0, gesendet: 2, fehler: 0, entfernt: 0 });
 	assertEquals(f.gesendet.map((g) => g.endpoint), ausDerDb[0].empfaenger[0].abos.map((a) => a.endpoint));
 	// Spec "Texte": Einkaufsliste, mehrere Ereignisse, `neu` mit Beispielen, erledigt = „in den Wagen“
 	assertEquals(JSON.parse(f.gesendet[0].payload), {
@@ -456,7 +456,7 @@ Deno.test('Gesamtbudget: hängende Abos halten den Lauf nicht fest; Offenes wird
 	const bericht = await lauf({ ...f.deps, sender: h.sender }, 2, 100);
 	const dauer = performance.now() - start;
 	assert(dauer < 250, `Lauf dauerte ${Math.round(dauer)} ms, Budget war 100 ms`);
-	assertEquals(bericht, { buendel: 1, gesendet: 1, fehler: 8, entfernt: 0 });
+	assertEquals(bericht, { buendel: 1, erinnerungen: 0, gesendet: 1, fehler: 8, entfernt: 0 });
 	assertEquals(f.ergebnisse, [{ ok: [abo(0).endpoint], weg: [] }]);
 	assertEquals(h.zustand.abgebrochen, 2, 'die zwei laufenden Sendungen werden per Signal abgebrochen');
 	assertEquals(h.zustand.gestartet, 3, 'nach Ablauf wird nichts Neues mehr gestartet (abo0 + 2 hängende)');
@@ -472,13 +472,13 @@ Deno.test('Gesamtbudget: auch ein Sender, der das Signal ignoriert, hält den La
 	const bericht = await lauf(f.deps, 3, 100);
 	const dauer = performance.now() - start;
 	assert(dauer < 250, `Lauf dauerte ${Math.round(dauer)} ms, Budget war 100 ms`);
-	assertEquals(bericht, { buendel: 1, gesendet: 0, fehler: 3, entfernt: 0 });
+	assertEquals(bericht, { buendel: 1, erinnerungen: 0, gesendet: 0, fehler: 3, entfernt: 0 });
 	await new Promise((r) => setTimeout(r, 400)); // die abgehängten Fake-Sendungen auslaufen lassen (Test-Sanitizer)
 });
 
 Deno.test('Gesamtbudget: läuft alles rechtzeitig, ändert sich nichts (Timer wird aufgeräumt)', async () => {
 	const f = fake([buendel({ empfaenger: [{ user_id: BERND, abos: [abo(1), abo(2)] }] })], () => 201, 5);
-	assertEquals(await lauf(f.deps, 6, 5000), { buendel: 1, gesendet: 2, fehler: 0, entfernt: 0 });
+	assertEquals(await lauf(f.deps, 6, 5000), { buendel: 1, erinnerungen: 0, gesendet: 2, fehler: 0, entfernt: 0 });
 });
 
 Deno.test('höchstens 10 Abos je Empfänger: ein Konto mit vielen Fake-Abos blockiert den Pool nicht', async () => {
@@ -495,4 +495,85 @@ Deno.test('höchstens 10 Abos je Empfänger: ein Konto mit vielen Fake-Abos bloc
 	assertEquals(bericht.gesendet, 11, '10 vom Vielabonnenten + 1 vom anderen Empfänger');
 	assert(f.gesendet.some((g) => g.endpoint === abo(1).endpoint), 'der andere Empfänger bekommt seine Meldung');
 	assertEquals(f.gesendet.filter((g) => viele.some((v) => v.endpoint === g.endpoint)).length, 10);
+});
+
+// ---------------------------------------------------------------------------
+// Erinnerungen an Fristen (Migration 028)
+// ---------------------------------------------------------------------------
+const erinnerungen = (): Erinnerungen => ({
+	tage: [{
+		user_id: BERND,
+		heute: '2026-11-16',
+		anzahl: 1,
+		aufgaben: [{
+			task_id: 't9',
+			text: 'Steuer-Geheimtext',
+			due_date: '2026-11-16',
+			list_id: LISTE_2,
+			list_title: 'Privat',
+		}],
+		abos: [abo(7)],
+	}],
+	termine: [{
+		user_id: ANNA,
+		task_id: 't8',
+		text: 'Kinderarzt-Geheimtext',
+		due_date: '2026-11-19T09:00',
+		vorlauf: 30,
+		minuten_bis: 30,
+		list_id: LISTE_1,
+		list_title: 'Familie',
+		abos: [abo(8), abo(9)],
+	}],
+});
+
+Deno.test('Erinnerungen ohne Bündel: Tagesmeldung und Termin werden gesendet, Bericht zählt sie', async () => {
+	const f = fake([]);
+	f.deps.fristenAbholen = () => Promise.resolve(erinnerungen());
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 0, erinnerungen: 2, gesendet: 3, fehler: 0, entfernt: 0 });
+	const nachEndpoint = new Map(f.gesendet.map((g) => [g.endpoint, JSON.parse(g.payload)]));
+	assertEquals(nachEndpoint.get(abo(7).endpoint).titel, 'Heute fällig');
+	assertEquals(nachEndpoint.get(abo(7).endpoint).url, `/app?liste=${LISTE_2}`);
+	assertEquals(nachEndpoint.get(abo(8).endpoint).text, 'In 30 Minuten, um 09:00 · Familie');
+	assertEquals(f.logs, [
+		'push-versand: 0 Bündel, 3 gesendet, 0 Fehler, 0 entfernt',
+		'push-versand: 1 Tagesmeldungen, 1 Termine',
+	]);
+	for (const zeile of f.logs) assert(!zeile.includes('Geheimtext'), 'Log ohne Aufgabentexte');
+});
+
+Deno.test('Bündel und Erinnerungen im selben Lauf', async () => {
+	const f = fake([buendel()]);
+	f.deps.fristenAbholen = () => Promise.resolve(erinnerungen());
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht.buendel, 1);
+	assertEquals(bericht.erinnerungen, 2);
+	assertEquals(bericht.gesendet, 4);
+});
+
+Deno.test('Scheitert das Abholen der Erinnerungen, gehen die Bündel trotzdem raus', async () => {
+	const f = fake([buendel()]);
+	f.deps.fristenAbholen = () => Promise.reject(new Error('fristen: PGRST202'));
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht, { buendel: 1, erinnerungen: 0, gesendet: 1, fehler: 1, entfernt: 0 });
+	assert(f.logs.some((z) => z.includes('fristen ×1')));
+});
+
+Deno.test('Scheitert das Abholen der Erinnerungen ohne Bündel, wird der Fehler gezählt und geloggt', async () => {
+	const f = fake([]);
+	f.deps.fristenAbholen = () => Promise.reject(new Error('fristen: Netzfehler'));
+	assertEquals(await lauf(f.deps), { buendel: 0, erinnerungen: 0, gesendet: 0, fehler: 1, entfernt: 0 });
+	assertEquals(f.logs, ['push-versand: Fehler nach Status: fristen ×1']);
+});
+
+Deno.test('Kaputte Erinnerung (ohne Uhrzeit, ohne Aufgaben) wird übersprungen, ohne die übrigen zu stören', async () => {
+	const f = fake([]);
+	const e = erinnerungen();
+	e.termine[0].due_date = 'kaputt';
+	e.tage.push({ ...e.tage[0], user_id: ANNA, aufgaben: [], abos: [abo(5)] });
+	f.deps.fristenAbholen = () => Promise.resolve(e);
+	const bericht = await lauf(f.deps);
+	assertEquals(bericht.gesendet, 1);
+	assertEquals(f.gesendet.map((g) => g.endpoint), [abo(7).endpoint]);
 });

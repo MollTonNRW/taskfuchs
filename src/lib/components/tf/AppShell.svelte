@@ -48,7 +48,7 @@
 	import { questsZiel } from '$lib/utils/quests';
 	import { getProfilesByIds } from '$lib/services/supabase-crud';
 	import { abgleichen } from '$lib/push/abo';
-	import { listeAusUrl } from '$lib/utils/deeplink';
+	import { ansichtAusUrl, listeAusUrl } from '$lib/utils/deeplink';
 	import { baueAusProfil, initialeAus, type Mitnutzer } from '$lib/utils/mitnutzer';
 	import type { VerlaufAnbindung } from '$lib/components/tf/TaskHistory.svelte';
 
@@ -157,25 +157,33 @@
 	 * springt. Eine unbekannte oder fremde ID ergibt den normalen Start; der
 	 * Parameter verschwindet trotzdem. Ist der Wert keine UUID, bleibt die
 	 * Adresse unberuehrt.
+	 * Ebenso `/app?ansicht=dringend` (Tagesmeldung der Fristen ueber mehrere
+	 * Listen): oeffnet die Smart-Ansicht. `liste` hat Vorrang.
 	 *
 	 * Erst im naechsten Takt: bis dahin laeuft die Hydrierung, und
 	 * `replaceState` wie das `pushState` des Zurueck-Waechters werfen im
 	 * Dev-Modus, solange der SvelteKit-Router nicht gestartet ist.
 	 */
 	function deepLinkAnwenden(listIds: string[]) {
-		const id = listeAusUrl(untrack(() => page.url.search));
-		if (!id) return;
+		const suche = untrack(() => page.url.search);
+		const id = listeAusUrl(suche);
+		const ansicht = id ? null : ansichtAusUrl(suche);
+		if (!id && !ansicht) return;
 		setTimeout(() => {
 			try {
 				const url = new URL(page.url);
 				url.searchParams.delete('liste');
+				url.searchParams.delete('ansicht');
 				replaceState(url, page.state);
 			} catch {
 				/* Router noch nicht bereit — die Adresse behaelt den Parameter, mehr nicht */
 			}
-			if (listIds.includes(id)) {
+			if (id && listIds.includes(id)) {
 				nav.setTab('listen');
 				nav.selectList(id);
+			} else if (ansicht) {
+				nav.setTab('listen');
+				nav.selectSmart(ansicht);
 			}
 		}, 0);
 	}
@@ -752,6 +760,17 @@
 	let unterschirm = $derived(nav.listOpenMobile);
 	/** Kopfzeile und Inhalt der Mitte: Smart-Ansicht schlaegt die Liste. */
 	let smartTitel = $derived(nav.smartView === 'pins' ? 'Angepinnt' : 'Dringend');
+	/** Unterzeile des App-Kopfs (Ingo Design 2.0): der aktuelle Bildschirm. */
+	let kopfUnterzeile = $derived.by(() => {
+		if (nav.mobileTab === 'suche') return 'Suche';
+		if (nav.mobileTab === 'pins') return `Angepinnt · ${pinnedTasks.length}`;
+		if (unterschirm && nav.smartView) return `${smartTitel} · ${smartAufgaben.length}`;
+		if (unterschirm && activeList) {
+			const n = offeneJeListe.get(activeList.id) ?? 0;
+			return `${activeList.icon ?? ''} ${activeList.title} · ${n} offen`.trim();
+		}
+		return 'Listen';
+	});
 	let smartAufgaben = $derived(nav.smartView === 'pins' ? pinnedTasks : dringendTasks);
 	let smartLeerText = $derived(
 		nav.smartView === 'pins' ? 'Nichts angepinnt.' : 'Nichts Dringendes. Gute Lage.'
@@ -1378,50 +1397,37 @@
 	<!-- Spalte 2 — Liste (Desktop) bzw. der gesamte Schirm (Mobile) -->
 	<main class="tf-main">
 		{#if isMobile}
-			<header class="tf-mobile-header" class:unterschirm={nav.mobileTab === 'listen' && unterschirm}>
+			<!-- App-Kopf (Ingo Design 2.0, Komponente AppKopf): Kennfarbe Fuchs-Orange, Symbol, Name,
+			     darunter der aktuelle Bildschirm. Im Ingo Hub blendet meta ingo-kopf=eigen dessen Kopf aus. -->
+			<header class="tf-mobile-header tf-kopf" class:unterschirm={nav.mobileTab === 'listen' && unterschirm}>
 				{#if nav.mobileTab === 'listen' && unterschirm}
-					<button class="tf-ib gross" onclick={zurueck} aria-label="Zur&uuml;ck zur &Uuml;bersicht">
+					<button class="tf-kopf-knopf" onclick={zurueck} aria-label="Zur&uuml;ck zur &Uuml;bersicht">
 						<Icon name="chevron-links" />
 					</button>
-					{#if nav.smartView}
-						<h2>
-							<Icon name={nav.smartView === 'pins' ? 'pin' : 'blitz'} />
-							<span class="name">{smartTitel}</span>
-							<span class="cnt">{smartAufgaben.length}</span>
-						</h2>
-					{:else if activeList}
-						<h2>
-							<span>{activeList.icon}</span>
-							<span class="name">{activeList.title}</span>
-							<span class="cnt">{offeneJeListe.get(activeList.id) ?? 0}</span>
-							<AvatarStack leute={aktiveFremde} />
-						</h2>
-						<button
-							class="tf-ib gross"
-							aria-label="Listenmen&uuml; &ouml;ffnen"
-							data-tf-listenmenu
-							onclick={(e) => ctx.handleListContext(e, activeList!)}
-						>
-							<Icon name="mehr" />
-						</button>
-					{/if}
-				{:else if nav.mobileTab === 'pins'}
-					<h2>
-						<Icon name="pin" />
-						<span class="name">Angepinnt</span>
-						<span class="cnt">{pinnedTasks.length}</span>
-					</h2>
+				{/if}
+				<span class="tf-kopf-kachel" aria-hidden="true"><Icon name="fuchs" size={20} /></span>
+				<div class="tf-kopf-text">
+					<h1 class="tf-kopf-name">Taskfuchs</h1>
+					<p class="tf-kopf-unter">{kopfUnterzeile}</p>
+				</div>
+				{#if nav.mobileTab === 'listen' && unterschirm && !nav.smartView && activeList}
+					<AvatarStack leute={aktiveFremde} />
 					<button
-						class="tf-ib gross"
+						class="tf-kopf-knopf"
+						aria-label="Listenmen&uuml; &ouml;ffnen"
+						data-tf-listenmenu
+						onclick={(e) => ctx.handleListContext(e, activeList!)}
+					>
+						<Icon name="mehr" />
+					</button>
+				{:else if nav.mobileTab === 'pins'}
+					<button
+						class="tf-kopf-knopf"
 						aria-label="Pinnwandmen&uuml; &ouml;ffnen"
 						onclick={(e) => ctx.handlePinboardContext(e, pinnedTasks.length)}
 					>
 						<Icon name="mehr" />
 					</button>
-				{:else if nav.mobileTab === 'suche'}
-					<h2><span class="name">Suche</span></h2>
-				{:else}
-					<h2><span class="name">Listen</span></h2>
 				{/if}
 			</header>
 
@@ -1457,12 +1463,14 @@
 							{offeneJeListe}
 							{mitnutzer}
 							dringendAnzahl={dringendTasks.length}
+							pinAnzahl={pinnedTasks.length}
+							onSuche={() => waehleTab('suche')}
 							benutzer={benutzerName}
 							initiale={benutzerInitiale}
 							isDark={theme.isDark}
 							onSelectList={(id) => nav.selectList(id)}
 							{questsZielFuer}
-			einkaufInQuests={quests.einkaufAn}
+							einkaufInQuests={quests.einkaufAn}
 							onToggleEinkaufQuests={() => quests.toggleEinkauf()}
 							onSelectSmart={(v) => nav.selectSmart(v)}
 							onNeueListe={neueListeAnlegen}

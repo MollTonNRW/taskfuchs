@@ -4,7 +4,7 @@ Diese Datei dokumentiert Architektur, Komponenten und Konventionen von TaskFuchs
 
 Eine User-orientierte Kurzbeschreibung steht in [README.md](README.md). Setup-Schritte ebenfalls dort.
 
-> **Stand:** Redesign „A Klar". Die frühere v2-Ebene (`src/v2.css`, `src/lib/components/v2/`, `composables/v2/`, `stores/v2/`, die Theme-Presets und die drei Ansichts-Modi) ist gelöscht — nicht deaktiviert, sondern entfernt. Verbindliche Gestaltungsquelle ist `A-klar-spec.md` aus dem Redesign-Projekt; im Code ist `src/tf.css` die einzige Farb- und Maßquelle.
+> **Stand:** Redesign „A Klar", seit 16.11.2026 im gemeinsamen Designsystem der Ingo-Apps „Ingo Design 2.0“ (Creme-Grund, Karten statt Trennlinien, Senfgelb als einzige Aktionsfarbe, Fuchs-Orange als Kennfarbe im App-Kopf, Manrope; Mockups TfListen/TfListe). Die frühere v2-Ebene (`src/v2.css`, `src/lib/components/v2/`, `composables/v2/`, `stores/v2/`, die Theme-Presets und die drei Ansichts-Modi) ist gelöscht — nicht deaktiviert, sondern entfernt. Verbindliche Gestaltungsquelle ist `A-klar-spec.md` aus dem Redesign-Projekt; im Code ist `src/tf.css` die einzige Farb- und Maßquelle.
 
 ## Projekt-Überblick
 
@@ -43,15 +43,15 @@ Tailwind und daisyUI tragen **nur noch** `/auth/login` und `/auth/register`. Die
 │   └── deploy.yml                  # GitHub Actions → Cloudflare Pages
 ├── twa/                            # TWA Build (Gradle, Keystore-Referenz, APK)
 ├── prototype/                      # HTML-Prototyp-Snapshots (historisch)
-├── supabase/migrations/            # DB Migrations (chronologisch, 001–026b; 021 = G2-Kopplung)
+├── supabase/migrations/            # DB Migrations (chronologisch, 001–028b; 021 = G2-Kopplung)
 ├── static/
-│   ├── fonts/                      # Instrument Sans, self-hosted woff2
+│   ├── fonts/                      # Manrope (variabel, latin + latin-ext), self-hosted woff2, OFL
 │   ├── icons/                      # PWA Icons (48–512px)
 │   ├── manifest.json               # PWA Manifest
 │   └── .well-known/                # Digital Asset Links (TWA)
 ├── _headers                        # CSP + Security Headers (Cloudflare)
 ├── src/
-│   ├── tf.css                      # ~3280 Zeilen: Token, Reset, ALLE App-Styles
+│   ├── tf.css                      # ~3940 Zeilen: Token, Reset, ALLE App-Styles (Formen von Ingo Design 2.0 am Ende)
 │   ├── app.css                     # ~95 Zeilen: Tailwind/daisyUI (nur Auth), Body-Reset
 │   ├── app.html                    # HTML Shell (viewport-fit=cover, Theme-Startskript)
 │   ├── hooks.server.ts             # Supabase SSR Auth + Riegel vor /vorschau
@@ -137,7 +137,7 @@ Wer alten Code oder alte Dokumentation liest, sucht sonst danach:
 | `routes/app/+page.svelte` | Mountet `AppShell` mit echtem Supabase-Zugang und Abmelden |
 | `routes/app/+layout.svelte` | Nur noch `TfRoot` als Rahmen — kein Header, keine Sidebar |
 | `routes/app/g2-koppeln/+page.svelte` | Kopplungscode für die G2-Brille |
-| `routes/app/benachrichtigungen/+page.svelte` | Push-Benachrichtigungen: Status dieses Geräts, Ein/Aus, Stummschalten je geteilter Liste (Desktop: Zahnrad-Menü, mobil: Glocke in der Fußzeile) |
+| `routes/app/benachrichtigungen/+page.svelte` | Push-Benachrichtigungen: Status dieses Geräts, Ein/Aus, Erinnerungen an Fristen (an/aus, Uhrzeit, Vortag, Vorlauf), Stummschalten je geteilter Liste (Desktop: Zahnrad-Menü, mobil: Glocke in der Fußzeile) |
 | `routes/auth/login/+page.svelte` | Login: Email/Passwort + Google OAuth |
 | `routes/auth/register/+page.svelte` | Registrierung, Passwort min. 8 Zeichen |
 | `routes/auth/callback/+server.ts` | OAuth Callback: Code → Session Exchange |
@@ -256,6 +256,9 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt\|Grillkohle" .s
 | `list_notification_mutes` | user_id, list_id | Liste für diese Person stumm (Standard: an) |
 | `notification_events` | list_id, actor_id, via_agent, art, task_id, task_text | Warteschlange des Triggers `tasks_push_event`, für Clients unsichtbar, lebt bis zum Versand bzw. 1 Tag |
 | `push_config` | key, value | `agent_actor`: Bearbeiter für Schreibvorgänge mit `service_role` (n8n). Wert wird beim Deploy gesetzt, nicht im Repo |
+| `push_fristen_einstellungen` | user_id, aktiv, uhrzeit, vortag, vorlauf | Erinnerungen an Fristen je Person (Migration 028); keine Zeile = an, 08:00, ohne Vortag, 30 min. Schreiben nur über RPC `push_fristen_einstellen` |
+| `push_fristen_versand`, `push_termin_versand` | user_id, tag bzw. task_id + faellig | Versandprotokolle der Erinnerungen (14 Tage), für Clients unsichtbar |
+| View `push_fristen_aufgaben` | user_id, task_id, text, due_date, list_id, list_title | Welche Aufgaben erinnern und wen (zugewiesen und sieht die Liste, sonst Besitzer); security_invoker, für Clients gesperrt |
 
 ### Design-Entscheidungen
 - **Unified Tasks-Tabelle:** Tasks, Unteraufgaben und Trenner in einer Tabelle (via `parent_id` + `type`)
@@ -268,7 +271,7 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt\|Grillkohle" .s
 
 ### Migrations
 
-`supabase/migrations/001` bis `026b`, chronologisch anzuwenden (021, die G2-Kopplung, steht nicht als Datei im Repo). Die Grundlagen:
+`supabase/migrations/001` bis `028b`, chronologisch anzuwenden (021, die G2-Kopplung, steht nicht als Datei im Repo). Die Grundlagen:
 
 | Nr | Datei | Inhalt |
 |----|-------|--------|
@@ -295,6 +298,8 @@ Wer die Demodaten anfasst: `npm run build && grep -r "Kinderarzt\|Grillkohle" .s
 | 026 | `einkaufsmodus.sql` | Einkaufs-Modus, rein additiv: `lists.kind` (`aufgaben`/`einkauf`, Check-Constraint) und `tasks.abgelegt` — beide mit Default, die alte App-Fassung merkt nichts |
 | 027 | `push_benachrichtigungen.sql` | Push: Tabellen, RLS, fehlertoleranter Trigger auf `tasks`, Abo-RPCs, Bündel-RPC (nur `service_role`) — wiederholbar |
 | 027b | `push_cron.sql` | `pg_net` + `pg_cron`, Jobs `push-versand` (jede Minute), `push-aufraeumen`, `push-protokoll-aufraeumen` — erst nach Function-Deploy und Vault-Secrets `push_versand_url`/`push_cron_secret` |
+| 028 | `push_fristen.sql` | Erinnerungen an Fristen, rein additiv: sichere Frist-Parser `tf_frist_tag`/`tf_frist_zeit`, View `push_fristen_aufgaben`, Einstellungen + Versandprotokolle, RPCs `push_fristen_einstellen` (authenticated), `push_fristen_faellig`/`push_fristen_abholen` (nur `service_role`) |
+| 028b | `push_fristen_cron.sql` | Job `push-versand` feuert auch, wenn `push_fristen_faellig()` — von Hand, erst nach 028 und dem Deploy der Function mit Fristen-Teil |
 | 026b | `einkaufen_umstellen.sql` | Liste „Einkaufen" umstellen: Aufgaben der obersten Ebene → Kategorien (Trenner), abgehakte Artikel → `abgelegt`, `kind = 'einkauf'` — **erst nach dem Deploy des Codes**, die alte Fassung kann Trenner mit Unteraufgaben nicht darstellen |
 
 ### Auth
@@ -360,6 +365,7 @@ Spezifikation: [docs/superpowers/specs/2026-10-06-push-benachrichtigungen-design
 - [x] Weg: Trigger `tasks_push_event` → `notification_events` → `pg_cron` `push-versand` → Edge Function `supabase/functions/push-versand` (Secret-Header, VAPID, aes128gcm, eigene WebCrypto-Implementierung) → `push_abo_ergebnis`
 - [x] Opt-in je Gerät auf `/app/benachrichtigungen`, Stummschalten je Liste; Tipp auf die Meldung öffnet `/app?liste=<id>`; Abmelden löscht das Abo des Geräts
 - [x] Android-App 1.3 (versionCode 6) mit Notification-Delegation
+- [x] Erinnerungen an Fristen (Migration 028, Spec [2026-11-16-erinnerungen-fristen-design.md](docs/superpowers/specs/2026-11-16-erinnerungen-fristen-design.md)): Tagesmeldung zur eigenen Uhrzeit (heute fällig + überfällig, optional morgen; nachgeholt höchstens 3 h), Aufgaben mit Uhrzeit zusätzlich einzeln mit Vorlauf (Standard 30 min); Tipp öffnet die Liste bzw. `/app?ansicht=dringend`. Cron-Bedingung `push_fristen_faellig()` (028b)
 - Secrets (nie im Repo): Function-Secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_CRON_SECRET`; Vault `push_versand_url`, `push_cron_secret`. Der öffentliche Schlüssel steht in `src/lib/push/vapid.ts` und muss zum Function-Secret passen
 - Bekanntes Restrisiko: Freigaben brauchen keine Zustimmung — vor breiterer Nutzung „neue Freigabe startet stumm“ und eingeschränkte Registrierung (Spec)
 
@@ -377,29 +383,34 @@ Spezifikation: [docs/superpowers/specs/2026-10-06-push-benachrichtigungen-design
 --bg --surface --surface-2        Flächen
 --line --line-2                   Trennlinien
 --ink --ink-2 --ink-3             Text primär / sekundär / tertiär
---accent --accent-ink --accent-soft   Fuchs-Orange
+--accent --accent-soft            Senfgelb, nur Flächen (Knöpfe, aktiver Tab, Auswahl)
+--accent-ink --on-accent          Schrift auf/zu Akzent (hell: Tinte, dunkel: Senf)
+--app --on-app-muted              Kennfarbe Fuchs-Orange (App-Kopf) und Unterzeile darauf
+--night --lime                    Nachtkarte (Dringend, ASAP-Abzeichen)
+--danger --on-danger              Fehler/Löschen (Terrakotta)
 --low --normal --high --asap      Prioritäten
 --sel --new                       Zeilenzustände
 --sh-* --r-*                      Schatten und Radien
 --ring-destr                      Fokusring des destruktiven Dialogknopfes
 ```
 
-Der globale Fokusring ist 2 px `--accent`. Auf dem destruktiven Dialogknopf (Fläche `--asap`) wäre das die kontrastschwächste Paarung des Farbsatzes — `.tf-btn.destr:focus-visible` bekommt deshalb `--ring-destr`.
+Der globale Fokusring ist 2 px `--ink` (Senfgelb hat auf Creme zu wenig Kontrast für Linien und Schrift). Im App-Kopf ist er `--on-accent`, auf dem destruktiven Dialogknopf `--ring-destr`.
 
 ### Prioritäts-Farben
 
 | Stufe | Light | Dark |
 |-------|-------|------|
-| Low | `#22c55e` | `#9ece6a` |
-| Normal | `#eab308` | `#e0af68` |
-| High | `#ef4444` | `#f87171` |
-| ASAP | `#991b1b` | `#cc2222` |
+| Low | `#8dbf86` | `#8dbf86` |
+| Normal | `#ebc633` | `#ebc633` |
+| High | `#e07a52` | `#e8906e` |
+| ASAP | `#20211d` | `#d8f35d` |
 
-ASAP ist bewusst dunkler als High (in beiden Themes Dunkelrot, Frank 24.09.) — die im alten Brief genannte `#dc2626` war von High nicht zu unterscheiden.
+Seit Ingo Design 2.0 ist ASAP die Nachtfarbe (Abzeichen: Nacht mit Lime), nicht mehr Dunkelrot — klar getrennt von High (Terrakotta).
 
 ### Schrift und Ikonografie
 
-- **Instrument Sans**, self-hosted als woff2 unter `static/fonts/` (variabel, 400–600). Kein Google-Fonts-Link, kein externer `font-src`.
+- **Manrope**, self-hosted als woff2 unter `static/fonts/` (variabel, 200–800, latin + latin-ext, Lizenz `OFL-Manrope.txt`). Kein Google-Fonts-Link, kein externer `font-src`.
+- **App-Kopf:** mobil eine 60-px-Karte in `--app` mit Fuchs-Kachel, Name und Unterzeile (Kontext), ebenso auf `/app/benachrichtigungen`. `app.html` setzt `<meta name="ingo-kopf" content="eigen">`, damit der Ingo Hub seinen eigenen Kopf ausblendet.
 - **Ein** Icon-Set in `components/tf/Icon.svelte`: `viewBox 0 0 24 24`, Stroke, `stroke-width 1.75`, Größen 24/20/16/14. Funktionen tragen nur diese Icons; Emoji bleiben den Listen-Symbolen vorbehalten.
 
 ## Bewusste Abweichungen vom Mockup

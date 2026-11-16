@@ -5,7 +5,7 @@
 	import BenachrichtigungenSeite from '$lib/components/tf/BenachrichtigungenSeite.svelte';
 	import { theme } from '$lib/stores/tf/theme.svelte';
 	import type { Berechtigung, PushUmgebung } from '$lib/push/abo';
-	import { geteilteListen } from '$lib/push/seite';
+	import { fristenAusZeile, geteilteListen } from '$lib/push/seite';
 	import { DEMO_FREIGABEN, DEMO_ICH, DEMO_LISTEN } from '$lib/demo/fixtures';
 
 	/** Pfad der Seite davor — von der Route (`afterNavigate`), siehe `vorschau/benachrichtigungen/+page.svelte`. */
@@ -24,6 +24,8 @@
 	 *   fehler=1           Server-Aufrufe schlagen fehl (Toast, Rücknahme)
 	 *   keine=1            keine geteilten Listen
 	 *   stumm=<id>,<id>    diese Listen sind stumm (z. B. l-einkaufen)
+	 *   fristen=aus        Erinnerungen an Fristen ausgeschaltet
+	 *   uhrzeit=07:30      gespeicherte Uhrzeit der Tagesmeldung (Standard 08:00)
 	 *   dunkel=1           dunkles Theme
 	 *   erlaubt=1          bei verweigert: beim nächsten Sichtbarwerden der Seite ist die
 	 *                      Berechtigung nicht mehr blockiert (Rückkehr aus den Android-Einstellungen)
@@ -34,6 +36,12 @@
 	const serverFehler = p.get('fehler') === '1';
 	const keine = p.get('keine') === '1';
 	const stummIds = (p.get('stumm') ?? '').split(',').filter(Boolean);
+	const fristen = fristenAusZeile({
+		aktiv: p.get('fristen') !== 'aus',
+		uhrzeit: p.get('uhrzeit') ?? undefined,
+		vortag: false,
+		vorlauf: 30
+	});
 
 	if (p.get('dunkel') === '1') theme.set(true);
 	else theme.set(false);
@@ -105,6 +113,7 @@
 		benutzerId={DEMO_ICH.id}
 		{listen}
 		{stummIds}
+		{fristen}
 		{umgebung}
 		appPfad="/vorschau"
 		{vonPfad}

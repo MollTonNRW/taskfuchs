@@ -22,5 +22,6 @@
 	benutzerId={data.benutzerId}
 	listen={data.listen}
 	stummIds={data.stummIds}
+	fristen={data.fristen}
 	{vonPfad}
 />

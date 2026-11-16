@@ -1,12 +1,17 @@
 // lauf.ts — Ablauf eines Versandlaufs mit injizierten Abhängigkeiten (testbar ohne Netz und Datenbank).
 import { verdichten } from './buendeln.ts';
-import { nachrichtBauen } from './texte.ts';
-import type { Abo, Buendel } from './typen.ts';
+import { nachrichtBauen, tagesNachricht, terminNachricht } from './texte.ts';
+import type { Abo, Buendel, Erinnerungen } from './typen.ts';
 import { klassifizieren, type Sender } from './webpush.ts';
 
 export interface Abhaengigkeiten {
 	/** rpc push_buendel_abholen: holt und löscht die fälligen Bündel. */
 	abholen(): Promise<Buendel[]>;
+	/**
+	 * rpc push_fristen_abholen: holt und vermerkt fällige Erinnerungen an Fristen (Migration 028).
+	 * Optional, damit der Lauf ohne Fristen-Teil (alte Datenbank) weiterarbeitet.
+	 */
+	fristenAbholen?(): Promise<Erinnerungen>;
 	/** rpc push_abo_ergebnis: Abos mit erfolgreichem Versand markieren, tote Abos löschen. */
 	ergebnis(ok: string[], weg: string[]): Promise<void>;
 	sender: Sender;
@@ -14,9 +19,13 @@ export interface Abhaengigkeiten {
 	log(msg: string): void;
 }
 
-/** `buendel` = Anzahl abgeholter Bündel; `entfernt` = Anzahl verschiedener Abos, die der Push-Dienst nicht mehr kennt. */
+/**
+ * `buendel` = Anzahl abgeholter Bündel; `erinnerungen` = abgeholte Tagesmeldungen und Termine;
+ * `entfernt` = Anzahl verschiedener Abos, die der Push-Dienst nicht mehr kennt.
+ */
 export interface Bericht {
 	buendel: number;
+	erinnerungen: number;
 	gesendet: number;
 	fehler: number;
 	entfernt: number;
@@ -65,8 +74,28 @@ export async function lauf(
 	budgetMs: number = STANDARD_BUDGET_MS,
 ): Promise<Bericht> {
 	const buendel = await d.abholen();
-	const bericht: Bericht = { buendel: buendel.length, gesendet: 0, fehler: 0, entfernt: 0 };
-	if (buendel.length === 0) return bericht;
+	const bericht: Bericht = { buendel: buendel.length, erinnerungen: 0, gesendet: 0, fehler: 0, entfernt: 0 };
+
+	// Erinnerungen nach den Bündeln: scheitert ihr Abholen (etwa Migration 028 fehlt), gehen die Bündel trotzdem raus.
+	let erinnerungen: Erinnerungen = { tage: [], termine: [] };
+	let fristenFehler = false;
+	if (d.fristenAbholen) {
+		try {
+			erinnerungen = await d.fristenAbholen();
+		} catch {
+			fristenFehler = true;
+		}
+	}
+	const tage = erinnerungen.tage ?? [];
+	const termine = erinnerungen.termine ?? [];
+	bericht.erinnerungen = tage.length + termine.length;
+	if (buendel.length === 0 && bericht.erinnerungen === 0) {
+		if (fristenFehler) {
+			bericht.fehler += 1;
+			d.log('push-versand: Fehler nach Status: fristen ×1');
+		}
+		return bericht;
+	}
 
 	const ok = new Set<string>();
 	const weg = new Map<string, number>(); // Endpoint → HTTP-Status (404/410); je Abo einmal, der erste Status zählt
@@ -75,6 +104,7 @@ export async function lauf(
 		bericht.fehler += 1;
 		fehlerStatus.set(schluessel, (fehlerStatus.get(schluessel) ?? 0) + 1);
 	};
+	if (fristenFehler) fehlerZaehlen('fristen');
 
 	// Die Ereignisse sind mit dem Abholen schon gelöscht: ein defektes Bündel darf die übrigen nicht mitreißen.
 	const auftraege: Auftrag[] = [];
@@ -90,6 +120,26 @@ export async function lauf(
 			auftraege.push(...neue);
 		} catch {
 			fehlerZaehlen('bündel'); // neutral: ohne Inhalt der Ausnahme
+		}
+	}
+	// Erinnerungen sind mit dem Abholen schon vermerkt: eine defekte darf die übrigen nicht mitreißen.
+	const erinnerungAuftraege = (nachricht: { titel: string } | null, abos: Abo[] | undefined) => {
+		if (!nachricht) return;
+		const payload = JSON.stringify(nachricht);
+		for (const abo of (abos ?? []).slice(0, MAX_ABOS_JE_EMPFAENGER)) auftraege.push({ abo, payload });
+	};
+	for (const t of tage) {
+		try {
+			erinnerungAuftraege(tagesNachricht(t), t.abos);
+		} catch {
+			fehlerZaehlen('erinnerung');
+		}
+	}
+	for (const t of termine) {
+		try {
+			erinnerungAuftraege(terminNachricht(t), t.abos);
+		} catch {
+			fehlerZaehlen('erinnerung');
 		}
 	}
 
@@ -139,6 +189,9 @@ export async function lauf(
 	d.log(
 		`push-versand: ${bericht.buendel} Bündel, ${bericht.gesendet} gesendet, ${bericht.fehler} Fehler, ${bericht.entfernt} entfernt`,
 	);
+	if (bericht.erinnerungen > 0) {
+		d.log(`push-versand: ${tage.length} Tagesmeldungen, ${termine.length} Termine`);
+	}
 	if (fehlerStatus.size > 0) d.log(`push-versand: Fehler nach Status: ${statusZaehler(fehlerStatus)}`);
 	if (weg.size > 0) {
 		// Je Abo ein Status (404/410); zeigt, ob Push-Dienste Abos als "unbekannt" oder "abgelaufen" melden.

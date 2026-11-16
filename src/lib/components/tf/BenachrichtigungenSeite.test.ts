@@ -26,6 +26,12 @@ describe('BenachrichtigungenSeite (serverseitig gerendert)', () => {
 		expect(html).not.toContain('noch keine geteilte Liste');
 	});
 
+	it('zeigt vor der Hydrierung keine Einstellungen der Fristen (der Server kennt sie nicht)', () => {
+		const html = ssr({ listen: [] });
+		expect(html).not.toContain('Tagesmeldung um');
+		expect(html).not.toContain('Erinnerungen an Fristen');
+	});
+
 	it('zeigt die Seite selbst (Titel, Gerätestatus)', () => {
 		const html = ssr({ listen: [] });
 		expect(html).toContain('Benachrichtigungen');

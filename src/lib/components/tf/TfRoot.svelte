@@ -34,7 +34,7 @@
 		wurzel.style.colorScheme = dark ? 'dark' : 'light';
 
 		const bg = getComputedStyle(wurzel).getPropertyValue('--bg').trim();
-		const color = bg || (dark ? '#181512' : '#FAF8F5');
+		const color = bg || (dark ? '#171815' : '#EDEBE4');
 		let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
 		if (!meta) {
 			meta = document.createElement('meta');

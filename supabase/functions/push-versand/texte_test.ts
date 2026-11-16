@@ -1,6 +1,14 @@
 import { assert, assertEquals } from '@std/assert';
-import { nachrichtBauen } from './texte.ts';
-import { type Art, ARTEN, type Buendel, type Verdichtet } from './typen.ts';
+import { nachrichtBauen, tagesNachricht, terminNachricht } from './texte.ts';
+import {
+	type Art,
+	ARTEN,
+	type Buendel,
+	type FristAufgabe,
+	type Tagesmeldung,
+	type Termin,
+	type Verdichtet,
+} from './typen.ts';
 
 const LISTE = '11111111-1111-4111-8111-111111111111';
 const PERSON = '22222222-2222-4222-8222-222222222222';
@@ -202,4 +210,113 @@ Deno.test('Payload bleibt auch im Extremfall unter 2 KB (Bytes)', () => {
 Deno.test('Payload-JSON enthält genau titel, text, tag, url', () => {
 	const n = nachrichtBauen(buendel(), einzel('neu', 'x'))!;
 	assertEquals(Object.keys(n).sort(), ['tag', 'text', 'titel', 'url']);
+});
+
+// ---------------------------------------------------------------------------
+// Erinnerungen an Fristen (Migration 028)
+// ---------------------------------------------------------------------------
+
+const L_PRIVAT = '33333333-3333-4333-8333-333333333333';
+const L_FAMILIE = '44444444-4444-4444-8444-444444444444';
+const fa = (text: string, due_date: string, list_id = L_PRIVAT): FristAufgabe => ({
+	task_id: `t-${text}`,
+	text,
+	due_date,
+	list_id,
+	list_title: list_id === L_PRIVAT ? 'Privat' : 'Familie',
+});
+const tm = (aufgaben: FristAufgabe[], anzahl = aufgaben.length): Tagesmeldung => ({
+	user_id: 'u1',
+	heute: '2026-11-16',
+	anzahl,
+	aufgaben,
+	abos: [],
+});
+
+Deno.test('Tagesmeldung: eine heute fällige Aufgabe, Tipp öffnet ihre Liste', () => {
+	const n = tagesNachricht(tm([fa('Steuer', '2026-11-16')]))!;
+	assertEquals(n.titel, 'Heute fällig');
+	assertEquals(n.text, '„Steuer“');
+	assertEquals(n.tag, 'tf-frist-2026-11-16');
+	assertEquals(n.url, `/app?liste=${L_PRIVAT}`);
+});
+
+Deno.test('Tagesmeldung: heute mit Uhrzeit, dazu überfällig und morgen als Zahl; mehrere Listen öffnen „Dringend“', () => {
+	const n = tagesNachricht(tm([
+		fa('Arzt', '2026-11-10'),
+		fa('Steuer', '2026-11-16'),
+		fa('Kinderarzt', '2026-11-16T09:00', L_FAMILIE),
+		fa('Reifen', '2026-11-17'),
+	]))!;
+	assertEquals(n.titel, 'Heute fällig');
+	assertEquals(n.text, '„Steuer“, „Kinderarzt“ (09:00) · 1 überfällig · 1 morgen');
+	assertEquals(n.url, '/app?ansicht=dringend');
+});
+
+Deno.test('Tagesmeldung: nur überfällig bzw. nur morgen', () => {
+	assertEquals(tagesNachricht(tm([fa('Arzt', '2026-11-10')]))!.titel, 'Überfällig');
+	const morgen = tagesNachricht(tm([fa('Reifen', '2026-11-17'), fa('Brief', '2026-11-17')]))!;
+	assertEquals(morgen.titel, 'Morgen fällig');
+	assertEquals(morgen.text, '„Reifen“, „Brief“');
+});
+
+Deno.test('Tagesmeldung: mehr als drei und mehr als geliefert ergibt „und N weitere“', () => {
+	const viele = ['A', 'B', 'C', 'D', 'E'].map((t) => fa(t, '2026-11-16'));
+	assertEquals(tagesNachricht(tm(viele))!.text, '„A“, „B“, „C“ und 2 weitere');
+	assertEquals(tagesNachricht(tm(viele, 25))!.text, '„A“, „B“, „C“ und 22 weitere');
+});
+
+Deno.test('Tagesmeldung: nichts Brauchbares ergibt keine Meldung', () => {
+	assertEquals(tagesNachricht(tm([])), null);
+	assertEquals(tagesNachricht(tm([fa('Kaputt', 'morgen')])), null);
+	assertEquals(tagesNachricht({ ...tm([fa('Steuer', '2026-11-16')]), heute: '' }), null);
+});
+
+Deno.test('Tagesmeldung: lange Texte werden gekürzt', () => {
+	const n = tagesNachricht(tm([fa('x'.repeat(200), '2026-11-16')]))!;
+	assert(n.text.length <= 180);
+	assert(n.text.includes('…'));
+});
+
+const termin = (teil: Partial<Termin> = {}): Termin => ({
+	user_id: 'u1',
+	task_id: 'task-1',
+	text: 'Kinderarzt-Termin',
+	due_date: '2026-11-19T09:00',
+	vorlauf: 30,
+	minuten_bis: 30,
+	list_id: L_FAMILIE,
+	list_title: 'Familie',
+	abos: [],
+	...teil,
+});
+
+Deno.test('Termin: Titel ist die Aufgabe, Text nennt Vorlauf, Uhrzeit und Liste', () => {
+	const n = terminNachricht(termin())!;
+	assertEquals(n.titel, 'Kinderarzt-Termin');
+	assertEquals(n.text, 'In 30 Minuten, um 09:00 · Familie');
+	assertEquals(n.tag, 'tf-termin-task-1');
+	assertEquals(n.url, `/app?liste=${L_FAMILIE}`);
+});
+
+Deno.test('Termin: Stunden, Vorlauf 0 und kaputte Uhrzeit', () => {
+	assertEquals(terminNachricht(termin({ vorlauf: 60, minuten_bis: 60 }))!.text, 'In einer Stunde, um 09:00 · Familie');
+	assertEquals(terminNachricht(termin({ vorlauf: 120, minuten_bis: 120 }))!.text, 'In 2 Stunden, um 09:00 · Familie');
+	assertEquals(terminNachricht(termin({ vorlauf: 0, minuten_bis: 0 }))!.text, 'Jetzt, 09:00 · Familie');
+	assertEquals(terminNachricht(termin({ due_date: '2026-11-19' })), null);
+	assertEquals(terminNachricht(termin({ due_date: '2026-11-19T25:99' })), null);
+});
+
+Deno.test('Termin: verspätet nennt der Text nur die Uhrzeit, nie einen falschen Vorlauf', () => {
+	// eine Minute zu spät gilt noch als pünktlich
+	assertEquals(terminNachricht(termin({ minuten_bis: 29 }))!.text, 'In 30 Minuten, um 09:00 · Familie');
+	assertEquals(terminNachricht(termin({ minuten_bis: 12 }))!.text, 'Um 09:00 fällig · Familie');
+	assertEquals(terminNachricht(termin({ minuten_bis: 0 }))!.text, 'Jetzt, 09:00 · Familie');
+	assertEquals(terminNachricht(termin({ minuten_bis: -4 }))!.text, 'Jetzt, 09:00 · Familie');
+	assertEquals(terminNachricht(termin({ minuten_bis: -50 }))!.text, 'Seit 09:00 fällig · Familie');
+	// fehlt die Angabe (ältere Datenbank), gilt die Meldung als pünktlich
+	assertEquals(
+		terminNachricht(termin({ minuten_bis: undefined as unknown as number }))!.text,
+		'In 30 Minuten, um 09:00 · Familie',
+	);
 });

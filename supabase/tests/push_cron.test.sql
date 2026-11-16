@@ -14,7 +14,7 @@
 -- (zurueckgerollten) Warteschlange.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(31);
+select plan(32);
 
 -- ---------------------------------------------------------------------------
 -- Erweiterungen und Job
@@ -33,6 +33,9 @@ select is((select command like '%x-push-secret%' from cron.job where jobname = '
   'Kommando sendet den Header x-push-secret');
 select is((select command like '%where exists (select 1 from public.notification_events)%' from cron.job where jobname = 'push-versand'), true,
   'Kommando ruft nur auf, wenn Events in der Warteschlange liegen');
+-- Seit 028b feuert der Lauf auch fuer Erinnerungen an Fristen
+select is((select command like '%or public.push_fristen_faellig()%' from cron.job where jobname = 'push-versand'), true,
+  'Job feuert auch, wenn eine Erinnerung an Fristen faellig ist (028b)');
 select is((select command like '%vault.decrypted_secrets%push_versand_url%' from cron.job where jobname = 'push-versand'), true,
   'URL kommt aus dem Vault (push_versand_url)');
 select is((select command like '%vault.decrypted_secrets%push_cron_secret%' from cron.job where jobname = 'push-versand'), true,
