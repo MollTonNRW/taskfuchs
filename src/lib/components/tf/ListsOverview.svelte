@@ -10,9 +10,10 @@
 	type List = Database['public']['Tables']['lists']['Row'];
 
 	/**
-	 * Mobiler Tab „Listen", Uebersichtsschirm — A-klar-spec.md Abschnitt 4.
-	 * Reihenfolge: Smart-View „Dringend", Sektion „Meine Listen", Listenzeilen
-	 * (52 px), Karte „Neue Liste".
+	 * Mobiler Tab „Listen", Uebersichtsschirm — A-klar-spec.md Abschnitt 4,
+	 * seit 16.11.2026 im Ingo Design 2.0 (Mockup TfListen): Suchfeld, zwei
+	 * Karten „Angepinnt" (Senfgelb) und „Dringend" (Nacht/Lime), Kopf „Listen"
+	 * mit „+ Neue Liste", Listen als Karten.
 	 *
 	 * Die Fusszeile mit Nutzer, Dunkelmodus und Einstellungen steht hier am
 	 * Ende des Inhalts, nicht im Header: der Uebersichts-Header traegt laut
@@ -24,6 +25,8 @@
 		offeneJeListe,
 		mitnutzer,
 		dringendAnzahl,
+		pinAnzahl = 0,
+		onSuche,
 		benutzer,
 		initiale,
 		isDark,
@@ -44,6 +47,10 @@
 		/** Beteiligte je Liste, eigener Nutzer eingeschlossen (listId -> Leute). */
 		mitnutzer: Record<string, Mitnutzer[]>;
 		dringendAnzahl: number;
+		/** Zahl der angepinnten Aufgaben (Karte „Angepinnt"). */
+		pinAnzahl?: number;
+		/** Suchfeld oben fuehrt in den Tab „Suche". */
+		onSuche?: () => void;
 		benutzer: string;
 		initiale: string;
 		isDark: boolean;
@@ -70,14 +77,46 @@
 	}
 </script>
 
-<button class="tf-li" onclick={() => onSelectSmart('dringend')}>
-	<span class="em"><Icon name="blitz" /></span>
-	<span class="name">Dringend</span>
-	<span class="n">{dringendAnzahl}</span>
-	<Icon name="chevron-rechts" size={16} class="chev" />
-</button>
+{#if onSuche}
+	<button class="tf-ov-suche" onclick={onSuche}>
+		<Icon name="suche" size={16} />
+		<span>Suchen …</span>
+	</button>
+{/if}
 
-<div class="tf-lsec">Meine Listen</div>
+<div class="tf-ov-karten">
+	<button class="tf-ov-karte pins" onclick={() => onSelectSmart('pins')}>
+		<Icon name="pin" />
+		<span class="unten"><span class="name">Angepinnt</span><span class="zahl">{pinAnzahl}</span></span>
+	</button>
+	<button class="tf-ov-karte dringend" onclick={() => onSelectSmart('dringend')}>
+		<Icon name="blitz" />
+		<span class="unten"><span class="name">Dringend</span><span class="zahl">{dringendAnzahl}</span></span>
+	</button>
+</div>
+
+<div class="tf-ov-kopf">
+	<h2>Listen</h2>
+	{#if !neueListeAuf}
+		<button class="tf-ov-neu" onclick={() => (neueListeAuf = true)}>
+			<Icon name="plus" size={16} />Neue Liste
+		</button>
+	{/if}
+</div>
+
+{#if neueListeAuf}
+	<NewListCard
+		mobil
+		onAnlegen={async (t, i) => {
+			const ok = await onNeueListe(t, i);
+			if (ok) neueListeAuf = false;
+			return ok;
+		}}
+		onAbbrechen={() => {
+			neueListeAuf = false;
+		}}
+	/>
+{/if}
 
 {#each lists as list (list.id)}
 	{@const ziel = questsZielFuer(list)}
@@ -111,25 +150,6 @@
 	{/if}
 {/each}
 
-{#if neueListeAuf}
-	<NewListCard
-		mobil
-		onAnlegen={async (t, i) => {
-			const ok = await onNeueListe(t, i);
-			if (ok) neueListeAuf = false;
-			return ok;
-		}}
-		onAbbrechen={() => {
-			neueListeAuf = false;
-		}}
-	/>
-{:else}
-	<button class="tf-li" onclick={() => (neueListeAuf = true)}>
-		<span class="em"><Icon name="plus" /></span>
-		<span class="name">Neue Liste</span>
-	</button>
-{/if}
-
 <a class="tf-li" href={QUESTS_URL} target="_blank" rel="noopener noreferrer">
 	<span class="em"><Icon name="extern" /></span>
 	<span class="name">Familien-Quests <span class="tf-nur-sr">(öffnet in neuem Tab)</span></span>
@@ -160,7 +180,7 @@
 	<a class="tf-ib gross" href="/app/g2-koppeln" aria-label="G2 Brille koppeln">
 		<Icon name="zahnrad" />
 	</a>
-	<button class="tf-ib gross" onclick={onLogout} aria-label="Abmelden" style="color:var(--high)">
+	<button class="tf-ib gross" onclick={onLogout} aria-label="Abmelden" style="color:var(--danger)">
 		<Icon name="abmelden" />
 	</button>
 </div>

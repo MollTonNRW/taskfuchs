@@ -10,7 +10,17 @@
 		type PushStatus,
 		type PushUmgebung
 	} from '$lib/push/abo';
-	import { beiRueckkehr, setzeStumm, statusText, zurueckWeg } from '$lib/push/seite';
+	import {
+		beiRueckkehr,
+		FRISTEN_STANDARD,
+		FRISTEN_UHRZEITEN,
+		FRISTEN_VORLAEUFE,
+		setzeStumm,
+		speichereFristen,
+		statusText,
+		zurueckWeg,
+		type FristenEinstellungen
+	} from '$lib/push/seite';
 	import { toasts } from '$lib/stores/toast';
 	import Icon from '$lib/components/tf/Icon.svelte';
 	import ToastContainer from '$lib/components/tf/ToastContainer.svelte';
@@ -18,8 +28,8 @@
 	type List = Database['public']['Tables']['lists']['Row'];
 
 	/**
-	 * Einstellungen für Benachrichtigungen: dieses Gerät ein-/ausschalten und
-	 * je geteilter Liste stummschalten.
+	 * Einstellungen für Benachrichtigungen: dieses Gerät ein-/ausschalten,
+	 * Erinnerungen an Fristen einstellen und je geteilter Liste stummschalten.
 	 *
 	 * Steht als Komponente, weil `/app/benachrichtigungen` (echter Zugang) und
 	 * die Dev-Vorschau `/vorschau/benachrichtigungen` (Attrappen) dieselbe
@@ -34,6 +44,7 @@
 		benutzerId,
 		listen,
 		stummIds,
+		fristen = FRISTEN_STANDARD,
 		umgebung = browserUmgebung(),
 		appPfad = '/app',
 		vonPfad = null
@@ -44,6 +55,8 @@
 		listen: List[];
 		/** Listen, die diese Person stummgeschaltet hat. */
 		stummIds: string[];
+		/** Gespeicherte Erinnerungen an Fristen (`fristenAusZeile`), Standard ohne Zeile. */
+		fristen?: Readonly<FristenEinstellungen>;
 		umgebung?: PushUmgebung;
 		/** Ziel des Zurück-Pfeils; die Dev-Vorschau liegt nicht unter `/app`. */
 		appPfad?: string;
@@ -59,6 +72,11 @@
 	let status = $state<PushStatus | null>(null);
 	let beschaeftigt = $state(false);
 	let stumm = $state<string[]>(untrack(() => [...stummIds]));
+	/** Angezeigter Stand der Erinnerungen an Fristen (optimistisch) und zuletzt gespeicherter Stand. */
+	let erinnerung = $state.raw<FristenEinstellungen>(untrack(() => ({ ...fristen })));
+	let gespeichert: FristenEinstellungen = untrack(() => ({ ...fristen }));
+	let erinnerungVersion = 0;
+	let speicherKette: Promise<void> = Promise.resolve();
 	/**
 	 * Erst nach der Hydrierung `true`. Auf dem Server baut `+layout.ts` einen anonymen
 	 * Supabase-Client; RLS liefert dort leere Listen. Das SSR-HTML darf deshalb nichts
@@ -120,6 +138,26 @@
 		stumm = nunStumm ? [...stumm.filter((id) => id !== listId), listId] : stumm.filter((id) => id !== listId);
 	}
 
+	/**
+	 * Erinnerungen an Fristen: sofort anzeigen und der Reihe nach speichern (immer alle
+	 * vier Werte, die RPC überschreibt). Schlägt das Speichern fehl und kam seither keine
+	 * neuere Änderung, zeigt die Seite wieder den zuletzt gespeicherten Stand.
+	 */
+	function erinnerungAendern(teil: Partial<FristenEinstellungen>) {
+		const neu = { ...erinnerung, ...teil };
+		erinnerung = neu;
+		const version = ++erinnerungVersion;
+		speicherKette = speicherKette.then(async () => {
+			try {
+				await speichereFristen(supabase, neu);
+				gespeichert = neu;
+			} catch {
+				if (version === erinnerungVersion) erinnerung = gespeichert;
+				toasts.error('Einstellung nicht gespeichert.');
+			}
+		});
+	}
+
 	/** Optimistisch umschalten; bei einem Fehler nur diese Liste zurücknehmen. */
 	async function listeUmschalten(liste: List, angehakt: boolean) {
 		if (!benutzerId) return;
@@ -139,16 +177,20 @@
 </svelte:head>
 
 <main class="tf-bn">
-	<header class="tf-bn-kopf">
-		<a class="tf-ib gross" href={appPfad} aria-label="Zurück zur App" onclick={zurueck}>
-			<Icon name="chevron-links" size={24} />
+	<header class="tf-bn-kopf tf-kopf">
+		<a class="tf-kopf-knopf" href={appPfad} aria-label="Zurück zur App" onclick={zurueck}>
+			<Icon name="chevron-links" size={20} />
 		</a>
-		<h1>Benachrichtigungen</h1>
+		<span class="tf-kopf-kachel" aria-hidden="true"><Icon name="fuchs" size={20} /></span>
+		<div class="tf-kopf-text">
+			<h1 class="tf-kopf-name">Benachrichtigungen</h1>
+			<p class="tf-kopf-unter">Taskfuchs</p>
+		</div>
 	</header>
 
 	<p class="tf-bn-lead">
-		Du bekommst eine Meldung, wenn jemand anderes in einer geteilten Liste etwas ändert. Mehrere Änderungen kurz
-		hintereinander kommen gebündelt.
+		Taskfuchs meldet sich, wenn Aufgaben fällig werden und wenn jemand anderes in einer geteilten Liste etwas
+		ändert. Mehrere Änderungen kurz hintereinander kommen gebündelt.
 	</p>
 
 	<section class="tf-bn-karte" aria-labelledby="bn-geraet">
@@ -171,6 +213,68 @@
 	</section>
 
 	{#if bereit}
+		<section class="tf-bn-karte" aria-labelledby="bn-fristen">
+			<h2 id="bn-fristen" class="tf-bn-h">Fristen</h2>
+			<p class="tf-bn-hinweis">
+				Einmal am Tag kommt eine Meldung mit allem, was heute fällig oder überfällig ist. Aufgaben mit Uhrzeit melden sich
+				zusätzlich kurz vorher.
+			</p>
+			<div class="tf-bn-gruppe">
+				<label class="tf-bn-zeile">
+					<input
+						type="checkbox"
+						checked={erinnerung.aktiv}
+						onchange={(e) => erinnerungAendern({ aktiv: e.currentTarget.checked })}
+					/>
+					<span class="name">Erinnerungen an Fristen</span>
+				</label>
+				{#if erinnerung.aktiv}
+					<div class="tf-bn-feld">
+						<label for="bn-uhrzeit">Tagesmeldung um</label>
+						<span class="tf-bn-wahl">
+							<select
+								id="bn-uhrzeit"
+								value={erinnerung.uhrzeit}
+								onchange={(e) => erinnerungAendern({ uhrzeit: e.currentTarget.value })}
+							>
+								{#each FRISTEN_UHRZEITEN as uhrzeit (uhrzeit)}
+									<option value={uhrzeit}>{uhrzeit} Uhr</option>
+								{/each}
+							</select>
+							<Icon name="chevron-ab" size={16} />
+						</span>
+					</div>
+					<label class="tf-bn-zeile">
+						<input
+							type="checkbox"
+							checked={erinnerung.vortag}
+							onchange={(e) => erinnerungAendern({ vortag: e.currentTarget.checked })}
+						/>
+						<span class="name">Auch nennen, was morgen fällig ist</span>
+					</label>
+					<div class="tf-bn-feld">
+						<label for="bn-vorlauf">Aufgaben mit Uhrzeit</label>
+						<span class="tf-bn-wahl">
+							<select
+								id="bn-vorlauf"
+								value={String(erinnerung.vorlauf)}
+								onchange={(e) => erinnerungAendern({ vorlauf: Number(e.currentTarget.value) })}
+							>
+								{#each FRISTEN_VORLAEUFE as v (v.minuten)}
+									<option value={String(v.minuten)}>{v.text}</option>
+								{/each}
+							</select>
+							<Icon name="chevron-ab" size={16} />
+						</span>
+					</div>
+				{/if}
+			</div>
+			<p class="tf-bn-fuss">
+				Erinnert wird, wem die Aufgabe zugewiesen ist, sonst wem die Liste gehört. Einkaufslisten zählen nicht. Gilt
+				für alle deine Geräte.
+			</p>
+		</section>
+
 		<section class="tf-bn-karte" aria-labelledby="bn-listen">
 			<h2 id="bn-listen" class="tf-bn-h">Geteilte Listen</h2>
 			{#if listen.length === 0}

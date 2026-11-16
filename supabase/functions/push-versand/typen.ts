@@ -40,3 +40,44 @@ export interface Verdichtet {
 	gesamt: number;
 	einzig?: { art: Art; text: string };
 }
+
+// Erinnerungen an Fristen: Rückgabe von public.push_fristen_abholen() (Migration 028).
+// due_date ist der Text aus tasks.due_date: „YYYY-MM-DD“ oder „YYYY-MM-DDTHH:MM“ (Ortszeit Berlin).
+
+export interface FristAufgabe {
+	task_id: string;
+	text: string;
+	due_date: string;
+	list_id: string;
+	list_title: string;
+}
+
+/** Tagesmeldung einer Person: höchstens 20 Aufgaben (früheste Frist zuerst), `anzahl` zählt alle. */
+export interface Tagesmeldung {
+	user_id: string;
+	heute: string;
+	anzahl: number;
+	aufgaben: FristAufgabe[];
+	abos: Abo[];
+}
+
+/**
+ * Erinnerung an eine Aufgabe mit Uhrzeit, `vorlauf` Minuten vorher. `minuten_bis` sind die
+ * Minuten bis zur Frist beim Abholen (aufgerundet, ≤ 0 = schon erreicht).
+ */
+export interface Termin {
+	user_id: string;
+	task_id: string;
+	text: string;
+	due_date: string;
+	vorlauf: number;
+	minuten_bis: number;
+	list_id: string;
+	list_title: string;
+	abos: Abo[];
+}
+
+export interface Erinnerungen {
+	tage: Tagesmeldung[];
+	termine: Termin[];
+}

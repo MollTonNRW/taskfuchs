@@ -249,6 +249,24 @@ export interface Database {
 				Update: never;
 				Relationships: [];
 			};
+			/**
+			 * Erinnerungen an Fristen je Person (Migration 028). Keine Zeile = Standard (an, 08:00,
+			 * ohne Vortag, 30 Minuten). Clients lesen nur die eigene Zeile; Schreiben über die RPC
+			 * `push_fristen_einstellen`. `uhrzeit` kommt als „HH:MM:SS".
+			 */
+			push_fristen_einstellungen: {
+				Row: {
+					user_id: string;
+					aktiv: boolean;
+					uhrzeit: string;
+					vortag: boolean;
+					vorlauf: number;
+					updated_at: string;
+				};
+				Insert: never;
+				Update: never;
+				Relationships: [];
+			};
 			/** Stummgeschaltete Listen je Person (Migration 027) — eine Zeile heißt „stumm", Standard ist „an". */
 			list_notification_mutes: {
 				Row: {
@@ -323,6 +341,11 @@ export interface Database {
 			/** Eigenes Push-Abo mit diesem Endpoint löschen (Migration 027). */
 			push_abo_loeschen: {
 				Args: { p_endpoint: string };
+				Returns: undefined;
+			};
+			/** Eigene Erinnerungen an Fristen speichern (Migration 028); `p_uhrzeit` als „HH:MM". */
+			push_fristen_einstellen: {
+				Args: { p_aktiv: boolean; p_uhrzeit: string; p_vortag: boolean; p_vorlauf: number };
 				Returns: undefined;
 			};
 			batch_reorder_lists: {

@@ -1,6 +1,12 @@
 /* =====================================================================
-   TaskFuchs — Richtung A „Klar"
+   TaskFuchs — Richtung A „Klar", seit 16.11.2026 im „Ingo Design 2.0“
    Token-Set, Schrift, Reset, Typografie.
+
+   Ingo Design 2.0 (gemeinsames Designsystem der Ingo-Apps, Quelle
+   infrastruktur/docs/design/ingo-design-2, Mockups TfListen/TfListe):
+   Creme-Grund, weisse Karten statt Trennlinien, Senfgelb als einzige
+   Aktionsfarbe (nur Flaechen, nie Schrift), Fuchs-Orange als Kennfarbe
+   (App-Kopf), Manrope. Die Formen stehen gesammelt im letzten Abschnitt.
 
    Verbindliche Quelle:
    projects/taskfuchs-redesign/analysis/A-klar-spec.md, Abschnitt 1 und 2.
@@ -11,13 +17,13 @@
 
 /* ---------------------------------------------------------------------
    Schrift — self-hosted, kein externer Request, kein Google-Fonts-Link.
-   Instrument Sans ist variabel: eine Datei je Subset deckt 400-600 ab.
+   Manrope ist variabel: eine Datei je Subset deckt 200-800 ab (OFL, static/fonts/OFL-Manrope.txt).
    Deutsche Umlaute und die Anfuehrungszeichen „ " liegen im Latin-Subset.
    --------------------------------------------------------------------- */
 @font-face {
-	font-family: 'Instrument Sans';
-	src: url(/fonts/InstrumentSans-latin.woff2) format('woff2');
-	font-weight: 400 600;
+	font-family: 'Manrope';
+	src: url(/fonts/Manrope-latin.woff2) format('woff2');
+	font-weight: 200 800;
 	font-style: normal;
 	font-display: swap;
 	unicode-range:
@@ -25,9 +31,9 @@
 		U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-	font-family: 'Instrument Sans';
-	src: url(/fonts/InstrumentSans-latin-ext.woff2) format('woff2');
-	font-weight: 400 600;
+	font-family: 'Manrope';
+	src: url(/fonts/Manrope-latin-ext.woff2) format('woff2');
+	font-weight: 200 800;
 	font-style: normal;
 	font-display: swap;
 	unicode-range:
@@ -40,55 +46,68 @@
    die App hell (siehe src/lib/stores/tf/theme.svelte.ts).
    --------------------------------------------------------------------- */
 :root {
-	--bg: #faf8f5;
-	--surface: #ffffff;
-	--surface-2: #f3f1ee;
-	--line: #e6e2dc;
-	--line-2: #f1eee9;
-	--ink: #2b2521;
-	--ink-2: #6b6259;
-	--ink-3: #736a5e;
-	--accent: #e4641b;
-	--accent-ink: #b8480b;
-	--accent-soft: #fdeee3;
-	--low: #22c55e;
-	--normal: #eab308;
-	--high: #ef4444;
-	--asap: #991b1b;
-	--sel: #fcefe4;
-	--new: #fff8f1;
+	/* Ingo Design 2.0: ground, surface, surface-sunk, line, ink, ink-soft, ink-muted */
+	--bg: #edebe4;
+	--surface: #faf9f5;
+	--surface-2: #e4e1d8;
+	--line: #cfcbbf;
+	--line-2: #e4e1d8;
+	--ink: #1d1d1b;
+	--ink-2: #4a4843;
+	--ink-3: #5e5c55;
+	/* Senfgelb markiert, was man tun kann oder wo man ist — nur als Flaeche.
+	   Akzent-Schrift ist --accent-ink (hell: Tinte, dunkel: Senfgelb). */
+	--accent: #ebc633;
+	--accent-ink: #1d1d1b;
+	--accent-soft: #f4e8b6;
+	/* Kennfarbe Taskfuchs (Identitaet, nie Zustand): App-Kopf, Marke */
+	--app: #f2935a;
+	--on-app-muted: #3b2a1f;
+	--night: #20211d;
+	--lime: #d8f35d;
+	/* Prioritaeten im Ingo-Design-Ton (Mockup TfListe); ASAP ist Nacht mit Lime */
+	--low: #8dbf86;
+	--normal: #ebc633;
+	--high: #e07a52;
+	--asap: #20211d;
+	/* Ueberfaellig, Fehler, Loeschen: Wort in status-alert-ink, nie nur Farbe */
+	--danger: #a8432a;
+	--sel: #f3ebc6;
+	--new: #f8f2da;
 
 	/* Abgeleitet: weicher Akzentschimmer fuer Fokus-/Hover-Schatten.
 	   Kein eigener Palettenwert, nur --accent mit Deckkraft. */
-	--accent-glow: rgba(228, 100, 27, 0.18);
+	--accent-glow: rgba(235, 198, 51, 0.3);
 
 	/* Schatten (Spezifikation Abschnitt 1) */
-	--sh-pop: 0 8px 24px rgba(40, 30, 20, 0.14), 0 1px 2px rgba(40, 30, 20, 0.08);
-	--sh-palette: 0 16px 40px rgba(40, 30, 20, 0.18), 0 1px 2px rgba(40, 30, 20, 0.08);
-	--sh-dialog: 0 16px 40px rgba(0, 0, 0, 0.25);
+	--sh-pop: 0 8px 24px rgba(29, 29, 27, 0.1), 0 1px 2px rgba(29, 29, 27, 0.06);
+	--sh-palette: 0 16px 40px rgba(29, 29, 27, 0.14), 0 1px 2px rgba(29, 29, 27, 0.06);
+	--sh-dialog: 0 16px 40px rgba(0, 0, 0, 0.22);
 	--sh-toast: 0 8px 20px rgba(0, 0, 0, 0.18);
-	--sh-nav: 0 1px 2px rgba(40, 30, 20, 0.06);
-	--sh-seg: 0 1px 2px rgba(40, 30, 20, 0.12);
+	--sh-nav: 0 1px 2px rgba(29, 29, 27, 0.06);
+	--sh-seg: 0 1px 2px rgba(29, 29, 27, 0.1);
+	--sh-float: 0 6px 20px rgba(29, 29, 27, 0.08);
 	--seg-active: var(--surface);
 
 	/* Radien (Spezifikation Abschnitt 1) */
-	--r-row: 10px;
-	--r-nav: 9px;
-	--r-btn: 9px;
-	--r-icon: 10px;
-	--r-pop: 12px;
-	--r-palette: 14px;
-	--r-dialog: 16px;
-	--r-sheet: 22px;
-	--r-chip: 6px;
-	--r-tf-chip: 16px;
+	/* Ingo Design 2.0: radius-sm 14, -md 18, -lg 24, -xl 28, pill */
+	--r-row: 20px;
+	--r-nav: 14px;
+	--r-btn: 999px;
+	--r-icon: 14px;
+	--r-pop: 18px;
+	--r-palette: 24px;
+	--r-dialog: 28px;
+	--r-sheet: 28px;
+	--r-chip: 999px;
+	--r-tf-chip: 999px;
 
 	/* Bewusst konstante Werte (Spezifikation Abschnitt 1) */
-	--toast-bg: #2b2521;
-	--toast-ink: #f3eee4;
-	--toast-undo: #ffb07f;
-	--on-accent: #fff;
-	--avatar-ink: var(--on-accent);
+	--toast-bg: #1d1d1b;
+	--toast-ink: #f4f2ea;
+	--toast-undo: #ebc633;
+	--on-accent: #1d1d1b;
+	--avatar-ink: #fff;
 	--avatar-a: #4f7c9b;
 	--avatar-b: #6f8f5a;
 	/* Die Spezifikation nennt zwei Avatarfarben; c und d ergaenzen dieselbe
@@ -99,45 +118,46 @@
 
 	/* Hoehe der mobilen Tab-Leiste: 52 px Inhalt + 1 px Oberlinie.
 	   Der Toast rechnet damit, statt eine Zahl zu raten. */
-	--tf-tabbar: 53px;
-	--on-danger: var(--on-accent);
+	--tf-tabbar: 84px;
+	--on-danger: #fff;
 	/* Eigener Fokusring fuer den destruktiven Dialogknopf. Der globale Ring
 	   ist 2 px --accent (Orange); auf --asap (Rot) ist das die
 	   kontrastschwaechste Paarung des ganzen Farbsatzes. --ink traegt in
 	   beiden Themes gegen Dialogflaeche und Knopf. */
 	--ring-destr: var(--ink);
-	--scrim: rgba(40, 30, 20, 0.35);
-	--scrim-soft: rgba(40, 30, 20, 0.18);
+	--scrim: rgba(20, 20, 18, 0.38);
+	--scrim-soft: rgba(20, 20, 18, 0.18);
 
 	/* Schriftstapel */
-	--font-ui: 'Instrument Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+	--font-ui: 'Manrope', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* ---------------------------------------------------------------------
    Token — dunkel. Klasse am Wurzelelement der App (.tf-dark).
    --------------------------------------------------------------------- */
 .tf-dark {
-	--bg: #181512;
-	--surface: #211d19;
-	--surface-2: #2c2620;
-	--line: #3a332b;
-	--line-2: #2f2923;
-	--ink: #f0e9dd;
-	--ink-2: #b3a899;
-	--ink-3: #7f7569;
-	--accent: #f27a2f;
-	--accent-ink: #ff9a5c;
-	--accent-soft: #3d2716;
-	--low: #9ece6a;
-	--normal: #e0af68;
-	--high: #f87171;
-	/* Dunkelrot auch im Dunkelmodus (Frank, 24.09.). #cc2222 haelt 3:1 gegen
-	   --bg und --surface und traegt weisse Chip-Schrift mit 5,5:1. */
-	--asap: #cc2222;
-	--sel: #33281e;
-	--new: #2e2519;
+	--bg: #171815;
+	--surface: #22231f;
+	--surface-2: #2c2d28;
+	--line: #4a4b44;
+	--line-2: #2c2d28;
+	--ink: #f4f2ea;
+	--ink-2: #d6d2c6;
+	--ink-3: #b9b5a8;
+	--accent: #ebc633;
+	--accent-ink: #ebc633;
+	--accent-soft: #3a3420;
+	--night: #0d0e0b;
+	--low: #8dbf86;
+	--normal: #ebc633;
+	--high: #e8906e;
+	/* ASAP: im Dunkeln traegt Lime den Streifen (Nacht verschwaende auf der dunklen Karte) */
+	--asap: #d8f35d;
+	--danger: #f0a089;
+	--sel: #34301f;
+	--new: #2a2719;
 
-	--accent-glow: rgba(242, 122, 47, 0.24);
+	--accent-glow: rgba(235, 198, 51, 0.3);
 
 	--sh-pop: 0 8px 24px rgba(0, 0, 0, 0.45);
 	--sh-palette: 0 16px 40px rgba(0, 0, 0, 0.5);
@@ -145,12 +165,14 @@
 	--sh-toast: 0 8px 20px rgba(0, 0, 0, 0.45);
 	--sh-nav: 0 1px 2px rgba(0, 0, 0, 0.3);
 	--sh-seg: none;
-	--seg-active: #3a332b;
+	--sh-float: 0 6px 20px rgba(0, 0, 0, 0.35);
+	--seg-active: #3a3b35;
+	--on-danger: #1d1d1b;
 
 	/* Toast invertiert im Dunkelmodus */
-	--toast-bg: #f0e9dd;
-	--toast-ink: #2b2521;
-	--toast-undo: #b8480b;
+	--toast-bg: #f4f2ea;
+	--toast-ink: #1d1d1b;
+	--toast-undo: #7a5c00;
 }
 
 /* ---------------------------------------------------------------------
@@ -379,7 +401,7 @@
 	flex: none;
 }
 .tf-ni .tf-ico {
-	color: var(--accent);
+	color: var(--accent-ink);
 }
 .tf-ni .name {
 	flex: 1;
@@ -620,7 +642,7 @@
 	flex: none;
 }
 .tf-li .em .tf-ico {
-	color: var(--accent);
+	color: var(--accent-ink);
 	margin: 0 auto;
 }
 .tf-li .name {
@@ -749,7 +771,7 @@
 	height: 38px;
 	border-radius: 8px;
 	background: var(--surface-2);
-	box-shadow: inset 0 0 0 1.5px var(--accent);
+	box-shadow: inset 0 0 0 1.5px var(--ink);
 	padding: 0 10px;
 	font-size: 14px;
 	border: 0;
@@ -811,7 +833,7 @@
 }
 .tf-mi.danger,
 .tf-mi.danger .tf-ico {
-	color: var(--high);
+	color: var(--danger);
 }
 
 /* Leerzustand der Mitte */
@@ -869,15 +891,15 @@
    dort das Listen-Emoji, ein Icon hat nur „Angepinnt"/„Dringend". */
 .tf-lh h2 .tf-ico,
 .tf-mobile-header h2 .tf-ico {
-	color: var(--accent);
+	color: var(--accent-ink);
 }
 
 /* Einfuegestelle beim Umsortieren der Listen in der Navigationsspalte */
 .tf-ni.ziel-oben {
-	box-shadow: inset 0 2px 0 0 var(--accent);
+	box-shadow: inset 0 2px 0 0 var(--ink);
 }
 .tf-ni.ziel-unten {
-	box-shadow: inset 0 -2px 0 0 var(--accent);
+	box-shadow: inset 0 -2px 0 0 var(--ink);
 }
 
 /* ---------------------------------------------------------------------
@@ -1096,7 +1118,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	height: 22px;
 	border-radius: 50%;
 	border: 1.75px solid var(--accent);
-	color: var(--accent);
+	color: var(--accent-ink);
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -1113,9 +1135,9 @@ body:has(.tf-ek-fertig) .tf-toasts {
 }
 .tf-qa.active {
 	background: var(--surface);
-	box-shadow: inset 0 0 0 1.5px var(--accent);
+	box-shadow: inset 0 0 0 1.5px var(--ink);
 	color: var(--ink);
-	caret-color: var(--accent);
+	caret-color: var(--ink);
 }
 /* Mobil bei offener Tastatur: die Zeile in der Liste tritt zurueck,
    getippt wird im angedockten Feld darunter. */
@@ -1285,7 +1307,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 }
 .tf-t .pin {
 	display: flex;
-	color: var(--accent);
+	color: var(--accent-ink);
 	flex: none;
 }
 .tf-row.erledigt .tf-t .tx {
@@ -1323,7 +1345,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	min-width: 0;
 }
 .tf-m .over {
-	color: var(--high);
+	color: var(--danger);
 	font-weight: 500;
 }
 /* Sanduhr: offener Warte-Eintrag im Verlauf (Aufgabenhistorie). */
@@ -1437,7 +1459,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 }
 .tf-dropend.an {
 	min-height: 40px;
-	border-top: 2px solid var(--accent);
+	border-top: 2px solid var(--ink);
 }
 
 /* ---------------------------------------------------------------------
@@ -1526,7 +1548,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	padding: 0 8px;
 	height: 28px;
 	color: var(--ink);
-	caret-color: var(--accent);
+	caret-color: var(--ink);
 }
 
 /* ---------------------------------------------------------------------
@@ -1597,8 +1619,8 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	white-space: nowrap;
 }
 .tf-chip.asap {
-	background: var(--asap);
-	color: var(--on-accent);
+	background: var(--night);
+	color: var(--lime);
 	font-weight: 600;
 	letter-spacing: 0.02em;
 }
@@ -1732,7 +1754,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	padding: 0 8px;
 	margin: 0 -8px;
 	color: var(--ink);
-	caret-color: var(--accent);
+	caret-color: var(--ink);
 }
 .tf-dt.sheet .titel {
 	font-size: 20px;
@@ -1896,7 +1918,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	margin-right: -10px;
 }
 .tf-field .clr:hover {
-	color: var(--high);
+	color: var(--danger);
 }
 
 .tf-prog {
@@ -1995,7 +2017,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	opacity: 1;
 }
 .tf-subl .del:hover {
-	color: var(--high);
+	color: var(--danger);
 	background: var(--surface-2);
 }
 .tf-subl.add {
@@ -2010,7 +2032,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: var(--accent);
+	color: var(--accent-ink);
 }
 .tf-grp.tight .tf-subl .plus {
 	width: 44px;
@@ -2034,13 +2056,13 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	resize: none;
 	outline: none;
 	overflow: hidden;
-	caret-color: var(--accent);
+	caret-color: var(--ink);
 }
 .tf-grp.tight .tf-notebox {
 	min-height: 72px;
 }
 .tf-notebox:focus {
-	border-color: var(--accent);
+	border-color: var(--ink);
 }
 
 /* ---------------------------------------------------------------------
@@ -2104,10 +2126,10 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	resize: none;
 	outline: none;
 	overflow: hidden;
-	caret-color: var(--accent);
+	caret-color: var(--ink);
 }
 .tf-hist-feld:focus {
-	border-color: var(--accent);
+	border-color: var(--ink);
 }
 .tf-grp.tight .tf-hist-feld {
 	min-height: 44px;
@@ -2201,7 +2223,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	color: var(--ink);
 }
 .tf-hist .akt.loe:hover {
-	color: var(--high);
+	color: var(--danger);
 }
 /* Touch ohne Hover (Tablet quer im Spaltenlayout): immer sichtbar. */
 @media (hover: none) {
@@ -2335,7 +2357,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	color: var(--accent-ink);
 }
 .tf-btn.danger {
-	color: var(--high);
+	color: var(--danger);
 }
 
 /* Anker fuer die Listenwahl am Kopf-Chip */
@@ -2552,7 +2574,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	height: 44px;
 }
 .tf-dialog .acts .tf-btn.destr {
-	background: var(--asap);
+	background: var(--danger);
 	color: var(--on-danger);
 }
 /* Schlaegt den globalen Ring aus dem Fuss dieser Datei (4 Klassen + Pseudo). */
@@ -2660,7 +2682,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	flex: none;
 }
 .tf-share .mem .weg:hover {
-	color: var(--high);
+	color: var(--danger);
 	background: var(--surface-2);
 }
 .tf-share .inv {
@@ -2701,7 +2723,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 .tf-share .fehler {
 	margin: 8px 0 0;
 	font-size: 12px;
-	color: var(--high);
+	color: var(--danger);
 }
 .tf-share .foot {
 	display: flex;
@@ -2767,7 +2789,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	height: 40px;
 }
 .tf-bulk .tf-ib.gefahr {
-	color: var(--high);
+	color: var(--danger);
 }
 .tf-bulk .punkt {
 	width: 8px;
@@ -2996,7 +3018,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	background: var(--surface-2);
 	font-size: 16px;
 	/* Akzentrahmen nach innen — kein zusaetzlicher Platzbedarf. */
-	box-shadow: inset 0 0 0 1.5px var(--accent);
+	box-shadow: inset 0 0 0 1.5px var(--ink);
 }
 .tf-sfield .tf-ico {
 	flex: none;
@@ -3372,6 +3394,47 @@ body:has(.tf-ek-fertig) .tf-toasts {
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
+/* Erinnerungen an Fristen: Schalter und Auswahlfelder untereinander, getrennt durch Linien */
+.tf-bn-gruppe > * + * {
+	border-top: 1px solid var(--line-2);
+}
+.tf-bn-feld {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-height: 60px;
+	font-weight: 500;
+}
+.tf-bn-wahl {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	flex: none;
+}
+.tf-bn-wahl select {
+	appearance: none;
+	-webkit-appearance: none;
+	height: 44px;
+	padding: 0 36px 0 16px;
+	border: 1px solid var(--line);
+	border-radius: var(--r-btn);
+	background: var(--surface-2);
+	color: var(--ink);
+	font-weight: 600;
+	cursor: pointer;
+}
+.tf-bn-wahl .tf-ico {
+	position: absolute;
+	right: 14px;
+	pointer-events: none;
+	color: var(--ink-2);
+}
+.tf-bn-fuss {
+	margin: 8px 0 0;
+	color: var(--ink-3);
+	font-size: 13px;
+}
 
 /* ---------------------------------------------------------------------
    Reste aus src/v2.css, die den Rueckbau ueberdauern.
@@ -3390,7 +3453,7 @@ body:has(.tf-ek-fertig) .tf-toasts {
 }
 
 .tf-root *:focus-visible {
-	outline: 2px solid var(--accent);
+	outline: 2px solid var(--ink);
 	outline-offset: 2px;
 }
 
@@ -3452,4 +3515,423 @@ body:has(.tf-ek-fertig) .tf-toasts {
 /* Menuezeilen mit 44-px-Touchziel (Familien-Quests-Eintraege) */
 .tf-mi.hoch {
 	min-height: 44px;
+}
+
+/* =====================================================================
+   INGO DESIGN 2.0 — FORMEN (seit 16.11.2026)
+   Quelle: infrastruktur/docs/design/ingo-design-2, Mockups TfListen und
+   TfListe. Karten statt Trennlinien, App-Kopf in der Kennfarbe, schwebende
+   Tab-Leiste, Abzeichen in Versalien. Steht bewusst am Ende: gleiche
+   Spezifitaet wie die Regeln oben, die Reihenfolge entscheidet.
+   ===================================================================== */
+
+/* Grund und Spalten: Creme ueberall, keine Trennlinien zwischen den Spalten */
+.tf-main {
+	background: var(--bg);
+}
+.tf-nav {
+	border-right: 0;
+}
+.tf-detail {
+	border-left: 0;
+	background: var(--surface);
+	border-radius: var(--r-palette) 0 0 var(--r-palette);
+}
+.tf-navf {
+	border-top: 0;
+}
+
+/* ---------------------------------------------------------------------
+   App-Kopf (Mobile) — einzeilige Karte in Fuchs-Orange, 60 px
+   --------------------------------------------------------------------- */
+.tf-mobile-header.tf-kopf {
+	--tf-ring: var(--app);
+	height: auto;
+	min-height: 60px;
+	margin: 12px 12px 8px;
+	padding: 8px 10px 8px 8px;
+	gap: 10px;
+	border-radius: 22px;
+	background: var(--app);
+	color: var(--on-accent);
+}
+.tf-kopf-knopf {
+	flex: none;
+	width: 44px;
+	height: 44px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.6);
+	color: var(--on-accent);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+.tf-kopf-kachel {
+	flex: none;
+	width: 34px;
+	height: 34px;
+	border-radius: 11px;
+	background: var(--on-accent);
+	color: var(--app);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+.tf-kopf-text {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+.tf-kopf-name {
+	font-size: 17px;
+	line-height: 1.15;
+	font-weight: 800;
+	letter-spacing: -0.01em;
+	color: var(--on-accent);
+}
+.tf-kopf-unter {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.3;
+	font-weight: 600;
+	color: var(--on-app-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.tf-kopf :focus-visible {
+	outline-color: var(--on-accent);
+}
+
+/* Inhalt am Handy: 20 px Seitenrand wie im Designsystem */
+.tf-app.mobil .tf-liste {
+	padding: 4px 20px 16px;
+}
+
+/* ---------------------------------------------------------------------
+   Tab-Leiste (Mobile) — schwebend, Pille, aktiver Tab in Senfgelb
+   --------------------------------------------------------------------- */
+.tf-bottombar {
+	margin: 0 20px calc(20px + var(--tf-safe-bottom));
+	padding: 0 8px;
+	height: 64px;
+	align-items: center;
+	justify-content: space-around;
+	border-top: 0;
+	border-radius: 999px;
+	background: var(--surface);
+	box-shadow: var(--sh-float);
+}
+.tf-tab {
+	flex: 0 0 auto;
+	height: 48px;
+	padding: 0 14px;
+	flex-direction: row;
+	gap: 6px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 700;
+	color: var(--ink);
+}
+.tf-tab .tf-ico {
+	width: 18px;
+	height: 18px;
+}
+.tf-tab.on {
+	background: var(--accent);
+	color: var(--on-accent);
+}
+
+/* ---------------------------------------------------------------------
+   Listenuebersicht (Mockup TfListen)
+   --------------------------------------------------------------------- */
+.tf-ov-suche {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: 100%;
+	height: 48px;
+	padding: 0 16px;
+	margin: 4px 0 14px;
+	border-radius: 999px;
+	background: var(--surface);
+	color: var(--ink-3);
+	font-size: 14px;
+	text-align: left;
+}
+.tf-ov-karten {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+	margin-bottom: 20px;
+}
+.tf-ov-karte {
+	height: 112px;
+	border-radius: 24px;
+	padding: 14px;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	text-align: left;
+}
+.tf-ov-karte .tf-ico {
+	width: 22px;
+	height: 22px;
+}
+.tf-ov-karte .unten {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
+.tf-ov-karte .name {
+	font-size: 15px;
+	font-weight: 800;
+}
+.tf-ov-karte .zahl {
+	font-size: 26px;
+	line-height: 1;
+	font-weight: 800;
+}
+.tf-ov-karte.pins {
+	background: var(--accent);
+	color: var(--on-accent);
+}
+.tf-ov-karte.dringend {
+	background: var(--night);
+	color: #f4f2ea;
+}
+.tf-ov-karte.dringend .tf-ico,
+.tf-ov-karte.dringend .zahl {
+	color: var(--lime);
+}
+.tf-ov-kopf {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0 2px 10px;
+}
+.tf-ov-kopf h2 {
+	font-size: 16px;
+	font-weight: 700;
+}
+.tf-ov-neu {
+	height: 36px;
+	padding: 0 14px;
+	border-radius: 999px;
+	border: 1.5px solid var(--line);
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--ink);
+}
+.tf-li {
+	height: auto;
+	min-height: 60px;
+	padding: 10px 14px 10px 10px;
+	margin-bottom: 8px;
+	border-radius: 18px;
+	background: var(--surface);
+	font-size: 14px;
+	font-weight: 700;
+}
+.tf-li.on {
+	background: var(--surface);
+	box-shadow: inset 0 0 0 2px var(--accent);
+}
+.tf-li .em {
+	width: 40px;
+	height: 40px;
+	border-radius: 14px;
+	background: var(--surface-2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 20px;
+}
+.tf-li .em .tf-ico {
+	color: var(--ink);
+}
+.tf-li .n {
+	min-width: 28px;
+	height: 28px;
+	padding: 0 8px;
+	border-radius: 999px;
+	background: var(--bg);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 12px;
+	font-weight: 800;
+	color: var(--ink);
+}
+.tf-li .sub {
+	display: block;
+	font-size: 12px;
+	font-weight: 500;
+	color: var(--ink-3);
+}
+.tf-li.alt {
+	min-height: 44px;
+	margin-top: -4px;
+	padding-left: 60px;
+	background: transparent;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--ink-2);
+}
+
+/* ---------------------------------------------------------------------
+   Aufgaben als Karten (Mockup TfListe). Die Karte ist .tf-rowwrap:
+   Zeile und Unteraufgaben liegen darin, der Prioritaetsstreifen laeuft
+   ueber die ganze Hoehe am linken Rand.
+   --------------------------------------------------------------------- */
+.tf-rows {
+	gap: 8px;
+}
+.tf-rowwrap {
+	background: var(--surface);
+	border-radius: 20px;
+	overflow: hidden;
+}
+.tf-rowwrap > .tf-row {
+	position: static;
+	margin-top: 0;
+	padding: 12px 14px 12px 16px;
+	border-radius: 0;
+}
+.tf-rowwrap > .tf-row:hover,
+.tf-rowwrap > .tf-row.sel,
+.tf-rowwrap > .tf-row.sel:hover,
+.tf-rowwrap > .tf-row.neu,
+.tf-rowwrap > .tf-row.neu:hover,
+.tf-rowwrap > .tf-row.gewaehlt,
+.tf-rowwrap > .tf-row.gewaehlt:hover {
+	background: transparent;
+}
+.tf-rowwrap:has(> .tf-row.sel) {
+	box-shadow: inset 0 0 0 2px var(--accent);
+}
+.tf-rowwrap:has(> .tf-row.neu) {
+	background: var(--new);
+}
+.tf-rowwrap:has(> .tf-row.gewaehlt) {
+	background: var(--accent-soft);
+}
+@media (hover: hover) {
+	.tf-rowwrap:hover {
+		box-shadow: var(--sh-pop);
+	}
+	.tf-rowwrap:has(> .tf-row.sel):hover {
+		box-shadow: inset 0 0 0 2px var(--accent), var(--sh-pop);
+	}
+}
+.tf-rowwrap .tf-bar {
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 5px;
+	height: auto;
+	border-radius: 0;
+}
+.tf-rowwrap .tf-bar.asap {
+	left: 0;
+	width: 6px;
+}
+.tf-rowwrap .tf-subs {
+	padding-bottom: 6px;
+}
+/* Trenner (Kategorien) stehen ohne Karte auf dem Grund */
+.tf-divider {
+	background: transparent;
+}
+
+/* Abzeichen in Versalien: ASAP Nacht/Lime, NEU Senfgelb */
+.tf-chip {
+	border-radius: 999px;
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	padding: 3px 8px;
+}
+.tf-chip.neu {
+	background: var(--accent);
+	color: var(--on-accent);
+}
+.tf-chip.asap {
+	background: var(--night);
+	color: var(--lime);
+}
+.tf-chip.from {
+	text-transform: none;
+	letter-spacing: 0;
+	font-weight: 600;
+	font-size: 11px;
+}
+
+/* Quick-Add: Pille, Senden-Knopf rund in Senfgelb */
+.tf-qa {
+	height: 52px;
+	padding: 0 6px 0 16px;
+	margin-bottom: 10px;
+	border-radius: 999px;
+	background: var(--surface);
+	color: var(--ink-3);
+}
+.tf-qa .plus > span {
+	border-color: var(--ink-3);
+	color: var(--ink);
+}
+.tf-qa.active {
+	box-shadow: inset 0 0 0 2px var(--ink);
+}
+.tf-qa .send {
+	width: 44px;
+	height: 44px;
+	margin-right: 0;
+	border-radius: 999px;
+}
+.tf-qa-sticky {
+	background: var(--bg);
+	border-top: 0;
+	padding: 8px 12px 10px;
+}
+
+/* Erledigt-Balken: vertiefte Karte */
+.tf-donebar {
+	margin-top: 12px;
+	min-height: 52px;
+	border-radius: 20px;
+	background: var(--surface-2);
+	border-top: 0;
+	padding: 0 8px 0 16px;
+}
+.tf-donebar .clr {
+	height: 40px;
+	padding: 0 14px;
+	border-radius: 999px;
+	background: var(--surface);
+	font-weight: 700;
+	color: var(--ink);
+}
+
+/* ---------------------------------------------------------------------
+   Seite Benachrichtigungen: derselbe App-Kopf wie in der App
+   --------------------------------------------------------------------- */
+.tf-bn-kopf.tf-kopf {
+	min-height: 60px;
+	margin: 4px 0 0;
+	padding: 8px 10px 8px 8px;
+	gap: 10px;
+	border-radius: 22px;
+	background: var(--app);
+	color: var(--on-accent);
+}
+.tf-bn-kopf .tf-kopf-name {
+	font-size: 17px;
 }

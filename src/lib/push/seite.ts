@@ -69,6 +69,72 @@ export async function setzeStumm(sb: SupabaseClient, userId: string, listId: str
 }
 
 /**
+ * Erinnerungen an Fristen (Migration 028), je Person, für alle Geräte.
+ * `uhrzeit` der Tagesmeldung als „HH:MM", `vorlauf` in Minuten vor einer Aufgabe mit Uhrzeit.
+ */
+export interface FristenEinstellungen {
+	aktiv: boolean;
+	uhrzeit: string;
+	vortag: boolean;
+	vorlauf: number;
+}
+
+/** Was gilt, solange jemand nichts eingestellt hat (keine Zeile in `push_fristen_einstellungen`). */
+export const FRISTEN_STANDARD: Readonly<FristenEinstellungen> = Object.freeze({
+	aktiv: true,
+	uhrzeit: '08:00',
+	vortag: false,
+	vorlauf: 30
+});
+
+/** 05:00 bis 22:00 im Halbstundentakt — dasselbe Raster prüft die Datenbank. */
+export const FRISTEN_UHRZEITEN: readonly string[] = Array.from({ length: 35 }, (_, i) => {
+	const minuten = 5 * 60 + i * 30;
+	return `${String(Math.floor(minuten / 60)).padStart(2, '0')}:${String(minuten % 60).padStart(2, '0')}`;
+});
+
+/** Die erlaubten Vorläufe (Check-Constraint der Datenbank) mit ihrem Text in der Auswahl. */
+export const FRISTEN_VORLAEUFE: readonly { minuten: number; text: string }[] = [
+	{ minuten: 0, text: 'Zur Uhrzeit' },
+	{ minuten: 15, text: '15 Minuten vorher' },
+	{ minuten: 30, text: '30 Minuten vorher' },
+	{ minuten: 60, text: '1 Stunde vorher' },
+	{ minuten: 120, text: '2 Stunden vorher' }
+];
+
+/**
+ * Zeile aus `push_fristen_einstellungen` (oder keine) als Einstellungen.
+ * Die Datenbank liefert die Uhrzeit als „08:00:00"; Unbekanntes fällt auf den Standard.
+ */
+export function fristenAusZeile(
+	zeile: { aktiv?: unknown; uhrzeit?: unknown; vortag?: unknown; vorlauf?: unknown } | null | undefined
+): FristenEinstellungen {
+	if (!zeile) return { ...FRISTEN_STANDARD };
+	const uhrzeit = typeof zeile.uhrzeit === 'string' ? zeile.uhrzeit.slice(0, 5) : '';
+	const vorlauf = typeof zeile.vorlauf === 'number' ? zeile.vorlauf : NaN;
+	return {
+		aktiv: typeof zeile.aktiv === 'boolean' ? zeile.aktiv : FRISTEN_STANDARD.aktiv,
+		uhrzeit: FRISTEN_UHRZEITEN.includes(uhrzeit) ? uhrzeit : FRISTEN_STANDARD.uhrzeit,
+		vortag: typeof zeile.vortag === 'boolean' ? zeile.vortag : FRISTEN_STANDARD.vortag,
+		vorlauf: FRISTEN_VORLAEUFE.some((v) => v.minuten === vorlauf) ? vorlauf : FRISTEN_STANDARD.vorlauf
+	};
+}
+
+/**
+ * Einstellungen speichern (RPC `push_fristen_einstellen`, prüft Anmeldung und Werte).
+ * Wirft bei einem Fehler, damit die Seite die Anzeige zurücknehmen kann.
+ */
+export async function speichereFristen(sb: SupabaseClient, e: FristenEinstellungen): Promise<void> {
+	const { error } = await sb.rpc('push_fristen_einstellen', {
+		p_aktiv: e.aktiv,
+		p_uhrzeit: e.uhrzeit,
+		p_vortag: e.vortag,
+		p_vorlauf: e.vorlauf
+	});
+	if (error) throw new Error(error.message);
+}
+
+/**
  * Ruft `aktualisieren` jedes Mal auf, wenn die Seite wieder sichtbar wird.
  *
  * Wer die Benachrichtigungen in den Android-Einstellungen erlaubt oder sperrt,

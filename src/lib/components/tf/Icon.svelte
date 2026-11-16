@@ -18,6 +18,8 @@
 		],
 		pin: [{ t: 'path', d: 'M12 17v5M8 3h8l-1 6 3 3v2H6v-2l3-3z' }],
 		blitz: [{ t: 'path', d: 'M13 2L4 14h7l-1 8 9-12h-7z' }],
+		// Ingo Design 2.0: App-Symbol (Fuchskopf) fuer den App-Kopf, dieselbe Form wie im Ingo Hub
+		fuchs: [{ t: 'path', d: 'M4 4l4 5h8l4-5v8a8 8 0 0 1-16 0zM9 13h.01M15 13h.01M10 17l2 1.5 2-1.5' }],
 		kalender: [
 			{ t: 'rect', x: 3, y: 5, w: 18, h: 16, rx: 2 },
 			{ t: 'path', d: 'M3 10h18M8 3v4M16 3v4' }
